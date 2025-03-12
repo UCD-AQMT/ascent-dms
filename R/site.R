@@ -1,0 +1,401 @@
+
+siteUI <- function(id) {
+  
+  ns <- NS(id)
+  today <- Sys.Date() + 1
+  start_day <- today - 7
+  
+  tagList(
+    fluidRow(
+      box(
+        dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
+                       min = "2023-01-01", max = today),
+        width = 3
+      )
+    ),
+    fluidRow(
+      box(
+        plotlyOutput(ns("pm"), height = 250) |>
+          withSpinner(),
+        width = 12
+      )
+    ),
+    fluidRow(
+      box(
+        plotlyOutput(ns("acsm"), height = 250) |>
+          withSpinner(),
+        width = 12
+      )
+    ),
+    fluidRow(
+      box(
+        plotlyOutput(ns("xact"), height = 250) |>
+          withSpinner(),
+        width = 12
+      )
+    ),
+    fluidRow(
+      box(
+        plotlyOutput(ns("aeth"), height = 250) |>
+          withSpinner(),
+        width = 12
+      )
+    ),
+    fluidRow(
+      box(
+        plotlyOutput(ns("mass_fraction"), height = 250) |>
+          withSpinner(),
+        width = 12
+      )
+    )
+  )
+  
+
+  
+}
+
+siteServer <- function(id, site) {
+  moduleServer(id, function(input, output, session) {
+    
+    # Data reactives -------
+    
+    purpleair_ts <- reactive({
+      
+      df <- tbl(con, I("purpleair.sample_analysis")) |>
+        inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
+        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+                   by = "site_number") |>
+        filter(site_code == !!site(),
+               last_seen >= !!input$dates[1],
+               last_seen <= !!input$dates[2]) |>
+        select(last_seen, pm2_5_atm) |>
+        mutate(time_hour = lubridate::floor_date(last_seen, "hour")) |>
+        summarise(PA_PM25 = median(pm2_5_atm, na.rm = TRUE),
+                  .by = time_hour) |>
+        collect()
+      df
+    })
+    
+    xact_ts <- reactive({
+
+      df <- tbl(con, I("xact.sample_analysis")) |>
+        select(id, site_number, sample_datetime, sample_type) |>
+        inner_join(select(tbl(con, I("xact.raw_measurements")),  
+                          sample_analysis_id, element, value),
+                   by = c("id"="sample_analysis_id")) |>
+        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+                   by = "site_number") |>
+        filter(site_code == !!site(),
+               sample_datetime >= !!input$dates[1],
+               sample_datetime <= !!input$dates[2],
+               sample_type == 1) |>
+        select(sample_datetime, element, value) |>
+        collect()
+      
+    })
+    
+    smps_ts <- reactive({
+      df <- tbl(con, I("smps.sample_analysis")) |>
+        inner_join(select(tbl(con, I("common.sites")), site_code, site_number), 
+                   by = "site_number") |>
+        filter(sample_start >= !!input$dates[1],
+               sample_start <= !!input$dates[2],
+               site_code == !!site()) |>
+        select(site_code, datetime=sample_start, concentration_json) |>
+        collect()
+      
+      shiny::validate(need(nrow(df) > 0, "No data for time period."))
+      
+      smps_records <- jsonlite::stream_in(textConnection(df$concentration_json), 
+                                          verbose = FALSE)
+      
+      midpoints <- as.numeric(names(smps_records))
+      
+      dM <- dMdlogDp(midpoints, smps_records) * dlogDp(midpoints)
+      M <- rowSums(dM)
+      
+      df <- df |>
+        select(datetime) |>
+        mutate(value = M,
+               time_hour = lubridate::floor_date(datetime, "hour")) |>
+        summarise(SMPS = median(value, na.rm = TRUE),
+                  .by = time_hour)
+      return(df)
+      
+    })
+    
+    acsm_ts <- reactive({
+      
+      df <- tbl(con, I("acsm.sample_analysis")) |>
+        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+                   by = "site_number") |>
+        inner_join(select(tbl(con, I("acsm.mass_loadings")), -id, -site_record_id), 
+                   by = c("id"="sample_analysis_id")) |>
+        filter(site_code == !!site(),
+               start_date > !!input$dates[1],
+               start_date < !!input$dates[2]) |>
+        select(start_date, chl:so4) |>
+        collect() |>
+        tidyr::pivot_longer(chl:so4, names_to = "param", values_to = "value")
+      
+      validate(need(nrow(df) > 0, "No data for site"))
+      df
+      
+    })
+    
+    # This may need to move elsewhere in the app - not sure
+    ae33_client <- InfluxDBClient$new(url = "https://eastus-1.azure.cloud2.influxdata.com",
+                                      token = read_token,
+                                      org = "ascent")
+    
+    ae33_ts <- reactive({
+      # Black carbon is BC6 - BrC is calculated from BC1, BC6 and the respective mass
+      # absorption cross sections (per Mitchell Rodgers):
+      # BrC = (BC1 * MAC1 - BC6 * MAC6) / MAC1
+      # MACs listed in AE33 manual
+      # MAC1 = 18.47 m2/g
+      # MAC6 = 7.77 m2/g
+      
+      mac1 <- 18.47
+      mac6 <- 7.77
+      
+      flux_query <- glue::glue('from(bucket: "measurements") |> ', 
+                               'range(start: {input$dates[1]}T00:00:00Z,',
+                               'stop: {input$dates[2]}T23:59:59Z) |> ', 
+                               'filter(fn: (r) => r._measurement == "ae33_{site()}_raw"',
+                               'and r._field == "EBC_6") |> ',
+                               'aggregateWindow(every: 1h, fn: median) |> ',
+                               'drop(columns: ["_start", "_stop"])')
+      
+      bc6 <- ae33_client$query(flux_query)[[1]] |>
+        select(time_hour=time, BC6=`_value`)
+      
+      flux_query <- glue::glue('from(bucket: "measurements") |> ', 
+                               'range(start: {input$dates[1]}T00:00:00Z,',
+                               'stop: {input$dates[2]}T23:59:59Z) |> ', 
+                               'filter(fn: (r) => r._measurement == "ae33_{site()}_raw"',
+                               'and r._field == "EBC_1") |> ',
+                               'aggregateWindow(every: 1h, fn: median) |> ',
+                               'drop(columns: ["_start", "_stop"])')
+      bc1 <- ae33_client$query(flux_query)[[1]] |>
+        select(time_hour=time, BC1=`_value`)
+      
+      bc <- full_join(bc1, bc6, by = "time_hour") |>
+        mutate(BrC = (BC1 * mac1 - BC6 * mac6) / mac1)
+    })
+    
+    ## Plots -----
+    
+    output$pm <- renderPlotly({
+      
+      pa <- purpleair_ts()
+      validate(need(nrow(pa) > 0, "no data"))
+      
+      # For Xact, need total minus S
+      xact <- xact_ts() |>
+        filter(element != "S") |>
+        summarise(Metals = sum(value, na.rm = TRUE) / 1000,
+                  .by = sample_datetime) |>
+        mutate(time_hour = lubridate::floor_date(sample_datetime, "hour")) |>
+        summarise(Metals = median(Metals, na.rm = TRUE),
+                  .by = time_hour)
+      
+      # If 4-hr data, fill in gaps
+      if (site() %in% c("DeltaJunction", "Yellowstone", "LookRock",
+                        "CheekaPeak", "JoshuaTree")) {
+        x2 <- xact |>
+          mutate(time_hour = time_hour + lubridate::hours(1))
+        x3 <- xact |>
+          mutate(time_hour = time_hour - lubridate::hours(2))
+        x4 <- xact |>
+          mutate(time_hour = time_hour - lubridate::hours(1))
+        xact <- bind_rows(xact, x2, x3, x4)
+      }
+
+      ae33 <- ae33_ts() |>
+        select(time_hour, BC=BC6)
+      smps <- smps_ts()
+      acsm <- acsm_ts() |>
+        mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
+        summarise(value = median(value, na.rm = TRUE),
+                  .by = c(time_hour, param)) |>
+        summarise(ACSM = sum(value, na.rm = TRUE),
+                  .by = time_hour)
+
+      ts_data <- pa |>
+        full_join(xact, by = "time_hour") |>
+        full_join(ae33, by = "time_hour") |>
+        full_join(smps, by = "time_hour") |>
+        full_join(acsm, by = "time_hour") |>
+        mutate(Comb = ACSM + Metals + BC) |>
+        select(time_hour, Comb, SMPS, PA_PM25) |>
+        tidyr::pivot_longer(Comb:PA_PM25, names_to = "name", values_to = "value") |>
+        mutate(name = if_else(name == "Comb", "ACSM + BC +\nXact (minus S)",
+                              if_else(name == "PA_PM25", "PurpleAir PM<sub>2.5</sub>",
+                                      name)))
+      
+      g <- ggplot(ts_data, aes(x = time_hour, y = value, color = name)) + geom_line() +
+        scale_x_datetime(labels = scales::label_date_short()) +
+        theme_bw() +
+        labs(y = paste("Aerosol Mass\n", ugm3())) +
+        theme(axis.title.x = element_blank())
+        
+      ggplotly(g, dynamicTicks = TRUE)
+      
+    })
+    
+    output$acsm <- renderPlotly({
+      
+      acsm <- acsm_ts() |>
+        mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
+        summarise(value = median(value, na.rm = TRUE),
+                  .by = c(time_hour, param))
+      validate(need(nrow(acsm) > 0, "No ACSM data in time period"))
+      
+      g <- ggplot(acsm, aes(x = time_hour, y = value, color = param)) + 
+        geom_line() +
+        geom_point(size = 0.5) +
+        scale_color_manual(values = acsm_colors) +
+        scale_x_datetime(labels = scales::label_date_short()) +
+        theme_bw() +
+        labs(y = paste("ACSM Species\n", ugm3())) +
+        theme(axis.title.x = element_blank())
+      
+      ggplotly(g, dynamicTicks = TRUE)
+      
+    })
+    
+    
+    output$xact <- renderPlotly({
+      
+      df <- xact_ts() |>
+        filter(element %in% c("S", "Si", "Cl", "K", "Ba", "Se", "Cu", "Fe", "Ca")) |>
+        mutate(time_hour = lubridate::floor_date(sample_datetime, "hour"),
+               value = value / 1000) |>
+        summarise(value = median(value, na.rm = TRUE),
+                  .by = c(time_hour, element))
+      validate(need(nrow(df) > 0, "No Xact data in time period"))
+
+      g <- ggplot(df, aes(x = time_hour, y = value, color = element)) + 
+        geom_line() +
+        geom_point(size = 0.5) +
+        scale_x_datetime(labels = scales::label_date_short()) +
+        theme_bw() +
+        labs(y = paste("Xact Elements\n", ugm3())) +
+        theme(axis.title.x = element_blank())
+      ggplotly(g, dynamicTicks = TRUE)
+      
+    })
+    
+    output$aeth <- renderPlotly({
+      
+      df <- ae33_ts() |>
+        select(time_hour, BC=BC6, BrC) |>
+        tidyr::pivot_longer(BC:BrC, names_to = "param", values_to = "value")
+      validate(need(nrow(df) > 0, "No data from AE33 in time period"))
+
+      g <- ggplot(df, aes(x = time_hour, y = value, color = param)) + 
+        geom_line() +
+        geom_point(size = 0.5) +
+        scale_color_manual(values = c("BC"="black", "BrC"="brown")) +
+        scale_x_datetime(labels = scales::label_date_short()) +
+        theme_bw() +
+        labs(y = paste("Black/Brown\nCarbon", ugm3())) +
+        theme(axis.title.x = element_blank())
+      
+      ggplotly(g, dynamicTicks = TRUE)
+      
+    })
+    
+    output$mass_fraction <- renderPlotly({
+      
+      acsm <- acsm_ts() |>
+        mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
+        summarise(value = median(value, na.rm = TRUE),
+                  .by = c(time_hour, param))
+      
+      # For Xact, need total minus S
+      xact <- xact_ts() |>
+        filter(element != "S") |>
+        summarise(Metals = sum(value, na.rm = TRUE) / 1000,
+                  .by = sample_datetime) |>
+        mutate(time_hour = lubridate::floor_date(sample_datetime, "hour")) |>
+        summarise(Metals = median(Metals, na.rm = TRUE),
+                  .by = time_hour)
+
+      # # If 4-hr data, fill in gaps
+      if (site() %in% c("DeltaJunction", "Yellowstone", "LookRock",
+                        "CheekaPeak", "JoshuaTree")) {
+        x2 <- xact |>
+          mutate(time_hour = time_hour + lubridate::hours(1))
+        x3 <- xact |>
+          mutate(time_hour = time_hour - lubridate::hours(2))
+        x4 <- xact |>
+          mutate(time_hour = time_hour - lubridate::hours(1))
+        xact <- bind_rows(xact, x2, x3, x4)
+      }
+      xact <- xact |>
+        mutate(param = "xact") |>
+        rename(value=Metals)
+
+      # Set negatives to 0 to make a reasonable mass fraction plot
+      df <- bind_rows(acsm, xact) |>
+        mutate(value = if_else(value < 0, 0, value)) |>
+        tidyr::pivot_wider(names_from = param, values_from = value) |>
+        mutate(Total = chl + nh4 + no3 + org + so4 + xact,
+               chl = chl / Total * 100,
+               nh4 = nh4 / Total * 100,
+               no3 = no3 / Total * 100,
+               org = org / Total * 100,
+               so4 = so4 / Total * 100,
+               xact = xact / Total * 100) |>
+        select(-Total) |>
+        rename(`Xact (minus S)`=xact) |>
+        tidyr::pivot_longer(chl:`Xact (minus S)`, names_to = "param", values_to = "value") |>
+        arrange(time_hour)
+  
+      g <- ggplot(df, aes(x = time_hour, y = value, fill = param)) + 
+        geom_area() +
+        scale_fill_manual(values = acsm_colors) +
+        scale_x_datetime(labels = scales::label_date_short()) +
+        theme_bw() +
+        labs(y = "Aerosol Mass\nFraction (%)") +
+        theme(axis.title.x = element_blank())
+      
+      ggplotly(g, dynamicTicks = TRUE)
+      
+      
+    })
+    
+    ### Some SMPS calculations -----
+    dlogDp <- function(midpoints) {
+      # Calculate the lower and upper bound for each size bin
+      avg_diff <- mean(diff(log10(midpoints)))
+      
+      # The value of the midpoint 1 before
+      previous_mid <- c(NA, midpoints)[1:length(midpoints)]
+      
+      # Create the bounds (one larger than the midpoints)
+      bounds <- 10^(0.5 * (log10(midpoints) + log10(previous_mid)))
+      bounds <- c(bounds, NA)
+      
+      # First and last boundary are based on the average difference
+      bounds[1] <- 10^(log10(midpoints[1]) - 0.5 * avg_diff)
+      bounds[length(bounds)] <- 10^(log10(midpoints[length(midpoints)]) + 0.5 * avg_diff)
+      
+      D_low <- bounds[1:length(bounds)-1]
+      D_high <- bounds[2:length(bounds)]
+      dlogDp <- log10(D_high) - log10(D_low)
+    }
+    
+    dMdlogDp <- function(midpoints, smps_records) {
+      dNdlogDp <- data.matrix(smps_records)
+      # calculate mass distribution and total mass of scan. Must assume a particle density.
+      density <- 1.4  # g/cm3
+      mass_convert <- (density / 1e9) * (pi / 6) * midpoints^3
+      dMdlogDp <- t(apply(dNdlogDp, MARGIN = 1, function(x) x * mass_convert))    #ug/m3
+    }
+    
+
+  })
+}
