@@ -79,8 +79,13 @@ siteServer <- function(id, site) {
                site_code == !!site()) |>
         select(site_code, datetime=sample_start, concentration_json) |>
         collect()
-      
-      shiny::validate(need(nrow(df) > 0, "No data for time period."))
+    
+      if (nrow(df) == 0) {
+        df <- df |>
+          select(time_hour=datetime) |>
+          tibble::add_column(SMPS = NA_real_)
+        return(df)
+      }
       
       smps_records <- jsonlite::stream_in(textConnection(df$concentration_json), 
                                           verbose = FALSE)
@@ -114,7 +119,6 @@ siteServer <- function(id, site) {
         collect() |>
         tidyr::pivot_longer(chl:so4, names_to = "param", values_to = "value")
       
-      validate(need(nrow(df) > 0, "No data for site"))
       df
       
     })
@@ -142,9 +146,19 @@ siteServer <- function(id, site) {
                                'and r._field == "EBC_6") |> ',
                                'aggregateWindow(every: 1h, fn: median) |> ',
                                'drop(columns: ["_start", "_stop"])')
+    
+      bc6 <- ae33_client$query(flux_query)[[1]]
       
-      bc6 <- ae33_client$query(flux_query)[[1]] |>
-        select(time_hour=time, BC6=`_value`)
+      if (is.null(bc6)) {
+        df <- tibble(time_hour = as.Date(x = integer(0), origin = "1970-01-01"),
+                     BC1 = NA_real_,
+                     BC6 = NA_real_,
+                     BrC = NA_real_)
+        return(df)
+      } else {
+        bc6 <- bc6 |>
+          select(time_hour=time, BC6=`_value`)
+      }
       
       flux_query <- glue::glue('from(bucket: "measurements") |> ', 
                                'range(start: {input$dates[1]}T00:00:00Z,',
@@ -161,13 +175,10 @@ siteServer <- function(id, site) {
     })
     
     ## Plots -----
-    
-    #output$pm <- renderPlotly({
     pm <- reactive({
         
       pa <- purpleair_ts()
-      validate(need(nrow(pa) > 0, "no data"))
-      
+
       # For Xact, need total minus S
       xact <- xact_ts() |>
         filter(element != "S") |>
@@ -208,7 +219,7 @@ siteServer <- function(id, site) {
         select(time_hour, Comb, SMPS, PA_PM25) |>
         tidyr::pivot_longer(Comb:PA_PM25, names_to = "name", values_to = "value") |>
         mutate(name = if_else(name == "Comb", "ACSM + BC +\nXact (minus S)",
-                              if_else(name == "PA_PM25", "PurpleAir PM<sub>2.5</sub>",
+                              if_else(name == "PA_PM25", "PurpleAir PM2.5",
                                       name)))
       
       g <- ggplot(ts_data, aes(x = time_hour, y = value, color = name)) + 
@@ -226,8 +237,7 @@ siteServer <- function(id, site) {
         mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
         summarise(value = median(value, na.rm = TRUE),
                   .by = c(time_hour, param))
-      validate(need(nrow(acsm) > 0, "No ACSM data in time period"))
-      
+
       g <- ggplot(acsm, aes(x = time_hour, y = value, color = param)) + 
         geom_line(linewidth = 1) +
         geom_point(size = 1.8) +
@@ -247,7 +257,6 @@ siteServer <- function(id, site) {
                value = value / 1000) |>
         summarise(value = median(value, na.rm = TRUE),
                   .by = c(time_hour, element))
-      validate(need(nrow(df) > 0, "No Xact data in time period"))
 
       g <- ggplot(df, aes(x = time_hour, y = value, color = element)) + 
         geom_line(linewidth = 1) +
@@ -264,7 +273,6 @@ siteServer <- function(id, site) {
       df <- ae33_ts() |>
         select(time_hour, BC=BC6, BrC) |>
         tidyr::pivot_longer(BC:BrC, names_to = "param", values_to = "value")
-      validate(need(nrow(df) > 0, "No data from AE33 in time period"))
 
       g <- ggplot(df, aes(x = time_hour, y = value, color = param)) + 
         geom_line(linewidth = 1) +
@@ -307,7 +315,11 @@ siteServer <- function(id, site) {
       xact <- xact |>
         mutate(param = "xact") |>
         rename(value=Metals)
-
+      
+      if (nrow(xact) == 0 | nrow(acsm) == 0) {
+        return(NULL)
+      }
+      
       # Set negatives to 0 to make a reasonable mass fraction plot
       df <- bind_rows(acsm, xact) |>
         mutate(value = if_else(value < 0, 0, value)) |>
@@ -335,7 +347,7 @@ siteServer <- function(id, site) {
     })
     
     output$plot <- renderPlot({
-      
+     
       p1 <- pm()
       p2 <- acsm()
       p3 <- xact()
