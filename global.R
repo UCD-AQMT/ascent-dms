@@ -27,7 +27,7 @@ site_list <- tbl(con, I("common.sites")) |>
   pull(site_code)
 
 # This is for influxdb
-read_token <- "30KDjq15dHImtVAiDKrnWVm6Z1Vnr7EswXIP3Rm7Oy6SMl2hqBSnIIKnSW1XZ8iBmEvhzmYgSpHrn1bStm1C_w=="
+read_token <- args$influx_read_token
 
 
 acsm_colors <- c("chl"="violet", "nh4"="goldenrod1", "no3"="dodgerblue",
