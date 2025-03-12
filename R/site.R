@@ -15,35 +15,7 @@ siteUI <- function(id) {
     ),
     fluidRow(
       box(
-        plotlyOutput(ns("pm"), height = 250) |>
-          withSpinner(),
-        width = 12
-      )
-    ),
-    fluidRow(
-      box(
-        plotlyOutput(ns("acsm"), height = 250) |>
-          withSpinner(),
-        width = 12
-      )
-    ),
-    fluidRow(
-      box(
-        plotlyOutput(ns("xact"), height = 250) |>
-          withSpinner(),
-        width = 12
-      )
-    ),
-    fluidRow(
-      box(
-        plotlyOutput(ns("aeth"), height = 250) |>
-          withSpinner(),
-        width = 12
-      )
-    ),
-    fluidRow(
-      box(
-        plotlyOutput(ns("mass_fraction"), height = 250) |>
+        plotOutput(ns("plot"), height = 1000) |>
           withSpinner(),
         width = 12
       )
@@ -58,6 +30,10 @@ siteServer <- function(id, site) {
   moduleServer(id, function(input, output, session) {
     
     # Data reactives -------
+    
+    date_range <- reactive({
+      c(as.POSIXct(input$dates[1]), as.POSIXct(input$dates[2]))
+    })
     
     purpleair_ts <- reactive({
       
@@ -186,8 +162,9 @@ siteServer <- function(id, site) {
     
     ## Plots -----
     
-    output$pm <- renderPlotly({
-      
+    #output$pm <- renderPlotly({
+    pm <- reactive({
+        
       pa <- purpleair_ts()
       validate(need(nrow(pa) > 0, "no data"))
       
@@ -234,17 +211,16 @@ siteServer <- function(id, site) {
                               if_else(name == "PA_PM25", "PurpleAir PM<sub>2.5</sub>",
                                       name)))
       
-      g <- ggplot(ts_data, aes(x = time_hour, y = value, color = name)) + geom_line() +
-        scale_x_datetime(labels = scales::label_date_short()) +
-        theme_bw() +
-        labs(y = paste("Aerosol Mass\n", ugm3())) +
+      g <- ggplot(ts_data, aes(x = time_hour, y = value, color = name)) + 
+        geom_line(linewidth = 1) +
+        scale_x_datetime(labels = scales::label_date_short(),
+                         limits = date_range()) +
+        labs(y = expression(atop("Aerosol Mass", mu*g~m^-3))) +
         theme(axis.title.x = element_blank())
-        
-      ggplotly(g, dynamicTicks = TRUE)
-      
+
     })
     
-    output$acsm <- renderPlotly({
+    acsm <- reactive({
       
       acsm <- acsm_ts() |>
         mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
@@ -253,20 +229,17 @@ siteServer <- function(id, site) {
       validate(need(nrow(acsm) > 0, "No ACSM data in time period"))
       
       g <- ggplot(acsm, aes(x = time_hour, y = value, color = param)) + 
-        geom_line() +
-        geom_point(size = 0.5) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 1.8) +
         scale_color_manual(values = acsm_colors) +
-        scale_x_datetime(labels = scales::label_date_short()) +
-        theme_bw() +
-        labs(y = paste("ACSM Species\n", ugm3())) +
+        scale_x_datetime(labels = scales::label_date_short(),
+                         limits = date_range()) +
+        labs(y = expression(atop("ACSM Species", mu*g~m^-3))) +
         theme(axis.title.x = element_blank())
-      
-      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
-    
-    output$xact <- renderPlotly({
+    xact <- reactive({
       
       df <- xact_ts() |>
         filter(element %in% c("S", "Si", "Cl", "K", "Ba", "Se", "Cu", "Fe", "Ca")) |>
@@ -277,17 +250,16 @@ siteServer <- function(id, site) {
       validate(need(nrow(df) > 0, "No Xact data in time period"))
 
       g <- ggplot(df, aes(x = time_hour, y = value, color = element)) + 
-        geom_line() +
-        geom_point(size = 0.5) +
-        scale_x_datetime(labels = scales::label_date_short()) +
-        theme_bw() +
-        labs(y = paste("Xact Elements\n", ugm3())) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 1.8) +
+        scale_x_datetime(labels = scales::label_date_short(),
+                         limits = date_range()) +
+        labs(y = expression(atop("Xact Elements", mu*g~m^-3))) +
         theme(axis.title.x = element_blank())
-      ggplotly(g, dynamicTicks = TRUE)
-      
+
     })
     
-    output$aeth <- renderPlotly({
+    aeth <- reactive({
       
       df <- ae33_ts() |>
         select(time_hour, BC=BC6, BrC) |>
@@ -295,19 +267,17 @@ siteServer <- function(id, site) {
       validate(need(nrow(df) > 0, "No data from AE33 in time period"))
 
       g <- ggplot(df, aes(x = time_hour, y = value, color = param)) + 
-        geom_line() +
-        geom_point(size = 0.5) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 1.8) +
         scale_color_manual(values = c("BC"="black", "BrC"="brown")) +
-        scale_x_datetime(labels = scales::label_date_short()) +
-        theme_bw() +
-        labs(y = paste("Black/Brown\nCarbon", ugm3())) +
+        scale_x_datetime(labels = scales::label_date_short(),
+                         limits = date_range()) +
+        labs(y = expression(atop("Black/Brown", "Carbon"~mu*g~m^-3))) +
         theme(axis.title.x = element_blank())
-      
-      ggplotly(g, dynamicTicks = TRUE)
-      
+
     })
     
-    output$mass_fraction <- renderPlotly({
+    mass_fraction <- reactive({
       
       acsm <- acsm_ts() |>
         mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
@@ -357,15 +327,28 @@ siteServer <- function(id, site) {
       g <- ggplot(df, aes(x = time_hour, y = value, fill = param)) + 
         geom_area() +
         scale_fill_manual(values = acsm_colors) +
-        scale_x_datetime(labels = scales::label_date_short()) +
-        theme_bw() +
+        scale_x_datetime(labels = scales::label_date_short(),
+                         limits = date_range()) +
         labs(y = "Aerosol Mass\nFraction (%)") +
         theme(axis.title.x = element_blank())
+
+    })
+    
+    output$plot <- renderPlot({
       
-      ggplotly(g, dynamicTicks = TRUE)
+      p1 <- pm()
+      p2 <- acsm()
+      p3 <- xact()
+      p4 <- aeth()
+      p5 <- mass_fraction()
+      
+      # Compose the plot using the patchwork package
+      p1 / p2 / p3 / p4 / p5 +
+        plot_layout(axis_titles = "collect")
       
       
     })
+    
     
     ### Some SMPS calculations -----
     dlogDp <- function(midpoints) {

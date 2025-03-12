@@ -8,6 +8,12 @@ library(dbplyr)
 library(influxdbclient)
 library(plotly)
 library(shinycssloaders)
+library(patchwork)
+library(thematic)
+
+# Set themes for all plots
+thematic_shiny(font = "auto")
+theme_set(theme_minimal(base_size = 16))
 
 # Connection (dataconnection for production, dataconnection_dev for dev)
 datacon <- "dataconnection"

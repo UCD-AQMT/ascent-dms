@@ -109,7 +109,7 @@ acsmServer <- function(id, site) {
       
       ggplot(df, aes(x = start_date, y = .data[[param]])) + geom_line() +
         scale_x_datetime(labels = scales::label_date_short()) +
-        theme_minimal() +
+        #theme_minimal() +
         theme(axis.title.x = element_blank())
       
     }
@@ -153,7 +153,7 @@ acsmServer <- function(id, site) {
         geom_bar(aes(x = start_date, y = value, fill = param), stat = "identity") +
         scale_fill_manual(values = acsm_colors) +
         scale_x_datetime(labels = scales::label_date_short()) +
-        theme_minimal()
+        labs(y = expression(atop("ACSM Species", mu*g~m^-3)))
       
     })
     
