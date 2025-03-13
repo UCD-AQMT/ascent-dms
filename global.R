@@ -57,6 +57,9 @@ ugm3 <- function() {
 ctscm3 <- function() {
   paste0("(cts/cm<sup>3</sup>)")
 }
+ngm3 <- function() {
+  "(ng/m<sup>3</sup>)"
+}
 
 # Shutdown Chores
 onStop(function() {

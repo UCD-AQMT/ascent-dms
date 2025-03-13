@@ -95,17 +95,17 @@ smpsServer <- function(id, site) {
         } else {
           sub <- glue::glue("Last data {round(hours)} hours ago")          
         }
-        infoBox("Status", txt, subtitle = sub, color = "red", icon = icon("exclamation"),
+        infoBox("Reporting", txt, subtitle = sub, color = "red", icon = icon("exclamation"),
                 width = 3)
       } else if (tdiff > 60) {
         txt <- "Lagging"
         sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Status", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
+        infoBox("Reporting", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
                 width = 3)
       } else {
         txt <- "Online"
         sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Status", txt, subtitle = sub, color = "blue", icon = icon("check"),
+        infoBox("Reporting", txt, subtitle = sub, color = "blue", icon = icon("check"),
                 width = 3)
         
       }
@@ -223,7 +223,7 @@ smpsServer <- function(id, site) {
       
       df <- get_range()
       g <- ts_plot(input$plot1_y, df)
-      ggplotly(g)
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
@@ -231,7 +231,7 @@ smpsServer <- function(id, site) {
       
       df <- get_range()
       g <- ts_plot(input$plot2_y, df)
-      ggplotly(g)
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
