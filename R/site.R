@@ -28,7 +28,7 @@ siteUI <- function(id) {
 
 siteServer <- function(id, site) {
   moduleServer(id, function(input, output, session) {
-    
+
     # Data reactives -------
     
     date_range <- reactive({
@@ -122,11 +122,6 @@ siteServer <- function(id, site) {
       df
       
     })
-    
-    # This may need to move elsewhere in the app - not sure
-    ae33_client <- InfluxDBClient$new(url = "https://eastus-1.azure.cloud2.influxdata.com",
-                                      token = read_token,
-                                      org = "ascent")
     
     ae33_ts <- reactive({
       # Black carbon is BC6 - BrC is calculated from BC1, BC6 and the respective mass
@@ -302,8 +297,7 @@ siteServer <- function(id, site) {
                   .by = time_hour)
 
       # # If 4-hr data, fill in gaps
-      if (site() %in% c("DeltaJunction", "Yellowstone", "LookRock",
-                        "CheekaPeak", "JoshuaTree")) {
+      if (site() %in% rural_sites) {
         x2 <- xact |>
           mutate(time_hour = time_hour + lubridate::hours(1))
         x3 <- xact |>

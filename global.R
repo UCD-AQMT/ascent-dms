@@ -10,10 +10,14 @@ library(plotly)
 library(shinycssloaders)
 library(patchwork)
 library(thematic)
+library(DT)
 
 # Set themes for all plots
 thematic_shiny(font = "auto")
 theme_set(theme_minimal(base_size = 16))
+
+# Enable bookmarking
+enableBookmarking(store = "url")
 
 # Connection (dataconnection for production, dataconnection_dev for dev)
 datacon <- "dataconnection"
@@ -33,8 +37,13 @@ site_list <- tbl(con, I("common.sites")) |>
   pull(site_code)
 
 # This is for influxdb
-read_token <- args$influx_read_token
+ae33_client <- InfluxDBClient$new(url = "https://eastus-1.azure.cloud2.influxdata.com",
+                                  token = args$influx_read_token,
+                                  org = "ascent")
 
+# Rural sites have slower Xact data
+rural_sites <- c("DeltaJunction", "Yellowstone", "LookRock",
+                 "CheekaPeak", "JoshuaTree")
 
 acsm_colors <- c("chl"="violet", "nh4"="goldenrod1", "no3"="dodgerblue",
                  "org"="lightgreen", "so4"="tomato", "Xact (minus S)"="darkgray")
