@@ -5,14 +5,13 @@ acsmUI <- function(id) {
   
   # ACSM tables
   sa <- tbl(con, I("acsm.sample_analysis"))
-  sites <- tbl(con, I("common.sites"))
   tps <- tbl(con, I("acsm.tps"))
   mls <- tbl(con, I("acsm.mass_loadings"))
   calib <- tbl(con, I("acsm.diag_calib"))
   
   # Get the tablenames
   df <- sa |>
-    inner_join(select(sites, site_number, site_code), by = "site_number") |>
+    inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
     inner_join(select(tps, -id, -site_record_id),
                by = c("id"="sample_analysis_id")) |>
     inner_join(select(mls, -id, -site_record_id), by = c("id"="sample_analysis_id")) |>
@@ -40,25 +39,25 @@ acsmUI <- function(id) {
     fluidRow(
       column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
              selected = "ab_total")),
-      column(10, plotOutput(ns("plot1"), height = 150))
+      column(10, plotlyOutput(ns("plot1"), height = 150))
     ),
     fluidRow(
       column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
                             selected = "detector")),
-      column(10, plotOutput(ns("plot2"), height = 150))
+      column(10, plotlyOutput(ns("plot2"), height = 150))
     ),
     fluidRow(
       column(2, selectInput(ns("plot3_y"), "Parameter", choices = options,
                             selected = "flow_ccs")),
-      column(10, plotOutput(ns("plot3"), height = 150))
+      column(10, plotlyOutput(ns("plot3"), height = 150))
     ),
     fluidRow(
       column(2, selectInput(ns("plot4_y"), "Parameter", choices = options,
                             selected = "turbo_power")),
-      column(10, plotOutput(ns("plot4"), height = 150))
+      column(10, plotlyOutput(ns("plot4"), height = 150))
     ),
     fluidRow(
-      column(10, offset = 2, plotOutput(ns("fractions")))
+      column(10, offset = 2, plotlyOutput(ns("fractions")))
     )
     
   )
@@ -70,7 +69,6 @@ acsmServer <- function(id, site) {
     
     # ACSM tables
     sa <- tbl(con, I("acsm.sample_analysis"))
-    sites <- tbl(con, I("common.sites"))
     tps <- tbl(con, I("acsm.tps"))
     mls <- tbl(con, I("acsm.mass_loadings"))
     calib <- tbl(con, I("acsm.diag_calib"))
@@ -90,7 +88,7 @@ acsmServer <- function(id, site) {
       last <- Sys.time()
       first <- last - 60 * 60 * 24 # 24 hrs
       df <- sa |>
-        inner_join(select(sites, site_number, site_code), by = "site_number") |>
+        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
         inner_join(select(tps, -id, -site_record_id),
                    by = c("id"="sample_analysis_id")) |>
         inner_join(select(mls, -id, -site_record_id), by = c("id"="sample_analysis_id")) |>
@@ -108,52 +106,57 @@ acsmServer <- function(id, site) {
     ts_plot <- function(param, df) {
       
       ggplot(df, aes(x = start_date, y = .data[[param]])) + geom_line() +
-        scale_x_datetime(labels = scales::label_date_short()) +
-        #theme_minimal() +
+        scale_x_datetime(labels = scales::label_date()) +
         theme(axis.title.x = element_blank())
       
     }
     
-    output$plot1 <- renderPlot({
+    output$plot1 <- renderPlotly({
       
       df <- get_range()
-      ts_plot(input$plot1_y, df)
+      g <- ts_plot(input$plot1_y, df)
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
-    output$plot2 <- renderPlot({
+    output$plot2 <- renderPlotly({
       
       df <- get_range()
-      ts_plot(input$plot2_y, df)
+      g <- ts_plot(input$plot2_y, df)
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
-    output$plot3 <- renderPlot({
+    output$plot3 <- renderPlotly({
       
       df <- get_range()
-      ts_plot(input$plot3_y, df)
+      g <- ts_plot(input$plot3_y, df)
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
-    output$plot4 <- renderPlot({
+    output$plot4 <- renderPlotly({
       
       df <- get_range()
-      ts_plot(input$plot4_y, df)
+      g <- ts_plot(input$plot4_y, df)
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     
-    output$fractions <- renderPlot({
+    output$fractions <- renderPlotly({
       
       df <- get_range()
       
       pdf <- df |>
         select(start_date, stop_date, chl:so4) |>
         tidyr::pivot_longer(chl:so4, names_to = "param", values_to = "value")
-      ggplot(pdf) +
+      g <- ggplot(pdf) +
         geom_bar(aes(x = start_date, y = value, fill = param), stat = "identity") +
         scale_fill_manual(values = acsm_colors) +
         scale_x_datetime(labels = scales::label_date_short()) +
-        labs(y = expression(atop("ACSM Species", mu*g~m^-3)))
+        #labs(y = expression(atop("ACSM Species", mu*g~m^-3)))
+        labs(y = paste("ACSM Species", ugm3(), sep = "\n"))
+      ggplotly(g, dynamicTicks = TRUE)
       
     })
     

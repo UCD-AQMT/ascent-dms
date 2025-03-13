@@ -39,7 +39,7 @@ siteServer <- function(id, site) {
       
       df <- tbl(con, I("purpleair.sample_analysis")) |>
         inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
-        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+        inner_join(select(tbl_sites, site_number, site_code),
                    by = "site_number") |>
         filter(site_code == !!site(),
                last_seen >= !!input$dates[1],
@@ -59,7 +59,7 @@ siteServer <- function(id, site) {
         inner_join(select(tbl(con, I("xact.raw_measurements")),  
                           sample_analysis_id, element, value),
                    by = c("id"="sample_analysis_id")) |>
-        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+        inner_join(select(tbl_sites, site_number, site_code),
                    by = "site_number") |>
         filter(site_code == !!site(),
                sample_datetime >= !!input$dates[1],
@@ -72,7 +72,7 @@ siteServer <- function(id, site) {
     
     smps_ts <- reactive({
       df <- tbl(con, I("smps.sample_analysis")) |>
-        inner_join(select(tbl(con, I("common.sites")), site_code, site_number), 
+        inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
         filter(sample_start >= !!input$dates[1],
                sample_start <= !!input$dates[2],
@@ -108,7 +108,7 @@ siteServer <- function(id, site) {
     acsm_ts <- reactive({
       
       df <- tbl(con, I("acsm.sample_analysis")) |>
-        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+        inner_join(select(tbl_sites, site_number, site_code),
                    by = "site_number") |>
         inner_join(select(tbl(con, I("acsm.mass_loadings")), -id, -site_record_id), 
                    by = c("id"="sample_analysis_id")) |>

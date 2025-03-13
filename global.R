@@ -30,9 +30,11 @@ con <- pool::dbPool(RPostgres::Postgres(),
                     port = args$port
                     )
 
+# Common tables
+tbl_sites <- tbl(con, I("common.sites"))
 
 # Keeping the test site for testing - remove on deploy
-site_list <- tbl(con, I("common.sites")) |>
+site_list <- tbl_sites |>
   filter(site_code != "Test") |>
   pull(site_code)
 
@@ -51,6 +53,9 @@ acsm_colors <- c("chl"="violet", "nh4"="goldenrod1", "no3"="dodgerblue",
 # Some formatting functions for plotly HTML
 ugm3 <- function() {
   paste0("(", intToUtf8(0x03BC), "g/m<sup>3</sup>)")
+}
+ctscm3 <- function() {
+  paste0("(cts/cm<sup>3</sup>)")
 }
 
 # Shutdown Chores

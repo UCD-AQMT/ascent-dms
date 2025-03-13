@@ -20,7 +20,7 @@ networkServer <- function(id) {
       
       df <- tbl(con, I("xact.sample_analysis")) |>
         select(site_number, sample_datetime, sample_type) |>
-        inner_join(select(tbl(con, I("common.sites")), site_number, site_code),
+        inner_join(select(tbl_sites, site_number, site_code),
                    by = "site_number") |>
         summarise(Last = max(sample_datetime, na.rm = TRUE),
                   .by = site_code) |>
@@ -37,7 +37,7 @@ networkServer <- function(id) {
     smps_status <- reactive({
       
       df <- tbl(con, I("smps.sample_analysis")) |>
-        inner_join(select(tbl(con, I("common.sites")), site_code, site_number), 
+        inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
         select(site_code, sample_start) |>
         summarise(Last = max(sample_start, na.rm = TRUE),
@@ -89,7 +89,7 @@ networkServer <- function(id) {
     acsm_status <- reactive({
       
       df <- tbl(con, I("acsm.sample_analysis")) |>
-        inner_join(select(tbl(con, I("common.sites")), site_code, site_number), 
+        inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
         select(site_code, start_date) |>
         summarise(Last = max(start_date, na.rm = TRUE),
@@ -108,7 +108,7 @@ networkServer <- function(id) {
       
       df <- tbl(con, I("purpleair.sample_analysis")) |>
         inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
-        inner_join(select(tbl(con, I("common.sites")), site_code, site_number), 
+        inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
         select(site_code, last_seen) |>
         summarise(Last = max(last_seen, na.rm = TRUE),
