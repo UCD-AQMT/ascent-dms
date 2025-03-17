@@ -143,30 +143,30 @@ siteServer <- function(id, site) {
                                'drop(columns: ["_start", "_stop"])')
     
       bc6 <- ae33_client$query(flux_query)[[1]]
-      
-      if (is.null(bc6)) {
-        df <- tibble(time_hour = as.Date(x = integer(0), origin = "1970-01-01"),
-                     BC1 = NA_real_,
-                     BC6 = NA_real_,
-                     BrC = NA_real_)
-        return(df)
-      } else {
-        bc6 <- bc6 |>
-          select(time_hour=time, BC6=`_value`)
-      }
-      
-      flux_query <- glue::glue('from(bucket: "measurements") |> ', 
-                               'range(start: {input$dates[1]}T00:00:00Z,',
-                               'stop: {input$dates[2]}T23:59:59Z) |> ', 
-                               'filter(fn: (r) => r._measurement == "ae33_{site()}_raw"',
-                               'and r._field == "EBC_1") |> ',
-                               'aggregateWindow(every: 1h, fn: median) |> ',
-                               'drop(columns: ["_start", "_stop"])')
-      bc1 <- ae33_client$query(flux_query)[[1]] |>
-        select(time_hour=time, BC1=`_value`)
-      
-      bc <- full_join(bc1, bc6, by = "time_hour") |>
-        mutate(BrC = (BC1 * mac1 - BC6 * mac6) / mac1)
+      # 
+      # if (is.null(bc6)) {
+      #   df <- tibble(time_hour = as.Date(x = integer(0), origin = "1970-01-01"),
+      #                BC1 = NA_real_,
+      #                BC6 = NA_real_,
+      #                BrC = NA_real_)
+      #   return(df)
+      # } else {
+      #   bc6 <- bc6 |>
+      #     select(time_hour=time, BC6=`_value`)
+      # }
+      # 
+      # flux_query <- glue::glue('from(bucket: "measurements") |> ', 
+      #                          'range(start: {input$dates[1]}T00:00:00Z,',
+      #                          'stop: {input$dates[2]}T23:59:59Z) |> ', 
+      #                          'filter(fn: (r) => r._measurement == "ae33_{site()}_raw"',
+      #                          'and r._field == "EBC_1") |> ',
+      #                          'aggregateWindow(every: 1h, fn: median) |> ',
+      #                          'drop(columns: ["_start", "_stop"])')
+      # bc1 <- ae33_client$query(flux_query)[[1]] |>
+      #   select(time_hour=time, BC1=`_value`)
+      # 
+      # bc <- full_join(bc1, bc6, by = "time_hour") |>
+      #   mutate(BrC = (BC1 * mac1 - BC6 * mac6) / mac1)
     })
     
     ## Plots -----
@@ -196,7 +196,7 @@ siteServer <- function(id, site) {
       }
 
       ae33 <- ae33_ts() |>
-        select(time_hour, BC=BC6)
+        select(time_hour=time, BC=`_value`)
       smps <- smps_ts()
       acsm <- acsm_ts() |>
         mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
@@ -266,16 +266,15 @@ siteServer <- function(id, site) {
     aeth <- reactive({
       
       df <- ae33_ts() |>
-        select(time_hour, BC=BC6, BrC) |>
-        tidyr::pivot_longer(BC:BrC, names_to = "param", values_to = "value")
+        select(time_hour=time, BC=`_value`) #|>
+        #tidyr::pivot_longer(BC:BrC, names_to = "param", values_to = "value")
 
-      g <- ggplot(df, aes(x = time_hour, y = value, color = param)) + 
+      g <- ggplot(df, aes(x = time_hour, y = BC)) + 
         geom_line(linewidth = 1) +
         geom_point(size = 1.8) +
-        scale_color_manual(values = c("BC"="black", "BrC"="brown")) +
         scale_x_datetime(labels = scales::label_date_short(),
                          limits = date_range()) +
-        labs(y = expression(atop("Black/Brown", "Carbon"~mu*g~m^-3))) +
+        labs(y = expression(atop("Black Carbon", mu*g~m^-3))) +
         theme(axis.title.x = element_blank())
 
     })
