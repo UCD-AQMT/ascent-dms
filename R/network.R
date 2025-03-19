@@ -54,18 +54,14 @@ networkServer <- function(id) {
     })
     
     ae33_status <- reactive({
-      
-      # look over the last 2 days only
-      today <- Sys.Date()
-      first_day <- today - 1
-      
+
       flux_query <- glue::glue('from(bucket: "measurements") |> ', 
-                               'range(start: {format(first_day, "%Y-%m-%d")}T00:00:00Z,',
-                               'stop: {format(today, "%Y-%m-%d")}T23:59:59Z) |> ', 
-                               'filter(fn: (r) => r._field == "EBC_6") |> ',
-                               'group(columns: ["_measurement"]) |> ',
-                               'last() |> ',
-                               'drop(columns: ["_start", "_stop"])')
+                               'range(start: 0, stop: -0s) |> ',
+                               'filter(fn: (r) => r._field == "STinst") |> ',
+                               'sort(columns: ["_time"], desc: true) |> ',
+                               'limit(n:1) |>',
+                               'drop(columns: ["_start", "_stop"])'
+      )
       
       # influx returns each site as a separate table in a list
       df <- ae33_client$query(flux_query) |>
@@ -127,11 +123,22 @@ networkServer <- function(id) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
+      #t1 <- Sys.time()
       xact <- xact_status()
+      #t2 <- Sys.time()
+      #print(paste("xact:", difftime(t2, t1, "secs")))
       acsm <- acsm_status()
+      #t3 <- Sys.time()
+      #print(paste("acsm:", difftime(t3, t2, "secs")))
       pa <- pa_status()
+      #t4 <- Sys.time()
+      #print(paste("purpleair:", difftime(t4, t3, "secs")))
       ae33 <- ae33_status()
+      #t5 <- Sys.time()
+      #print(paste("ae33:", difftime(t5, t4, "secs")))
       smps <- smps_status()
+      #t6 <- Sys.time()
+      #print(paste("smps:", difftime(t6, t5, "secs")))
 
       bind_rows(xact, acsm, pa, ae33, smps) |>
         select(-Lag) |>
