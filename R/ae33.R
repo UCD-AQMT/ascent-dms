@@ -21,19 +21,12 @@ ae33UI <- function(id) {
       infoBoxOutput(ns("database"), width = 3)
     ),
     fluidRow(
-      column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
-                            selected = "ab_total")),
-      column(10, plotlyOutput(ns("plot1"), height = 250))
+      column(6, plotlyOutput(ns("ebc"), height = 250)),
+      column(6, plotlyOutput(ns("attenuation"), height = 250))
     ),
     fluidRow(
-      column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
-                            selected = "detector")),
-      column(10, plotlyOutput(ns("plot2"), height = 250))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("plot3_y"), "Parameter", choices = options,
-                            selected = "detector")),
-      column(10, plotlyOutput(ns("plot3"), height = 250))
+      column(6, plotlyOutput(ns("flow_plot"), height = 250)),
+      column(6, plotlyOutput(ns("compensation"), height = 250))
     )
     
   )
@@ -71,9 +64,9 @@ ae33Server <- function(id, site) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      # last 6 hours
+      # last 12 hours
       flux_query <- glue::glue('from(bucket: "measurements") |> ',
-                               'range(start: -6h) |> ',
+                               'range(start: -12h) |> ',
                                'filter(fn: (r) => r._measurement == "ae33_{site()}_raw") |> ',
                                'drop(columns: ["_start", "_stop"])'
                                )
@@ -200,7 +193,7 @@ ae33Server <- function(id, site) {
       pad = 0
     )
     
-    output$plot1 <- renderPlotly({
+    output$ebc <- renderPlotly({
     
       df <- get_recent() 
       validate(need(nrow(df > 0), "No data in time period"))
@@ -222,7 +215,7 @@ ae33Server <- function(id, site) {
       
     })
     
-    output$plot2 <- renderPlotly({
+    output$attenuation <- renderPlotly({
       
       df <- get_recent() 
       validate(need(nrow(df > 0), "No data in time period"))
@@ -243,7 +236,28 @@ ae33Server <- function(id, site) {
       
     })
     
-    output$plot3 <- renderPlotly({
+    output$flow_plot <- renderPlotly({
+      df <- get_recent() 
+      validate(need(nrow(df > 0), "No data in time period"))
+      
+      df <- df |>
+        select(time, flow1, flow2, flowC) |>
+        mutate(time = as.POSIXct(time, tz = "UTC")) |>
+        tidyr::pivot_longer(flow1:flowC, names_to = "flow", values_to = "value")
+      
+      g <- ggplot(df, aes(x = time, y = value, color = flow)) +
+        geom_line() +
+        scale_x_datetime(labels = scales::label_date()) +
+        labs(y = "L/min") +
+        theme(axis.title.x = element_blank())
+      ggplotly(g, dynamicTicks = TRUE) |>
+        layout(margin = plot_margins,
+               legend = list(tracegroupgap = 0))
+      
+      
+    })
+    
+    output$compensation <- renderPlotly({
       df <- get_recent() 
       validate(need(nrow(df > 0), "No data in time period"))
       
