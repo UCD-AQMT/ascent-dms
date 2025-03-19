@@ -154,8 +154,7 @@ acsmServer <- function(id, site) {
         geom_bar(aes(x = start_date, y = value, fill = param), stat = "identity") +
         scale_fill_manual(values = acsm_colors) +
         scale_x_datetime(labels = scales::label_date_short()) +
-        #labs(y = expression(atop("ACSM Species", mu*g~m^-3)))
-        labs(y = paste("ACSM Species", ugm3(), sep = "\n"))
+        labs(y = paste("ACSM Species", ugm3(), sep = " "))
       ggplotly(g, dynamicTicks = TRUE)
       
     })
