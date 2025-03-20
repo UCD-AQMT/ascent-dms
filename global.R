@@ -48,7 +48,8 @@ rural_sites <- c("DeltaJunction", "Yellowstone", "LookRock",
                  "CheekaPeak", "JoshuaTree")
 
 acsm_colors <- c("chl"="violet", "nh4"="goldenrod1", "no3"="dodgerblue",
-                 "org"="lightgreen", "so4"="tomato", "Xact (minus S)"="darkgray")
+                 "org"="lightgreen", "so4"="tomato", "Xact (minus S)"="darkgray",
+                 "BC"="black")
 
 # Some formatting functions for plotly HTML
 ugm3 <- function() {

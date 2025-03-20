@@ -5,14 +5,31 @@ siteUI <- function(id) {
   today <- Sys.Date() + 1
   start_day <- today - 7
   
+  elems <- tbl(con, I("xact.element_params")) |>
+    arrange(atomic_number) |>
+    pull(element)
+  
   tagList(
     fluidRow(
       box(
-        dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
-                       min = "2023-01-01", max = today),
-        width = 3
-      )
-    ),
+        column(2, dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
+                                 min = "2023-01-01", max = today)),
+        column(4, selectInput(ns("mass"), "Aerosol Mass", multiple = TRUE,
+                              choices = c("SMPS (loads slowly)"="smps", 
+                                          "Purple Air"="purpleair",
+                                          "ACSM + BC + Xact (minus S)"="acsm"),
+                              selected = c("smps", "purpleair", "acsm"))),
+        column(3, selectInput(ns("elements"), "Elements", choices = elems, multiple = TRUE, 
+                              selected = c("S", "Si", "Cl", "K", "Al", "Fe", "Ca"))),
+        column(2, selectInput(ns("fraction"), "Mass Fraction", 
+                              choices = c("Total Mass", "Fraction of Mass"),
+                              selected = "Total Mass")),
+        column(1, 
+               br(),
+               actionButton(ns("go"), "Plot")),
+        width = 12
+        )
+      ),
     fluidRow(
       box(
         plotOutput(ns("plot"), height = 1000) |>
@@ -124,16 +141,7 @@ siteServer <- function(id, site) {
     })
     
     ae33_ts <- reactive({
-      # Black carbon is BC6 - BrC is calculated from BC1, BC6 and the respective mass
-      # absorption cross sections (per Mitchell Rodgers):
-      # BrC = (BC1 * MAC1 - BC6 * MAC6) / MAC1
-      # MACs listed in AE33 manual
-      # MAC1 = 18.47 m2/g
-      # MAC6 = 7.77 m2/g
-      
-      mac1 <- 18.47
-      mac6 <- 7.77
-      
+
       flux_query <- glue::glue('from(bucket: "measurements") |> ', 
                                'range(start: {input$dates[1]}T00:00:00Z,',
                                'stop: {input$dates[2]}T23:59:59Z) |> ', 
@@ -143,74 +151,71 @@ siteServer <- function(id, site) {
                                'drop(columns: ["_start", "_stop"])')
     
       bc6 <- ae33_client$query(flux_query)[[1]]
-      # 
-      # if (is.null(bc6)) {
-      #   df <- tibble(time_hour = as.Date(x = integer(0), origin = "1970-01-01"),
-      #                BC1 = NA_real_,
-      #                BC6 = NA_real_,
-      #                BrC = NA_real_)
-      #   return(df)
-      # } else {
-      #   bc6 <- bc6 |>
-      #     select(time_hour=time, BC6=`_value`)
-      # }
-      # 
-      # flux_query <- glue::glue('from(bucket: "measurements") |> ', 
-      #                          'range(start: {input$dates[1]}T00:00:00Z,',
-      #                          'stop: {input$dates[2]}T23:59:59Z) |> ', 
-      #                          'filter(fn: (r) => r._measurement == "ae33_{site()}_raw"',
-      #                          'and r._field == "EBC_1") |> ',
-      #                          'aggregateWindow(every: 1h, fn: median) |> ',
-      #                          'drop(columns: ["_start", "_stop"])')
-      # bc1 <- ae33_client$query(flux_query)[[1]] |>
-      #   select(time_hour=time, BC1=`_value`)
-      # 
-      # bc <- full_join(bc1, bc6, by = "time_hour") |>
-      #   mutate(BrC = (BC1 * mac1 - BC6 * mac6) / mac1)
+
     })
     
     ## Plots -----
     pm <- reactive({
-        
-      pa <- purpleair_ts()
-
-      # For Xact, need total minus S
-      xact <- xact_ts() |>
-        filter(element != "S") |>
-        summarise(Metals = sum(value, na.rm = TRUE) / 1000,
-                  .by = sample_datetime) |>
-        mutate(time_hour = lubridate::floor_date(sample_datetime, "hour")) |>
-        summarise(Metals = median(Metals, na.rm = TRUE),
-                  .by = time_hour)
       
-      # If 4-hr data, fill in gaps
-      if (site() %in% c("DeltaJunction", "Yellowstone", "LookRock",
-                        "CheekaPeak", "JoshuaTree")) {
-        x2 <- xact |>
-          mutate(time_hour = time_hour + lubridate::hours(1))
-        x3 <- xact |>
-          mutate(time_hour = time_hour - lubridate::hours(2))
-        x4 <- xact |>
-          mutate(time_hour = time_hour - lubridate::hours(1))
-        xact <- bind_rows(xact, x2, x3, x4)
+      if ("purpleair" %in% input$mass) {
+        pa <- purpleair_ts()  
+      } else {
+        pa <- tibble(time_hour = as.POSIXct(NA),
+                     PA_PM25 = numeric(0))
+      }
+      
+      if ("acsm" %in% input$mass) {
+        # For Xact, need total minus S
+        xact <- xact_ts() |>
+          filter(element != "S") |>
+          summarise(Metals = sum(value, na.rm = TRUE) / 1000,
+                    .by = sample_datetime) |>
+          mutate(time_hour = lubridate::floor_date(sample_datetime, "hour")) |>
+          summarise(Metals = median(Metals, na.rm = TRUE),
+                    .by = time_hour)
+        
+        # If 4-hr data, fill in gaps
+        if (site() %in% c("DeltaJunction", "Yellowstone", "LookRock",
+                          "CheekaPeak", "JoshuaTree")) {
+          x2 <- xact |>
+            mutate(time_hour = time_hour + lubridate::hours(1))
+          x3 <- xact |>
+            mutate(time_hour = time_hour - lubridate::hours(2))
+          x4 <- xact |>
+            mutate(time_hour = time_hour - lubridate::hours(1))
+          xact <- bind_rows(xact, x2, x3, x4)
+        }
+        
+        ae33 <- ae33_ts() |>
+          select(time_hour=time, BC=`_value`)
+        acsm <- acsm_ts() |>
+          mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
+          summarise(value = median(value, na.rm = TRUE),
+                    .by = c(time_hour, param)) |>
+          summarise(ACSM = sum(value, na.rm = TRUE),
+                    .by = time_hour)
+        
+        acsm_all <- acsm |>
+          full_join(xact, by = "time_hour") |>
+          full_join(ae33, by = "time_hour") |>
+          mutate(Comb = ACSM + Metals + BC) |>
+          select(time_hour, Comb)
+        
+      } else {
+        acsm_all <- tibble(time_hour = as.POSIXct(NA),
+                           Comb = numeric(0))
       }
 
-      ae33 <- ae33_ts() |>
-        select(time_hour=time, BC=`_value`)
-      smps <- smps_ts()
-      acsm <- acsm_ts() |>
-        mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
-        summarise(value = median(value, na.rm = TRUE),
-                  .by = c(time_hour, param)) |>
-        summarise(ACSM = sum(value, na.rm = TRUE),
-                  .by = time_hour)
+      if ("smps" %in% input$mass) {
+        smps <- smps_ts()  
+      } else {
+        smps <- tibble(time_hour = as.POSIXct(NA),
+                       SMPS = numeric(0))
+      }
 
       ts_data <- pa |>
-        full_join(xact, by = "time_hour") |>
-        full_join(ae33, by = "time_hour") |>
         full_join(smps, by = "time_hour") |>
-        full_join(acsm, by = "time_hour") |>
-        mutate(Comb = ACSM + Metals + BC) |>
+        full_join(acsm_all, by = "time_hour") |>
         select(time_hour, Comb, SMPS, PA_PM25) |>
         tidyr::pivot_longer(Comb:PA_PM25, names_to = "name", values_to = "value") |>
         mutate(name = if_else(name == "Comb", "ACSM + BC +\nXact (minus S)",
@@ -247,7 +252,7 @@ siteServer <- function(id, site) {
     xact <- reactive({
       
       df <- xact_ts() |>
-        filter(element %in% c("S", "Si", "Cl", "K", "Ba", "Se", "Cu", "Fe", "Ca")) |>
+        filter(element %in% input$elements) |>
         mutate(time_hour = lubridate::floor_date(sample_datetime, "hour"),
                value = value / 1000) |>
         summarise(value = median(value, na.rm = TRUE),
@@ -266,8 +271,7 @@ siteServer <- function(id, site) {
     aeth <- reactive({
       
       df <- ae33_ts() |>
-        select(time_hour=time, BC=`_value`) #|>
-        #tidyr::pivot_longer(BC:BrC, names_to = "param", values_to = "value")
+        select(time_hour=time, BC=`_value`) 
 
       g <- ggplot(df, aes(x = time_hour, y = BC)) + 
         geom_line(linewidth = 1) +
@@ -313,29 +317,51 @@ siteServer <- function(id, site) {
         return(NULL)
       }
       
-      # Set negatives to 0 to make a reasonable mass fraction plot
-      df <- bind_rows(acsm, xact) |>
-        mutate(value = if_else(value < 0, 0, value)) |>
-        tidyr::pivot_wider(names_from = param, values_from = value) |>
-        mutate(Total = chl + nh4 + no3 + org + so4 + xact,
-               chl = chl / Total * 100,
-               nh4 = nh4 / Total * 100,
-               no3 = no3 / Total * 100,
-               org = org / Total * 100,
-               so4 = so4 / Total * 100,
-               xact = xact / Total * 100) |>
-        select(-Total) |>
-        rename(`Xact (minus S)`=xact) |>
-        tidyr::pivot_longer(chl:`Xact (minus S)`, names_to = "param", values_to = "value") |>
-        arrange(time_hour)
-  
-      g <- ggplot(df, aes(x = time_hour, y = value, fill = param)) + 
-        geom_area() +
-        scale_fill_manual(values = acsm_colors) +
-        scale_x_datetime(labels = scales::label_date_short(),
-                         limits = date_range()) +
-        labs(y = "Aerosol Mass\nFraction (%)") +
-        theme(axis.title.x = element_blank())
+      # We want BC too (I think)
+      ae33 <- ae33_ts() |>
+        mutate(param = "BC") |>
+        select(time_hour=time, param, value=`_value`)
+      
+      
+      if (input$fraction == "Fraction of Mass") {
+        # Set negatives to 0 to make a reasonable mass fraction plot
+        df <- bind_rows(acsm, xact, ae33) |>
+          mutate(value = if_else(value < 0, 0, value)) |>
+          tidyr::pivot_wider(names_from = param, values_from = value) |>
+          mutate(Total = chl + nh4 + no3 + org + so4 + xact + BC,
+                 chl = chl / Total * 100,
+                 nh4 = nh4 / Total * 100,
+                 no3 = no3 / Total * 100,
+                 org = org / Total * 100,
+                 so4 = so4 / Total * 100,
+                 xact = xact / Total * 100,
+                 BC = BC / Total * 100) |>
+          select(-Total) |>
+          rename(`Xact (minus S)`=xact) |>
+          tidyr::pivot_longer(chl:BC, names_to = "param", values_to = "value") |>
+          arrange(time_hour)
+        
+        g <- ggplot(df, aes(x = time_hour, y = value, fill = param)) + 
+          geom_area() +
+          scale_fill_manual(values = acsm_colors) +
+          scale_x_datetime(labels = scales::label_date_short(),
+                           limits = date_range()) +
+          labs(y = "Aerosol Mass\nFraction (%)") +
+          theme(axis.title.x = element_blank())
+      } else {
+        
+        df <- bind_rows(acsm, xact, ae33) |>
+          arrange(time_hour)
+
+        g <- ggplot(df, aes(x = time_hour, y = value, fill = param)) + 
+          geom_bar(stat = "identity") +
+          scale_fill_manual(values = acsm_colors) +
+          scale_x_datetime(labels = scales::label_date_short(),
+                           limits = date_range()) +
+          labs(y = expression(atop("Aerosol Mass", mu*g~m^-3))) +
+          theme(axis.title.x = element_blank())
+      }
+      
 
     })
     
@@ -352,7 +378,8 @@ siteServer <- function(id, site) {
         plot_layout(axis_titles = "collect")
       
       
-    })
+    }) |>
+      bindEvent(input$go)
     
     
     ### Some SMPS calculations -----
