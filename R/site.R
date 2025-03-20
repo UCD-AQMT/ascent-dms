@@ -351,6 +351,7 @@ siteServer <- function(id, site) {
       } else {
         
         df <- bind_rows(acsm, xact, ae33) |>
+          mutate(param = if_else(param == "xact", "Xact (minus S)", param)) |>
           arrange(time_hour)
 
         g <- ggplot(df, aes(x = time_hour, y = value, fill = param)) + 
@@ -367,6 +368,8 @@ siteServer <- function(id, site) {
     
     output$plot <- renderPlot({
      
+      validate(need(input$dates[1] <= input$dates[2], "End date must not be before start date"))
+      
       p1 <- pm()
       p2 <- acsm()
       p3 <- xact()

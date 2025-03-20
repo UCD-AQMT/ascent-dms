@@ -39,7 +39,7 @@ xactUI <- function(id) {
       column(10, plotlyOutput(ns("plot2"), height = 150))
     ),
     fluidRow(
-      column(2, selectInput(ns("element"), "Elements", choices = elems,
+      column(2, selectInput(ns("element"), "Element", choices = elems,
              selected = "S")),
       column(10, plotlyOutput(ns("ts")))
     ),
