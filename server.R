@@ -55,6 +55,6 @@ shinyServer(function(input, output, session) {
   xact <- xactServer("xact", site = reactive(input$site_all))
   ae33 <- ae33Server("ae33", site = reactive(input$site_all))
   smps <- smpsServer("smps", site = reactive(input$site_all))
-  # pa <- paServer("pa")
+  pa <- paServer("pa", site = reactive(input$site_all))
   
 })
