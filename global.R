@@ -71,13 +71,15 @@ onStop(function() {
 # described in the AE33 user's manual ver 1.59, page 53
 parse_ae33_flags <- function(x) {
   
-  bits <- as.integer(intToBits(x))
+  # Have to convert to int first because influxdb returns an int64 which is not properly
+  # converted by intToBits
+  bits <- as.integer(intToBits(as.integer(x)))
 
   # Bits 0 and 1, operation
   chunk <- paste0(bits[1:2], collapse = "")
   operation <- case_match(chunk,
                           "00" ~ "OK:Taking measurement",
-                          "01" ~ "info:Tape advance (tape advance, fast calibration, warm-up)",
+                          "01" ~ "info:Tape advance (fast cal., warm-up)",
                           "10" ~ "info:First measurement - obtaining ATN0",
                           "11" ~ "error:Stopped"
                           )
