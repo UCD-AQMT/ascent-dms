@@ -34,32 +34,34 @@ acsmUI <- function(id) {
       infoBoxOutput(ns("detector_voltage"), width = 3),
       infoBoxOutput(ns("turbo_speed"), width = 3),
       infoBoxOutput(ns("turbo_power"), width = 3),
-      infoBoxOutput(ns("fore_pc"), width = 3)
+      infoBoxOutput(ns("fore_pc"), width = 3),
+      infoBoxOutput(ns("rh"), width = 3),
+      infoBoxOutput(ns("rh_out"), width = 3)
+      
+    ),
+    fluidRow(
+      column(10, offset = 2, plotlyOutput(ns("fractions")))
     ),
     fluidRow(
       column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
              selected = "ab_total")),
-      column(10, plotlyOutput(ns("plot1"), height = 150))
+      column(10, plotlyOutput(ns("plot1"), height = 200))
     ),
     fluidRow(
       column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
                             selected = "detector")),
-      column(10, plotlyOutput(ns("plot2"), height = 150))
+      column(10, plotlyOutput(ns("plot2"), height = 200))
     ),
     fluidRow(
       column(2, selectInput(ns("plot3_y"), "Parameter", choices = options,
                             selected = "flow_ccs")),
-      column(10, plotlyOutput(ns("plot3"), height = 150))
+      column(10, plotlyOutput(ns("plot3"), height = 200))
     ),
     fluidRow(
       column(2, selectInput(ns("plot4_y"), "Parameter", choices = options,
                             selected = "turbo_power")),
-      column(10, plotlyOutput(ns("plot4"), height = 150))
-    ),
-    fluidRow(
-      column(10, offset = 2, plotlyOutput(ns("fractions")))
+      column(10, plotlyOutput(ns("plot4"), height = 200))
     )
-    
   )
 
 }
@@ -72,6 +74,7 @@ acsmServer <- function(id, site) {
     tps <- tbl(con, I("acsm.tps"))
     mls <- tbl(con, I("acsm.mass_loadings"))
     calib <- tbl(con, I("acsm.diag_calib"))
+    ds <- tbl(con, I("acsm.dryer_stats"))
     
     get_last <- reactive({
 
@@ -102,6 +105,28 @@ acsmServer <- function(id, site) {
       df
       
     })
+    
+    #DryerStats
+    get_last_ds <- reactive({
+      
+      invalidateLater(1000 * 60 * 3) # every three minutes
+     
+      last <- Sys.time()
+      first <- last - 60 * 60 * 24 # 24 hrs
+      df <- ds |>
+        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+        filter(site_code == !!site(),
+               datetime > first) |>
+        arrange(desc(datetime)) |>
+        collect() |>
+        slice(1)
+      
+      validate(need(nrow(df) > 0, "No data for site"))
+      
+      df
+      
+    })
+    
     
     ts_plot <- function(param, df) {
       
@@ -169,13 +194,11 @@ acsmServer <- function(id, site) {
         if (tdiff > 60) {
           txt <- "Lagging"
           sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-          infoBox("Status", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
-                  width = 3)
+          infoBox("Status", txt, subtitle = sub, color = "yellow", icon = icon("clock"))
         } else {
           txt <- "OK"
           sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-          infoBox("Status", txt, subtitle = sub, color = "blue", icon = icon("check"),
-                  width = 3)
+          infoBox("Status", txt, subtitle = sub, color = "blue", icon = icon("check"))
         }
 
       } else {
@@ -184,8 +207,7 @@ acsmServer <- function(id, site) {
         } else {
           txt <- "Status Error"
         }
-        infoBox("Status", txt, color = "red", icon = icon("exclamation"),
-                width = 3)
+        infoBox("Status", txt, color = "red", icon = icon("exclamation"))
       }
 
     })
@@ -196,12 +218,10 @@ acsmServer <- function(id, site) {
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$ce == 0.5) {
-        infoBox("Collection Efficiency", s$ce, color = "blue", icon = icon("check"),
-                width = 3)
+        infoBox("Collection Efficiency", s$ce, color = "blue", icon = icon("check"))
       } else {
         infoBox("Collection Efficiency", s$ce, subtitle = "collection efficiency mismatch",
-                color = "yellow", icon = icon("question"),
-                width = 3)
+                color = "yellow", icon = icon("question"))
       }
       
     })
@@ -214,12 +234,10 @@ acsmServer <- function(id, site) {
       if (s$press_inlet < 4 | s$press_inlet > 4.8) {
         infoBox("Inlet Pressure", paste(round(s$press_inlet, 2), "mbar"), 
                 subtitle = "Inlet pressure not within 4.0-4.8 mbar",
-                color = "red", icon = icon("x"),
-                width = 3)
+                color = "red", icon = icon("x"))
       } else {
         infoBox("Inlet Pressure", paste(round(s$press_inlet, 2), "mbar"),
-                color = "blue", icon = icon("check"),
-                width = 3) 
+                color = "blue", icon = icon("check")) 
       }
 
     })
@@ -233,12 +251,10 @@ acsmServer <- function(id, site) {
       if (abtot < 1e5 | abtot > 5e5) {
         infoBox("Airbeam", paste(abtot, "ions/s"),
                 subtitle = "Airbeam not within 1e5 - 5e5 ions/s",
-                color = "yellow", icon = icon("question"),
-                width = 3)
+                color = "yellow", icon = icon("question"))
       } else {
         infoBox("Airbeam", paste(abtot, "ions/s"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
       
     })
@@ -254,17 +270,14 @@ acsmServer <- function(id, site) {
       if (abratio < 0.7 | abratio > 1.3) {
         infoBox("Airbeam to Reference", paste0(round(perc_off), "%"),
                 subtitle = "Airbeam not within 30% of reference - AB correction potentially invalid",
-                color = "red", icon = icon("x"),
-                width = 3)
+                color = "red", icon = icon("x"))
       } else if (abratio < 0.8 | abratio > 1.2) {
         infoBox("Airbeam to Reference", paste0(round(perc_off), "%"),
                 subtitle = "Airbeam not within 20% of reference - Check single ion signal",
-                color = "yellow", icon = icon("question"),
-                width = 3)
+                color = "yellow", icon = icon("question"))
       } else {
         infoBox("Airbeam to Reference", paste0(round(perc_off), "%"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
       
     })
@@ -277,12 +290,10 @@ acsmServer <- function(id, site) {
       if (s$heater_t < 575 | s$heater_t > 625) {
         infoBox("Heater Temp", paste(s$heater_t, "\u00B0C"),
                 subtitle = "Heater temp not within 575-625 \u00B0C",
-                color = "red", icon = icon("x"),
-                width = 3)
+                color = "red", icon = icon("x"))
       } else {
         infoBox("Heater Temp", paste(s$heater_t, "\u00B0C"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
         
       }
       
@@ -295,12 +306,10 @@ acsmServer <- function(id, site) {
       if (s$heater_i < 1.1 | s$heater_i > 1.3) {
         infoBox("Heater Current", paste(s$heater_i, "A"),
                 subtitle = "Heater current not within 1.1-1.3 A",
-                color = "yellow", icon = icon("question"),
-                width = 3)
+                color = "yellow", icon = icon("question"))
       } else {
         infoBox("Heater Current", paste(s$heater_i, "A"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
     })
     
@@ -311,12 +320,10 @@ acsmServer <- function(id, site) {
       if (s$filament_emm <= 0) {
         infoBox("Filament Emission", paste(s$filament_emm, "mA"),
                 subtitle = "URGENT - Filament emission not a positive value. Switch filament and confirm that new filament emission is at setpoint (typically 1.0, 0.7, or 0.4 mA",
-                color = "red", icon = icon("exclamation"),
-                width = 3)
+                color = "red", icon = icon("exclamation"))
       } else {
         infoBox("Filament Emission", paste(s$filament_emm, "mA"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
       
     })
@@ -328,12 +335,10 @@ acsmServer <- function(id, site) {
       if (s$detector >= 3900) {
         infoBox("Detector Voltage", paste(s$detector, "V"),
                 subtitle = "WARNING: Detector voltage > 3900 V. Purchase new detector and prepare for replacement.",
-                color = "red", icon = icon("exclamation"),
-                width = 3)
+                color = "red", icon = icon("exclamation"))
       } else {
         infoBox("Detector Voltage", paste(s$detector, "V"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
       
     })
@@ -345,12 +350,10 @@ acsmServer <- function(id, site) {
       if (s$turbo_speed < 999) {
         infoBox("Turbo speed", paste(s$turbo_speed, "Hz"),
                 subtitle = "Turbo speed low. Consider checking for leaks.",
-                color = "yellow", icon = icon("question"),
-                width = 3)
+                color = "yellow", icon = icon("question"))
       } else {
         infoBox("Turbo speed", paste(s$turbo_speed, "Hz"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
     })
     
@@ -361,12 +364,10 @@ acsmServer <- function(id, site) {
       if (s$turbo_power > 145) {
         infoBox("Turbo power", paste(s$turbo_power, "W"),
                 subtitle = "Urgent: Turbo power above 145 W. Consider checking for leaks.",
-                color = "red", icon = icon("exclamation"),
-                width = 3)
+                color = "red", icon = icon("exclamation"))
       } else {
         infoBox("Turbo power", paste(s$turbo_power, "W"),
-                color = "blue", icon = icon("check",
-                                            width = 3))
+                color = "blue", icon = icon("check"))
       }
       
     })
@@ -378,14 +379,42 @@ acsmServer <- function(id, site) {
       if (s$fore_pc != 100) {
         infoBox("Fore Percentage", paste(s$fore_pc, "%"),
                 subtitle = "URGENT: Fore percentage not 100%",
-                color = "red", icon = icon("exclamation"),
-                width = 3)
+                color = "red", icon = icon("exclamation"))
       } else {
         infoBox("Fore Percentage", paste(s$fore_pc, "%"),
-                color = "blue", icon = icon("check"),
-                width = 3)
+                color = "blue", icon = icon("check"))
       }
     })
     
+    output$rh <- renderInfoBox({
+      s <- get_last_ds()
+      validate(need(nrow(s) > 0, "No data for site"))
+      
+      if (s$rh_dry > s$rh_in) {
+        infoBox("RH Difference", "RH out > RH in",
+                subtitle = paste("RH out:", s$rh_dry, "RH in:", s$rh_in),
+                color = "red", icon = icon("exclamation"))
+      } else {
+        infoBox("RH Difference", "RH out < RH in",
+                subtitle = paste("RH out:", s$rh_dry, "RH in:", s$rh_in),
+                color = "blue", icon = icon("check"))
+        
+      }
+    })
+    
+    output$rh_out <- renderInfoBox({
+      s <- get_last_ds()
+      validate(need(nrow(s) > 0, "No data for site"))
+      
+      if (s$rh_dry > 40) {
+        infoBox("RH Out", "RH out > 40%",
+                subtitle = paste(s$rh_dry, "%"),
+                color = "red", icon = icon("exclamation"))
+      } else {
+        infoBox("RH Out", "RH out \U2264 40%",
+                subtitle = paste(s$rh_dry, "%"),
+                color = "blue", icon = icon("check"))        
+      }
+    })
   })
 }
