@@ -6,35 +6,48 @@ smpsUI <- function(id) {
   df <- tbl(con, I("smps.sample_analysis")) |>
     select(-concentration_json, -raw_concentration_json) |>
     filter(1 == 0) |>
-    collect()
+    collect() |>
+    select(sample_start, where(is.numeric))
   options <- colnames(df)
   
-  tagList(
-    fluidRow(
-      infoBoxOutput(ns("reporting"), width = 3),
-      infoBoxOutput(ns("detector"), width = 3),
-      infoBoxOutput(ns("classifier"), width = 3),
-      infoBoxOutput(ns("sheath_flow"), width = 3),
-      infoBoxOutput(ns("flows"), width = 3),
-      infoBoxOutput(ns("sheath_rh"), width = 3),
-      infoBoxOutput(ns("sheath_pressure"), width = 3),
-      infoBoxOutput(ns("sheath_temp"), width = 3)
+  page_fillable(
+    gap = "8px",
+    layout_column_wrap(
+      width = 1/4,
+      min_height = "200px",
+      gap = "6px",
+      uiOutput(ns("reporting")),
+      uiOutput(ns("detector")),
+      uiOutput(ns("classifier")),
+      uiOutput(ns("sheath_flow")),
+      uiOutput(ns("flows")),
+      uiOutput(ns("sheath_rh")),
+      uiOutput(ns("sheath_pressure")),
+      uiOutput(ns("sheath_temp")),
     ),
-    fluidRow(
-      column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
-                            selected = "total_concentration")),
-      column(10, plotlyOutput(ns("plot1"), height = 200))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
-                            selected = "geo_mean")),
-      column(10, plotlyOutput(ns("plot2"), height = 200))
-    ),
-    fluidRow(
-      column(10, offset = 2, plotlyOutput(ns("scan"), height = 300))
+    layout_column_wrap(
+      width = 1/2,
+      card(
+        plotlyOutput(ns("scan")),
+        full_screen = TRUE
+      ),
+      layout_column_wrap(
+        width = 1,
+        card(
+          selectInput(ns("plot1_y"), label = NULL, choices = options, multiple = TRUE,
+                      selected = "total_concentration"),
+          plotlyOutput(ns("plot1")),
+          selectInput(ns("plot2_y"), label = NULL, choices = options, multiple = TRUE,
+                      selected = "geo_mean"),
+          plotlyOutput(ns("plot2")),
+          full_screen = TRUE
+        )
+      )
+      
     )
+    
   )
-  
+
 }
 
 smpsServer <- function(id, site) {
@@ -80,7 +93,7 @@ smpsServer <- function(id, site) {
 
     })
     
-    output$reporting <- renderInfoBox({
+    output$reporting <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
@@ -88,132 +101,115 @@ smpsServer <- function(id, site) {
       tdiff <- difftime(Sys.time(), s$sample_start, units = "mins")
       
       if (tdiff > 60 * 24) {
-        txt <- "Offline"
         hours <- tdiff  / 60
         if (hours > 48) {
-          sub <- glue::glue("Last data {round(hours / 24)} days ago")
+          sub <- paste("Last data", round(hours / 24), "days ago")
         } else {
-          sub <- glue::glue("Last data {round(hours)} hours ago")          
+          sub <- paste("Last data", round(hours), "hours ago")          
         }
-        infoBox("Reporting", txt, subtitle = sub, color = "red", icon = icon("exclamation"),
-                width = 3)
+        value_box(title = sub, value = sub, theme = "danger", showcase = bs_icon("exclamation"))
       } else if (tdiff > 60) {
-        txt <- "Lagging"
-        sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
-                width = 3)
+        sub <- paste("Last data", round(tdiff), "minutes ago")
+        value_box("Lagging", value = sub, theme = "warning", showcase = bs_icon("question"))
       } else {
-        txt <- "Online"
-        sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "blue", icon = icon("check"),
-                width = 3)
-        
+        sub <- paste("Last data", round(tdiff), "minutes ago")
+        value_box("Online", value = sub, theme = "primary", showcase = bs_icon("check"))
       }
-
     })
     
-    output$detector <- renderInfoBox({
+    output$detector <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$detector_status == "Normal Scan") {
-        infoBox("Detector Status", s$detector_status, color = "blue", icon = icon("check"),
-                width = 3)
+        value_box("Detector Status", value = s$detector_status, theme = "primary",
+                  showcase = bs_icon("check"))
       } else {
-        infoBox("Detector Status", "Error", color = "red", icon = icon("exclamation"),
-                subtitle = s$detector_status, width = 3)
+        value_box("Detector Status Error", value = s$detector_status, theme = "danger",
+                  showcase = bs_icon("exclamation"))
       }
       
     })
     
-    output$classifier <- renderInfoBox({
+    output$classifier <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$classifier_errors == "Normal Scan") {
-        infoBox("Classifier Status", s$classifier_errors, color = "blue", icon = icon("check"),
-                width = 3)
+        value_box("Classifier Status", value = s$classifier_errors, theme = "primary",
+                  showcase = bs_icon("check"))
       } else {
-        infoBox("Classifier Status", "Error", color = "red", icon = icon("exclamation"),
-                subtitle = s$classifier_errors, width = 3)
+        value_box("Classifier Status Error", value = s$classifier_errors, theme = "danger",
+                  showcase = bs_icon("exclamation"))
       }
       
     })
     
-    output$sheath_flow <- renderInfoBox({
+    output$sheath_flow <- renderUI({
 
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$sheath_flow != 4.8) {
-        infoBox("Sheath Flow", paste(s$sheath_flow, "L/min"), color = "yellow", 
-                icon = icon("question"), 
-                subtitle = "Sheath flow not expected value (4.8 L/min)", width = 3)
+        value_box("Sheath flow not expected value (4.8 L/min)", 
+                  value = paste(s$sheath_flow, "L/min"), theme = "warning",
+                  showcase = bs_icon("question"))
       } else {
-        infoBox("Sheath Flow", paste(s$sheath_flow, "L/min"), color = "blue", 
-                icon = icon("check"), width = 3)
+        value_box("Sheath Flow", value = paste(s$sheath_flow, "L/min"), theme = "primary",
+                  showcase = bs_icon("check"))
       }
       
     })
     
-    output$flows <- renderInfoBox({
+    output$flows <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
-      
+      val <- paste("Detector inlet:", s$detector_inlet_flow, "L/min\n",
+                   "Impactor:", s$impactor_flow, "L/min")
       if (s$detector_inlet_flow != 0.6 | s$impactor_flow != 0.6) {
-        value <- glue::glue("Detector inlet: {s$detector_inlet_flow} L/min\n",
-                            "Impactor: {s$impactor_flow} L/min")
-        infoBox("Detector Inlet & Impactor Flow", value,
-                subtitle = "One or more flows not expected value (0.6 L/min)",
-                color = "yellow", icon = icon("question"))
+        value_box("One or more flows not expected value (0.6 L/min)",
+                  value = val, theme = "warning", showcase = bs_icon("question"))
       } else {
-        infoBox("Detector Inlet & Impactor Flow", "0.6 L/min",
-                color = "blue", icon = icon("check"))
+        value_box("Flows", value = val, theme = "primary", showcase = bs_icon("check"))
       }
-      
     })
     
-    output$sheath_rh <- renderInfoBox({
+    output$sheath_rh <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$sheath_relative_humidity > 20) {
-        infoBox("Sheath RH", paste(s$sheath_relative_humidity, "%"),
-                subtitle = "Sheath RH high",
-                color = "yellow", icon = icon("question"))
+        value_box("Sheath RH High", value = paste(s$sheath_relative_humidity, "%"),
+                  theme = "warning", showcase = bs_icon("question"))
       } else {
-        infoBox("Sheath RH", paste(s$sheath_relative_humidity, "%"),
-                color = "blue", icon = icon("check"))
+        value_box("Sheath RH", value = paste(s$sheath_relative_humidity, "%"),
+                  theme = "primary", showcase = bs_icon("check"))
       }
     })
     
-    output$sheath_pressure <- renderInfoBox({
+    output$sheath_pressure <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
-      
-      infoBox("Sheath Pressure", paste(s$sheath_pressure, "kPa"),
-                color = "blue", icon = icon("info"))
-      
+      value_box("Sheath Pressure", value = paste(s$sheath_pressure, "kPa"),
+                theme = "primary", showcase = bs_icon("info"))
     })
     
-    output$sheath_temp <- renderInfoBox({
+    output$sheath_temp <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
-      
-      infoBox("Sheath Temperature", paste0(s$sheath_temp, " ", "\U00b0", "C"),
-              color = "blue", icon = icon("info"))
-      
+      value_box("Sheath Temperature", value = paste0(s$sheath_temp, " ", "\U00b0", "C"),
+                theme = "primary", showcase = bs_icon("info"))
     })
     
-    ts_plot <- function(param, df) {
+    ts_plot <- function(df) {
       
-      ggplot(df, aes(x = sample_start, y = .data[[param]])) + geom_line() +
+      ggplot(df, aes(x = sample_start, y = value, color = param)) + geom_line() +
         scale_x_datetime(labels = scales::label_date()) +
         theme(axis.title.x = element_blank())
       
@@ -221,16 +217,20 @@ smpsServer <- function(id, site) {
     
     output$plot1 <- renderPlotly({
       
-      df <- get_range()
-      g <- ts_plot(input$plot1_y, df)
+      df <- get_range() |>
+      select(sample_start, any_of(input$plot1_y)) |>
+        tidyr::pivot_longer(any_of(input$plot1_y), names_to = "param", values_to = "value")
+      g <- ts_plot(df)
       ggplotly(g, dynamicTicks = TRUE)
       
     })
     
     output$plot2 <- renderPlotly({
       
-      df <- get_range()
-      g <- ts_plot(input$plot2_y, df)
+      df <- get_range() |>
+        select(sample_start, any_of(input$plot2_y)) |>
+        tidyr::pivot_longer(any_of(input$plot2_y), names_to = "param", values_to = "value")
+      g <- ts_plot(df)
       ggplotly(g, dynamicTicks = TRUE)
       
     })

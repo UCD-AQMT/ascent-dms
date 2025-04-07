@@ -9,38 +9,26 @@ siteUI <- function(id) {
     arrange(atomic_number) |>
     pull(element)
   
-  tagList(
-    fluidRow(
-      box(
-        column(2, dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
-                                 min = "2023-01-01", max = today)),
-        column(4, selectInput(ns("mass"), "Aerosol Mass", multiple = TRUE,
-                              choices = c("SMPS (loads slowly)"="smps", 
-                                          "Purple Air"="purpleair",
-                                          "ACSM + BC + Xact (minus S)"="acsm"),
-                              selected = c("smps", "purpleair", "acsm"))),
-        column(3, selectInput(ns("elements"), "Elements", choices = elems, multiple = TRUE, 
-                              selected = c("S", "Si", "Cl", "K", "Al", "Fe", "Ca"))),
-        column(2, selectInput(ns("fraction"), "Mass Fraction", 
-                              choices = c("Total Mass", "Fraction of Mass"),
-                              selected = "Total Mass")),
-        column(1, 
-               br(),
-               actionButton(ns("go"), "Plot")),
-        width = 12
-        )
+  layout_sidebar(
+    sidebar = sidebar(
+      dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
+                               min = "2023-01-01", max = today),
+      selectInput(ns("mass"), "Aerosol Mass", multiple = TRUE,
+                            choices = c("SMPS (loads slowly)"="smps", 
+                                        "Purple Air"="purpleair",
+                                        "ACSM + BC + Xact (minus S)"="acsm"),
+                            selected = c("smps", "purpleair", "acsm")),
+      selectInput(ns("elements"), "Elements", choices = elems, multiple = TRUE, 
+                            selected = c("S", "Si", "Cl", "K", "Al", "Fe", "Ca")),
+      selectInput(ns("fraction"), "Mass Fraction", 
+                            choices = c("Total Mass", "Fraction of Mass"),
+                            selected = "Total Mass"),
+      input_task_button(ns("go"), "Plot")
       ),
-    fluidRow(
-      box(
-        plotOutput(ns("plot"), height = 1000) |>
-          withSpinner(),
-        width = 12
-      )
-    )
+    card(plotOutput(ns("plot"), height = 1000) |>
+           withSpinner()
+         )
   )
-  
-
-  
 }
 
 siteServer <- function(id, site) {
@@ -226,7 +214,8 @@ siteServer <- function(id, site) {
         geom_line(linewidth = 1) +
         scale_x_datetime(labels = scales::label_date_short(),
                          limits = date_range()) +
-        labs(y = expression(atop("Aerosol Mass", mu*g~m^-3))) +
+        labs(y = expression(atop("Aerosol Mass", mu*g~m^-3)),
+             title = site()) +
         theme(axis.title.x = element_blank())
 
     })

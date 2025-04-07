@@ -3,14 +3,12 @@ networkUI <- function(id) {
   
   ns <- NS(id)
   
-  fluidRow(
-    box("Network Status", width = 10,
-        DT::dataTableOutput(ns("tbl")) |>
-          withSpinner()
-        )
+  page_fillable(
+    DT::dataTableOutput(ns("tbl")) |>
+      withSpinner(),
+    p("click on a cell for details")
   )
   
-
 }
 
 networkServer <- function(id) {
@@ -123,22 +121,11 @@ networkServer <- function(id) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      #t1 <- Sys.time()
       xact <- xact_status()
-      #t2 <- Sys.time()
-      #print(paste("xact:", difftime(t2, t1, "secs")))
       acsm <- acsm_status()
-      #t3 <- Sys.time()
-      #print(paste("acsm:", difftime(t3, t2, "secs")))
       pa <- pa_status()
-      #t4 <- Sys.time()
-      #print(paste("purpleair:", difftime(t4, t3, "secs")))
       ae33 <- ae33_status()
-      #t5 <- Sys.time()
-      #print(paste("ae33:", difftime(t5, t4, "secs")))
       smps <- smps_status()
-      #t6 <- Sys.time()
-      #print(paste("smps:", difftime(t6, t5, "secs")))
 
       bind_rows(xact, acsm, pa, ae33, smps) |>
         select(-Lag) |>
@@ -155,14 +142,15 @@ networkServer <- function(id) {
       
       df <- status_df()
       DT::datatable(df, rownames = FALSE,
+                    style = "bootstrap",
                     options = list(dom = "t",
                                    ordering = FALSE,
                                    pageLength = 15),
                     selection = list(mode = "single", target = "cell")) |>
-        formatStyle(2:6, 
+        formatStyle(2:6,
                     backgroundColor = styleEqual(
                       c("online", "lagging", "offline"),
-                      c("dodgerblue", "yellow", "red")
+                      c("#007bc2", "#f9b928", "#c10000")
                     ))
       
     })

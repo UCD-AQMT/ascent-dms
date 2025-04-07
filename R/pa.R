@@ -9,26 +9,35 @@ paUI <- function(id) {
     collect()
   options <- colnames(df)
 
-  tagList(
-    fluidRow(
-      infoBoxOutput(ns("reporting"), width = 3),
-      infoBoxOutput(ns("channel_state"), width = 3),
-      infoBoxOutput(ns("channel_flags"), width = 3),
-      infoBoxOutput(ns("confidence"), width = 3)
+  page_fillable(
+    layout_column_wrap(
+      width = "200px",
+      fill = FALSE,
+      uiOutput(ns("reporting")),
+      uiOutput(ns("channel_state")),
+      uiOutput(ns("channel_flags")),
+      uiOutput(ns("confidence"))
     ),
-    fluidRow(
-      column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
-                            multiple = TRUE, selected = c("pm1_0_atm", "pm2_5_atm", "pm10_0_atm"))),
-      column(10, plotlyOutput(ns("plot1"), height = 300))
+    card(
+      layout_sidebar(
+        sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = options,
+                                      multiple = TRUE, 
+                                      selected = c("pm1_0_atm", "pm2_5_atm", "pm10_0_atm"))),
+        plotlyOutput(ns("plot1"))
+      ),
+      full_screen = TRUE
     ),
-    fluidRow(
-      column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
-                            multiple = TRUE, selected = c("pm2_5_atm_a", "pm2_5_atm_b", "pm2_5_atm"))),
-      column(10, plotlyOutput(ns("plot2"), height = 300))
+    card(
+      layout_sidebar(
+        sidebar = sidebar(selectInput(ns("plot2_y"), "Parameter", choices = options,
+                                      multiple = TRUE, 
+                                      selected = c("pm2_5_atm_a", "pm2_5_atm_b", "pm2_5_atm"))),
+        plotlyOutput(ns("plot2"))
+      ),
+      full_screen = TRUE
     )
   )
-  
-  
+
 }
 
 paServer <- function(id, site) {
@@ -57,36 +66,33 @@ paServer <- function(id, site) {
       
     })
     
-    
-    output$reporting <- renderInfoBox({
-      
-      s <- get_last()
-      validate(need(nrow(s) > 0, "No data for site"))
-      
-      tdiff <- difftime(Sys.time(), s$last_seen, units = "mins")
-      
-      if (tdiff > (24 * 60)) {
-        txt <- "Offline"
-        sub <- glue::glue("Last data {round(tdiff / (60 * 24))} days ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "red", icon = icon("exclamation"),
-                width = 3)
-      } else if (tdiff > 60) {
-        txt <- "Lagging"
-        sub <- glue::glue("Last data {round(tdiff / 60)} hours ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
-                width = 3)
-      } else {
-        txt <- "Online"
-        sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "blue", icon = icon("check"),
-                width = 3)
-        
-      }
+    output$reporting <- renderUI({
+        s <- get_last()
+        validate(need(nrow(s) > 0, "No data for site"))
+
+        tdiff <- difftime(Sys.time(), s$last_seen, units = "mins")
+
+        if (tdiff > (24 * 60)) {
+          txt <- "Offline"
+          sub <- glue::glue("Last data {round(tdiff / (60 * 24))} days ago")
+          icon <- bs_icon("exclamation")
+          theme <- "danger"
+        } else if (tdiff > 60) {
+          txt <- "Lagging"
+          sub <- glue::glue("Last data {round(tdiff / 60)} hours ago")
+          icon <- bs_icon("clock")
+          theme <- "warning"
+        } else {
+          txt <- "Online"
+          sub <- glue::glue("Last data {round(tdiff)} minutes ago")
+          icon <- bs_icon("check")
+          theme <- "primary"
+        }
+        value_box(title = sub, value = txt, showcase = icon, theme = theme)
       
     })
     
-    output$channel_state <- renderInfoBox({
-      
+    output$channel_state <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
@@ -94,45 +100,48 @@ paServer <- function(id, site) {
       # here to match R array indexing for the switch function.
       state <- switch(s$channel_state + 1,
                       list(text = "NO PM", subtitle = "No PM sensors were detected",
-                                   icon = "exclamation", color = "red"),
+                           icon = "exclamation", theme = "danger"),
                       list(text = "PM-A", subtitle = "PM sensor on channel A only",
-                                   icon = "question", color = "yellow"),
+                           icon = "question", theme = "warning"),
                       list(text = "PM-B", subtitle = "PM sensor on channel B only",
-                                   icon = "question", color = "yellow"),
-                      list(text = "PM-A+PM-B", subtitle = "PM sensor on both channels A and B",
-                                   icon = "check", color = "blue")
+                           icon = "question", theme = "warning"),
+                      list(text = "PM-A+PM-B", subtitle = "PM sensor on both channels",
+                           icon = "check", theme = "primary")
       )
-      infoBox("Channel State", state$text, subtitle = state$subtitle, color = state$color,
-              icon = icon(state$icon))
-
+      value_box(title = state$subtitle, value = state$text, showcase = bs_icon(state$icon),
+                theme = state$theme)
     })
 
-    output$channel_flags <- renderInfoBox({
-      
+    output$channel_flags <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       flags <- switch(s$channel_flags + 1,
                       list(text = "Normal", subtitle = "No PM sensors downgraded",
-                           icon = "check", color = "blue"),
+                           icon = "check", theme = "primary"),
                       list(text = "A-Downgraded", subtitle = "PM sensor A downgraded",
-                           icon = "question", color = "yellow"),
+                           icon = "question", theme = "warning"),
                       list(text = "B-Downgraded", subtitle = "PM sensor B downgraded",
-                           icon = "question", color = "yellow"),
+                           icon = "question", theme = "warning"),
                       list(text = "A+B-Downgraded", subtitle = "Both PM sensors downgraded",
-                           icon = "exclamation", color = "red")
-                      )
-      infoBox("Channel Flags", flags$text, subtitle = flags$subtitle, color = flags$color,
-              icon = icon(flags$icon))
-      
-      
-    })    
+                           icon = "exclamation", theme = "danger")
+      )
+      value_box(title = flags$subtitle, value = flags$text, showcase = bs_icon(flags$icon),
+                theme = flags$theme)
+    })
     
-    output$confidence <- renderInfoBox({
+    output$confidence <- renderUI({
       
-      s <- get_last()
-      validate(need(nrow(s) > 0, "No data for site"))
-      infoBox("Confidence", s$confidence, color = "blue", icon = icon("info"))
+      l <- get_last()
+      validate(need(nrow(l) > 0, "No data for site"))
+      
+      theme <- case_when(
+        l$confidence >= 95 ~ "primary",
+        l$confidence < 55 ~ "danger",
+        .default = "warning"
+      )
+      value_box(value = l$confidence, title = "Confidence", 
+                showcase = bs_icon("info"), theme = theme)
       
     })
     

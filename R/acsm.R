@@ -8,6 +8,7 @@ acsmUI <- function(id) {
   tps <- tbl(con, I("acsm.tps"))
   mls <- tbl(con, I("acsm.mass_loadings"))
   calib <- tbl(con, I("acsm.diag_calib"))
+  ds <- tbl(con, I("acsm.dryer_stats"))
   
   # Get the tablenames
   df <- sa |>
@@ -21,49 +22,54 @@ acsmUI <- function(id) {
     collect()
   options <- colnames(df)
   
-  tagList(
-    fluidRow(
-      infoBoxOutput(ns("status"), width = 3),
-      infoBoxOutput(ns("ce"), width = 3),
-      infoBoxOutput(ns("pressure"), width = 3),
-      infoBoxOutput(ns("airbeam_total"), width = 3),
-      infoBoxOutput(ns("airbeam_ref"), width = 3),
-      infoBoxOutput(ns("heater_temp"), width = 3),
-      infoBoxOutput(ns("heater_current"), width = 3),
-      infoBoxOutput(ns("filament"), width = 3),
-      infoBoxOutput(ns("detector_voltage"), width = 3),
-      infoBoxOutput(ns("turbo_speed"), width = 3),
-      infoBoxOutput(ns("turbo_power"), width = 3),
-      infoBoxOutput(ns("fore_pc"), width = 3),
-      infoBoxOutput(ns("rh"), width = 3),
-      infoBoxOutput(ns("rh_out"), width = 3)
-      
+  df <- ds |>
+    filter(1==0) |>
+    collect()
+  opts_dryer <- colnames(df)
+  
+  page_fillable(
+    gap = "8px",
+    layout_column_wrap(
+      width = 1/7,
+      min_height = "200px",
+      gap = "6px",
+      uiOutput(ns("status")),
+      uiOutput(ns("ce")),
+      uiOutput(ns("pressure")),
+      uiOutput(ns("airbeam_total")),
+      uiOutput(ns("airbeam_ref")),
+      uiOutput(ns("heater_temp")),
+      uiOutput(ns("heater_current")),
+      uiOutput(ns("filament")),
+      uiOutput(ns("detector_voltage")),
+      uiOutput(ns("turbo_speed")),
+      uiOutput(ns("turbo_power")),
+      uiOutput(ns("fore_pc")),
+      uiOutput(ns("rh")),
+      uiOutput(ns("rh_out"))
     ),
-    fluidRow(
-      column(10, offset = 2, plotlyOutput(ns("fractions")))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
-             selected = "ab_total")),
-      column(10, plotlyOutput(ns("plot1"), height = 200))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
-                            selected = "detector")),
-      column(10, plotlyOutput(ns("plot2"), height = 200))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("plot3_y"), "Parameter", choices = options,
-                            selected = "flow_ccs")),
-      column(10, plotlyOutput(ns("plot3"), height = 200))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("plot4_y"), "Parameter", choices = options,
-                            selected = "turbo_power")),
-      column(10, plotlyOutput(ns("plot4"), height = 200))
-    )
-  )
+    layout_column_wrap(
+      width = 1/2,
+      card(
+        plotlyOutput(ns("fractions")),
+        full_screen = TRUE
+      ),
+      layout_column_wrap(
+        width = 1,
+        card(
+          selectInput(ns("plot1_y"), label = NULL, choices = options, multiple = TRUE,
+                      selected = c("ab_total", "abref")),
+          plotlyOutput(ns("plot1")),
+          selectInput(ns("plot2_y"), label = NULL, choices = opts_dryer, multiple = TRUE,
+                      selected = c("rh_dry", "rh_in")),
+          plotlyOutput(ns("plot2")),
+          full_screen = TRUE
+        )
+      )
 
+    )
+    
+  )
 }
 
 acsmServer <- function(id, site) {
@@ -107,30 +113,34 @@ acsmServer <- function(id, site) {
     })
     
     #DryerStats
-    get_last_ds <- reactive({
+    get_ds <- reactive({
       
-      invalidateLater(1000 * 60 * 3) # every three minutes
-     
-      last <- Sys.time()
-      first <- last - 60 * 60 * 24 # 24 hrs
+      # want the time range to match the data from the other tables
+      r <- get_range()
+      min_dt <- min(r$start_date)
+      max_dt <- max(r$start_date)
       df <- ds |>
         inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
         filter(site_code == !!site(),
-               datetime > first) |>
+               datetime >= min_dt,
+               datetime <= max_dt) |>
+        collect()
+      
+      
+    })
+    
+    get_last_ds <- reactive({
+      
+      get_ds() |>
         arrange(desc(datetime)) |>
-        collect() |>
         slice(1)
-      
-      validate(need(nrow(df) > 0, "No data for site"))
-      
-      df
       
     })
     
     
-    ts_plot <- function(param, df) {
+    ts_plot <- function(df) {
       
-      ggplot(df, aes(x = start_date, y = .data[[param]])) + geom_line() +
+      ggplot(df, aes(x = start_date, y = value, color = param)) + geom_line() +
         scale_x_datetime(labels = scales::label_date()) +
         theme(axis.title.x = element_blank())
       
@@ -138,36 +148,26 @@ acsmServer <- function(id, site) {
     
     output$plot1 <- renderPlotly({
       
-      df <- get_range()
-      g <- ts_plot(input$plot1_y, df)
+      df <- get_range() |>
+        select(start_date, any_of(input$plot1_y)) |>
+        tidyr::pivot_longer(any_of(input$plot1_y), names_to = "param", values_to = "value")
+      g <- ts_plot(df)
       ggplotly(g, dynamicTicks = TRUE)
       
     })
     
     output$plot2 <- renderPlotly({
       
-      df <- get_range()
-      g <- ts_plot(input$plot2_y, df)
+      df <- get_ds() |>
+        select(start_date=datetime, any_of(input$plot2_y)) |>
+        tidyr::pivot_longer(any_of(input$plot2_y), names_to = "param", values_to = "value")
+      
+      g <- ts_plot(df)
       ggplotly(g, dynamicTicks = TRUE)
       
     })
     
-    output$plot3 <- renderPlotly({
-      
-      df <- get_range()
-      g <- ts_plot(input$plot3_y, df)
-      ggplotly(g, dynamicTicks = TRUE)
-      
-    })
-    
-    output$plot4 <- renderPlotly({
-      
-      df <- get_range()
-      g <- ts_plot(input$plot4_y, df)
-      ggplotly(g, dynamicTicks = TRUE)
-      
-    })
-    
+
     output$fractions <- renderPlotly({
       
       df <- get_range()
@@ -184,236 +184,215 @@ acsmServer <- function(id, site) {
       
     })
     
-    output$status <- renderInfoBox({
+    output$status <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
 
-      if (s$status == 0 & s$interlock == 0) {
-        tdiff <- Sys.time() - s$stop_date
-        if (tdiff > 60) {
-          txt <- "Lagging"
-          sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-          infoBox("Status", txt, subtitle = sub, color = "yellow", icon = icon("clock"))
-        } else {
-          txt <- "OK"
-          sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-          infoBox("Status", txt, subtitle = sub, color = "blue", icon = icon("check"))
-        }
-
+      if (s$interlock != 0) {
+        val <- "Error"
+        th <- "danger"
+        title <- "Interlock Error"
+      } else if (s$status != 0) {
+        val <- "Error"
+        th <- "danger"
+        title <- "Status Error"
       } else {
-        if (s$interlock != 0) {
-          txt <- "Interlock Error"
+        tdiff <- Sys.time() - s$stop_date
+        if (tdiff > (60 * 24)) {
+          title <- paste("Last data", round(tdiff / (60 * 24)), "days ago")
+          val <- "Offline"
+          th <- "danger"
+        } else if (tdiff > 60) {
+          title <- paste("Last data", round(tdiff), "minutes ago")
+          val <- "Lagging"
+          th <- "warning"
         } else {
-          txt <- "Status Error"
+          title <- paste("Last data", round(tdiff), "minutes ago")
+          val <- "Online"
+          th <- "primary"
         }
-        infoBox("Status", txt, color = "red", icon = icon("exclamation"))
       }
-
+      value_box(title = title, theme = th, value = val)
     })
     
-    output$ce <- renderInfoBox({
+    output$ce <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$ce == 0.5) {
-        infoBox("Collection Efficiency", s$ce, color = "blue", icon = icon("check"))
+        value_box("Collection Efficiency", value = s$ce, theme = "primary")
       } else {
-        infoBox("Collection Efficiency", s$ce, subtitle = "collection efficiency mismatch",
-                color = "yellow", icon = icon("question"))
+        value_box("Collection Efficiency Mismatch", value = s$ce, theme = "warning")
       }
-      
     })
     
-    output$pressure <- renderInfoBox({
+    output$pressure <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$press_inlet < 4 | s$press_inlet > 4.8) {
-        infoBox("Inlet Pressure", paste(round(s$press_inlet, 2), "mbar"), 
-                subtitle = "Inlet pressure not within 4.0-4.8 mbar",
-                color = "red", icon = icon("x"))
+        value_box("Inlet pressure not within 4.0-4.8 mbar", 
+                  value = paste(round(s$press_inlet, 2), "mbar"), theme = "danger")
       } else {
-        infoBox("Inlet Pressure", paste(round(s$press_inlet, 2), "mbar"),
-                color = "blue", icon = icon("check")) 
+        value_box("Inlet Pressure", value = paste(round(s$press_inlet, 2), "mbar"),
+                theme = "primary") 
       }
-
     })
     
-    output$airbeam_total <- renderInfoBox({
+    output$airbeam_total <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       abtot <- s$ab_total
       if (abtot < 1e5 | abtot > 5e5) {
-        infoBox("Airbeam", paste(abtot, "ions/s"),
-                subtitle = "Airbeam not within 1e5 - 5e5 ions/s",
-                color = "yellow", icon = icon("question"))
+        value_box("Airbeam not within 1e5 - 5e5 ions/s", value = paste(abtot, "ions/s"),
+                theme = "warning")
       } else {
-        infoBox("Airbeam", paste(abtot, "ions/s"),
-                color = "blue", icon = icon("check"))
+        value_box("Airbeam", value = paste(abtot, "ions/s"), theme = "primary")
       }
       
     })
     
-    output$airbeam_ref <- renderInfoBox({
+    output$airbeam_ref <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       abratio <- s$ab_total / s$abref
       perc_off <- (abratio - 1) * 100
+      val <- paste0(round(perc_off), "%")
       
       if (abratio < 0.7 | abratio > 1.3) {
-        infoBox("Airbeam to Reference", paste0(round(perc_off), "%"),
-                subtitle = "Airbeam not within 30% of reference - AB correction potentially invalid",
-                color = "red", icon = icon("x"))
+        title <- "Airbeam not within 30% of reference - AB correction potentially invalid"
+        th <- "danger"
       } else if (abratio < 0.8 | abratio > 1.2) {
-        infoBox("Airbeam to Reference", paste0(round(perc_off), "%"),
-                subtitle = "Airbeam not within 20% of reference - Check single ion signal",
-                color = "yellow", icon = icon("question"))
+        title <- "Airbeam not within 20% of reference - Check single ion signal"
+        th <- "warning"
       } else {
-        infoBox("Airbeam to Reference", paste0(round(perc_off), "%"),
-                color = "blue", icon = icon("check"))
+        title <- "Airbeam to Reference"
+        th <- "primary"
       }
-      
+      value_box(title = title, value = val, theme = th)
     })
     
-    output$heater_temp <- renderInfoBox({
+    output$heater_temp <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$heater_t < 575 | s$heater_t > 625) {
-        infoBox("Heater Temp", paste(s$heater_t, "\u00B0C"),
-                subtitle = "Heater temp not within 575-625 \u00B0C",
-                color = "red", icon = icon("x"))
+        value_box("Heater temp not within 575-625 \u00B0C", 
+                  value = paste(s$heater_t, "\u00B0C"), theme = "danger")
       } else {
-        infoBox("Heater Temp", paste(s$heater_t, "\u00B0C"),
-                color = "blue", icon = icon("check"))
-        
+        value_box("Heater Temp", value = paste(s$heater_t, "\u00B0C"), theme = "primary")
       }
       
     })
     
-    output$heater_current <- renderInfoBox({
+    output$heater_current <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$heater_i < 1.1 | s$heater_i > 1.3) {
-        infoBox("Heater Current", paste(s$heater_i, "A"),
-                subtitle = "Heater current not within 1.1-1.3 A",
-                color = "yellow", icon = icon("question"))
+        value_box("Heater current not within 1.1-1.3 A", value = paste(s$heater_i, "A"),
+                  theme = "warning")
       } else {
-        infoBox("Heater Current", paste(s$heater_i, "A"),
-                color = "blue", icon = icon("check"))
+        value_box("Heater Current", , value = paste(s$heater_i, "A"), theme = "primary")
       }
     })
     
-    output$filament <- renderInfoBox({
+    output$filament <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$filament_emm <= 0) {
-        infoBox("Filament Emission", paste(s$filament_emm, "mA"),
-                subtitle = "URGENT - Filament emission not a positive value. Switch filament and confirm that new filament emission is at setpoint (typically 1.0, 0.7, or 0.4 mA",
-                color = "red", icon = icon("exclamation"))
+        value_box("URGENT - Filament emission not a positive value. Switch filament and confirm that new filament emission is at setpoint (typically 1.0, 0.7, or 0.4 mA)",
+                  value = paste(s$filament_emm, "mA"), theme = "danger", 
+                  showcase = bs_icon("exclamation"))
       } else {
-        infoBox("Filament Emission", paste(s$filament_emm, "mA"),
-                color = "blue", icon = icon("check"))
+        value_box("Filament Emission", value = paste(s$filament_emm, "mA"), 
+                  theme = "primary")
       }
       
     })
     
-    output$detector_voltage <- renderInfoBox({
+    output$detector_voltage <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$detector >= 3900) {
-        infoBox("Detector Voltage", paste(s$detector, "V"),
-                subtitle = "WARNING: Detector voltage > 3900 V. Purchase new detector and prepare for replacement.",
-                color = "red", icon = icon("exclamation"))
+        value_box("WARNING: Detector voltage > 3900 V. Purchase new detector and prepare for replacement.",
+                  value = paste(s$detector, "V"), theme = "danger")
       } else {
-        infoBox("Detector Voltage", paste(s$detector, "V"),
-                color = "blue", icon = icon("check"))
+        value_box("Detector Voltage", value = paste(s$detector, "V"), theme = "primary")
       }
       
     })
     
-    output$turbo_speed <- renderInfoBox({
+    output$turbo_speed <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
 
       if (s$turbo_speed < 999) {
-        infoBox("Turbo speed", paste(s$turbo_speed, "Hz"),
-                subtitle = "Turbo speed low. Consider checking for leaks.",
-                color = "yellow", icon = icon("question"))
+        value_box("Turbo speed low. Consider checking for leaks.",
+                  value = paste(s$turbo_speed, "Hz"), theme = "warning")
       } else {
-        infoBox("Turbo speed", paste(s$turbo_speed, "Hz"),
-                color = "blue", icon = icon("check"))
+        value_box("Turbo speed", value = paste(s$turbo_speed, "Hz"), theme = "primary")
       }
     })
     
-    output$turbo_power <- renderInfoBox({
+    output$turbo_power <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
 
       if (s$turbo_power > 145) {
-        infoBox("Turbo power", paste(s$turbo_power, "W"),
-                subtitle = "Urgent: Turbo power above 145 W. Consider checking for leaks.",
-                color = "red", icon = icon("exclamation"))
+        value_box("Urgent: Turbo power above 145 W. Check for leaks.",
+                  value = paste(s$turbo_power, "W"), theme = "danger",
+                  showcase = bs_icon("exclamation"))
       } else {
-        infoBox("Turbo power", paste(s$turbo_power, "W"),
-                color = "blue", icon = icon("check"))
+        value_box("Turbo power", value = paste(s$turbo_power, "W"), theme = "primary")
       }
       
     })
     
-    output$fore_pc <- renderInfoBox({
+    output$fore_pc <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$fore_pc != 100) {
-        infoBox("Fore Percentage", paste(s$fore_pc, "%"),
-                subtitle = "URGENT: Fore percentage not 100%",
-                color = "red", icon = icon("exclamation"))
+        value_box("URGENT: Fore percentage not 100%", value = paste(s$fore_pc, "%"),
+                  theme = "danger", showcase = bs_icon("exclamation"))
       } else {
-        infoBox("Fore Percentage", paste(s$fore_pc, "%"),
-                color = "blue", icon = icon("check"))
+        value_box("Fore Percentage",value = paste(s$fore_pc, "%"),
+                  theme = "primary")
       }
     })
     
-    output$rh <- renderInfoBox({
+    output$rh <- renderUI({
       s <- get_last_ds()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$rh_dry > s$rh_in) {
-        infoBox("RH Difference", "RH out > RH in",
-                subtitle = paste("RH out:", s$rh_dry, "RH in:", s$rh_in),
-                color = "red", icon = icon("exclamation"))
+        value_box("RH out > RH in", value = paste("RH out:", s$rh_dry, "RH in:", s$rh_in),
+                  theme = "danger")
       } else {
-        infoBox("RH Difference", "RH out < RH in",
-                subtitle = paste("RH out:", s$rh_dry, "RH in:", s$rh_in),
-                color = "blue", icon = icon("check"))
-        
+        value_box("RH Difference", value = paste("RH out:", s$rh_dry, "RH in:", s$rh_in),
+                  theme = "primary")
       }
     })
     
-    output$rh_out <- renderInfoBox({
+    output$rh_out <- renderUI({
       s <- get_last_ds()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$rh_dry > 40) {
-        infoBox("RH Out", "RH out > 40%",
-                subtitle = paste(s$rh_dry, "%"),
-                color = "red", icon = icon("exclamation"))
+        value_box("RH out > 40%", value = paste(s$rh_dry, "%"), theme = "danger")
       } else {
-        infoBox("RH Out", "RH out \U2264 40%",
-                subtitle = paste(s$rh_dry, "%"),
-                color = "blue", icon = icon("check"))        
+        value_box("RH Out", value = paste(s$rh_dry, "%"), theme = "primary")
       }
     })
   })

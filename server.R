@@ -2,6 +2,8 @@
 shinyServer(function(input, output, session) {
   
   
+  # bs_themer()
+  
   observe({
     query <- parseQueryString(session$clientData$url_search)
     if (!is.null(query[['site']])) {
@@ -24,8 +26,8 @@ shinyServer(function(input, output, session) {
         cl <- network()
         # If first column is clicked, go to the site view for the clicked site
         if (cl$col == 0) {
-          updateTabItems(session = session,
-                         inputId = "tab",
+          nav_select(session = session,
+                         id = "tab",
                          selected = "site")
           updateSelectInput(session = session, 
                             inputId = "site_all",
@@ -36,8 +38,8 @@ shinyServer(function(input, output, session) {
           tab_selected <- cols[cl$col]
           # Site table here is in alphabetical order
           site_selected <- sort(site_list)[cl$row]
-          updateTabItems(session = session,
-                         inputId = "tab",
+          nav_select(session = session,
+                         id = "tab",
                          selected = tab_selected)
           updateSelectInput(session = session, 
                             inputId = "site_all",

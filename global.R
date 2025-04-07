@@ -1,6 +1,5 @@
 
 library(shiny)
-library(shinydashboard)
 library(bslib)
 library(dplyr)
 library(ggplot2)
@@ -11,10 +10,11 @@ library(shinycssloaders)
 library(patchwork)
 library(thematic)
 library(DT)
+library(bsicons)
 
 # Set themes for all plots
 thematic_shiny(font = "auto")
-theme_set(theme_minimal(base_size = 16))
+theme_set(theme_minimal(base_size = 14))
 
 # Enable bookmarking
 enableBookmarking(store = "url")
@@ -175,4 +175,3 @@ parse_ae33_flags <- function(x) {
        cf_card=cf_card,  database=database)
   
 }
-

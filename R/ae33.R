@@ -3,34 +3,49 @@ ae33UI <- function(id) {
   
   ns <- NS(id)
   
-  options <- "test"
-  
-  tagList(
-    fluidRow(
-      infoBoxOutput(ns("reporting"), width = 3),
-      infoBoxOutput(ns("operation"), width = 3),
-      infoBoxOutput(ns("flow"), width = 3),
-      infoBoxOutput(ns("optical"), width = 3),
-      infoBoxOutput(ns("chamber"), width = 3),
-      infoBoxOutput(ns("tape"), width = 3),
-      infoBoxOutput(ns("setup"), width = 3),
-      infoBoxOutput(ns("tests"), width = 3),
-      infoBoxOutput(ns("external_device"), width = 3),
-      infoBoxOutput(ns("clean_air"), width = 3),
-      infoBoxOutput(ns("cf_card"), width = 3),
-      infoBoxOutput(ns("database"), width = 3)
+  page_fillable(
+    layout_column_wrap(
+      width = 1/6,
+      min_height = "200px",
+      gap = "6px",
+      uiOutput(ns("reporting")),
+      uiOutput(ns("operation")),
+      uiOutput(ns("flow")),
+      uiOutput(ns("optical")),
+      uiOutput(ns("chamber")),
+      uiOutput(ns("tape")),
+      uiOutput(ns("setup")),
+      uiOutput(ns("tests")),
+      uiOutput(ns("external_device")),
+      uiOutput(ns("clean_air")),
+      uiOutput(ns("cf_card")),
+      uiOutput(ns("database")),
     ),
-    fluidRow(
-      column(6, plotlyOutput(ns("ebc"), height = 250)),
-      column(6, plotlyOutput(ns("attenuation"), height = 250))
+    layout_column_wrap(
+      width = 1/2,
+      gap = "8px",
+      card(
+        plotlyOutput(ns("ebc")),
+        full_screen = TRUE
+      ),
+      card(
+        plotlyOutput(ns("attenuation")),
+        full_screen = TRUE
+      )
     ),
-    fluidRow(
-      column(6, plotlyOutput(ns("flow_plot"), height = 250)),
-      column(6, plotlyOutput(ns("compensation"), height = 250))
+    layout_column_wrap(
+      width = 1/2,
+      gap = "8px",
+      card(
+        plotlyOutput(ns("flow_plot")),
+        full_screen = TRUE
+      ),
+      card(
+        plotlyOutput(ns("compensation")),
+        full_screen = TRUE
+      )
     )
-    
   )
-  
 }
 
 ae33Server <- function(id, site) {
@@ -86,22 +101,22 @@ ae33Server <- function(id, site) {
       
     })
     
-    make_infoBox <- function(title, vec) {
-      col <- switch(vec[1],
-                      "OK" = "blue",
-                      "info" = "blue",
-                      "warning" = "yellow",
-                      "error" = "red")
+    make_valuebox <- function(title, vec) {
+      th <- switch(vec[1],
+                   "OK" = "primary",
+                   "info" = "info",
+                   "warning" = "warning",
+                   "error" = "danger")
       ic <- switch(vec[1],
-                     "OK" = "check",
-                     "info" = "info",
-                     "warning" = "question",
-                     "error" = "exclamation")
-      infoBox(title, vec[2], color = col, icon = icon(ic))
-      
+                   "OK" = "check",
+                   "info" = "info",
+                   "warning" = "question",
+                   "error" = "exclamation")
+      # Do it with no showcase icon to save space
+      value_box(title = title, value = vec[2], theme = th, max_height = "130px")
     }
     
-    output$reporting <- renderInfoBox({
+    output$reporting <- renderUI({
       
       df <- get_last()
       tdiff <- difftime(Sys.time(), df$time, units = "mins")
@@ -109,79 +124,79 @@ ae33Server <- function(id, site) {
       if (tdiff > (60 * 24)) {
         txt <- "Offline"
         sub <- glue::glue("Last data {round(tdiff / (60*24))} days ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "red", icon = icon("exclamation"),
-                width = 3)
+        theme <- "danger"
+        icon <- "exclamation"
       } else if (tdiff > 60) {
         txt <- "Lagging"
         sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
-                width = 3)
+        theme <- "warning"
+        icon <- "clock"
       } else {
         txt <- "Online"
         sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "blue", icon = icon("check"),
-                width = 3)
-        
+        theme <- "primary"
+        icon <- "check"
       }
+      value_box(title = txt, value = sub, theme = theme, max_height = "130px")
       
     })
     
-    output$operation <- renderInfoBox({
+    output$operation <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Operation Status", st$operation)
+      make_valuebox(title = "Operation Status", st$operation)
     })
     
-    output$flow <- renderInfoBox({
+    output$flow <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Flow Status", st$flow)
+      make_valuebox(title = "Flow Status", st$flow)
     })
     
-    output$optical <- renderInfoBox({
+    output$optical <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Optical Source", st$optical)
+      make_valuebox(title = "Optical Source", st$optical)
     })
-    output$chamber <- renderInfoBox({
+    output$chamber <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Chamber", st$chamber)
+      make_valuebox(title = "Chamber", st$chamber)
     })
-    output$tape <- renderInfoBox({
+    output$tape <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Filter Tape", st$tape)
+      make_valuebox(title = "Filter Tape", st$tape)
     })
-    output$setup <- renderInfoBox({
+    output$setup <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Setup File", st$setup)
+      make_valuebox(title = "Setup File", st$setup)
     })
-    output$tests <- renderInfoBox({
+    output$tests <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Tests/Procedures", st$tests)
+      make_valuebox(title = "Tests/Procedures", st$tests)
     })
-    output$external_device <- renderInfoBox({
+    output$external_device <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "External Device", st$external_device)
+      make_valuebox(title = "External Device", st$external_device)
     })
-    output$clean_air <- renderInfoBox({
+    output$clean_air <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Auto Clean Air Test", st$clean_air)
+      make_valuebox(title = "Auto Clean Air Test", st$clean_air)
     })
-    output$cf_card <- renderInfoBox({
+    output$cf_card <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "CF Card", st$cf_card)
+      make_valuebox(title = "CF Card", st$cf_card)
     })
-    output$database <- renderInfoBox({
+    output$database <- renderUI({
       st <- get_status()
       validate(need(length(st) > 0, "No data for site"))
-      make_infoBox(title = "Internal Database", st$database)
+      make_valuebox(title = "Internal Database", st$database)
     })
     
     # Shared margins so the plots x-axes (almost) line up

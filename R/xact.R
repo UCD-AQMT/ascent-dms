@@ -12,46 +12,76 @@ xactUI <- function(id) {
     arrange(atomic_number) |>
     pull(element)
   
-  tagList(
-    fluidRow(
-      infoBoxOutput(ns("reporting"), width = 3),
-      infoBoxOutput(ns("status"), width = 3),
-      infoBoxOutput(ns("ambient"), width = 3),
-      infoBoxOutput(ns("sample"), width = 3),
-      infoBoxOutput(ns("enclosure"), width = 3),
-
-      infoBoxOutput(ns("tube"), width = 3),
-      infoBoxOutput(ns("flows"), width = 3),
-      infoBoxOutput(ns("volume"), width = 3),
-      infoBoxOutput(ns("filament"), width = 3),
-      infoBoxOutput(ns("tape"), width = 3),
-      infoBoxOutput(ns("sdd"), width = 3),
-      infoBoxOutput(ns("dpp"), width = 3)
+  page_fillable(
+    gap = "8px",
+    layout_column_wrap(
+      width = 1/6,
+      min_height = "200px",
+      gap = "6px",
+      uiOutput(ns("reporting")),
+      uiOutput(ns("status")),
+      uiOutput(ns("ambient")),
+      uiOutput(ns("sample")),
+      uiOutput(ns("enclosure")),
+      uiOutput(ns("tube")),
+      uiOutput(ns("flows")),
+      uiOutput(ns("volume")),
+      uiOutput(ns("filament")),
+      uiOutput(ns("tape")),
+      uiOutput(ns("sdd")),
+      uiOutput(ns("dpp"))
     ),
-    fluidRow(
-      column(2, selectInput(ns("plot1_y"), "Parameter", choices = options,
-                            selected = "tube")),
-      column(10, plotlyOutput(ns("plot1"), height = 150))
+    layout_column_wrap(
+      width = 1/2,
+      gap = "8px",
+      card(
+        layout_sidebar(
+          sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = options,
+                                        selected = "tube")),
+          plotlyOutput(ns("plot1"), height = "250px"),
+          padding = c(0,5,0,5)
+        ),
+        full_screen = TRUE,
+        class = "border-0"
+      ),
+      card(
+        layout_sidebar(
+          sidebar = sidebar(selectInput(ns("plot2_y"), "Parameter", choices = options,
+                                        selected = "tape")),
+          plotlyOutput(ns("plot2"), height = "250px"),
+          padding = c(0,5,0,5)
+        ),
+        full_screen = TRUE,
+        class = "border-0"
+      )
     ),
-    fluidRow(
-      column(2, selectInput(ns("plot2_y"), "Parameter", choices = options,
-                            selected = "tape")),
-      column(10, plotlyOutput(ns("plot2"), height = 150))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("element"), "Element", choices = elems,
-             selected = "S")),
-      column(10, plotlyOutput(ns("ts")))
-    ),
-    fluidRow(
-      column(2, selectInput(ns("element_list"), "Elements", choices = elems,
-                            multiple = TRUE, selected = c("S","K"))),
-      column(10, plotlyOutput(ns("stacked")))
+    layout_column_wrap(
+      width = 1/2,
+      gap = "8px",
+      card(
+        layout_sidebar(
+          sidebar = sidebar(selectInput(ns("element"), "Element", choices = elems,
+                                        selected = "S")),
+          plotlyOutput(ns("ts")), height = "250px",
+          padding = c(0,5,0,5)
+        ),
+        full_screen = TRUE,
+        class = "border-0"
+      ),
+      card(
+        layout_sidebar(
+          sidebar = sidebar(selectInput(ns("element_list"), "Elements", choices = elems,
+                                        multiple = TRUE, selected = c("S","K"))),
+          plotlyOutput(ns("stacked"), height = "400px"),
+          padding = c(0,5,0,5)
+        ),
+        full_screen = TRUE,
+        class = "border-0"
+      )
     )
-    
   )
   
-  
+
 }
 
 xactServer <- function(id, site) {
@@ -99,8 +129,23 @@ xactServer <- function(id, site) {
       
     })
     
+    make_valuebox <- function(title, value, theme) {
+      th <- switch(vec[1],
+                   "OK" = "primary",
+                   "info" = "info",
+                   "warning" = "warning",
+                   "error" = "danger")
+      ic <- switch(vec[1],
+                   "OK" = "check",
+                   "info" = "info",
+                   "warning" = "question",
+                   "error" = "exclamation")
+      # Do it with no showcase icon to save space
+      value_box(title = title, value = vec[2], theme = th, max_height = "130px")
+    }
     
-    output$reporting <- renderInfoBox({
+    
+    output$reporting <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
@@ -110,25 +155,22 @@ xactServer <- function(id, site) {
       if (tdiff > 48) {
         txt <- "Offline"
         sub <- glue::glue("Last data {round(tdiff / 24)} days ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "red", icon = icon("exclamation"),
-                width = 3)
+        th <- "danger"
       } else if (tdiff > 12) {
         txt <- "Lagging"
         sub <- glue::glue("Last data {round(tdiff)} hours ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "yellow", icon = icon("clock"),
-                width = 3)
+        th <- "warning"
       } else {
         txt <- "Online"
         tdiff <- difftime(Sys.time(), s$sample_datetime, units = "mins")
         sub <- glue::glue("Last data {round(tdiff)} minutes ago")
-        infoBox("Reporting", txt, subtitle = sub, color = "blue", icon = icon("check"),
-                width = 3)
-        
+        th <- "primary"
       }
+      value_box(title = txt, value = sub, theme = th, max_height = "130px")
       
     })
     
-    output$status <- renderInfoBox({
+    output$status <- renderUI({
       
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
@@ -158,123 +200,117 @@ xactServer <- function(id, site) {
                            213 ~ "Processing Error",
                            .default = "Unknown Error")
       if (s$alarm == 0) {
-        infoBox("Status", status, color = "blue", icon = icon("check"),
-                width = 3)
+        th <- "primary"
       } else if (s$alarm >= 200) {
-        infoBox("Status", status, color = "yellow", icon = icon("question"),
-                width = 3)
+        th <- "warning"
       } else {
-        infoBox("Status", status, color = "red", icon = icon("exclamation"),
-                width = 3)
+        th <- "danger"
       }
+      value_box("Status", value = status, theme = th, max_height = 130)
       
     })
     
-    output$ambient <- renderInfoBox({
+    output$ambient <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
-      infoBox("Ambient Temperature", paste0(s$at, " ", "\U00b0", "C"),
-              color = "blue", icon = icon("info"))
+      value_box("Ambient Temp", value = paste0(s$at, " ", "\U00b0", "C"), theme = "info", 
+                max_height = "130px")
     })
     
-    output$enclosure <- renderInfoBox({
+    output$enclosure <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$enclosure > 35) {
-        infoBox("Enclosure Temperature", paste0(s$enclosure, " ", "\U00b0", "C"),
-                subtitle = "Enclosure temperature very high", color = "red",
-                icon = icon("exclamation"))
+        th <- "danger"
       } else if (s$enclosure > 30) {
-        infoBox("Enclosure Temperature", paste0(s$enclosure, " ", "\U00b0", "C"),
-                subtitle = "Enclosure temperature high", color = "yellow",
-                icon = icon("question"))
+        th <- "warning"
       } else {
-        infoBox("Enclosure Temperature", paste0(s$enclosure, " ", "\U00b0", "C"),
-                color = "blue",
-                icon = icon("check"))
+        th <- "primary"
       }
+      value_box("Enclosure Temp", value = paste0(s$enclosure, " ", "\U00b0", "C"),
+                theme = th, max_height = "130px")
     })    
     
-    output$sample <- renderInfoBox({
+    output$sample <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
-      infoBox("Sample Temperature", paste0(s$sample, " ", "\U00b0", "C"),
-              color = "blue", icon = icon("info"))
+      value_box("Sample Temperature", value = paste0(s$sample, " ", "\U00b0", "C"),
+              theme = "info", max_height = "130px")
     })
     
-    output$tube <- renderInfoBox({
+    output$tube <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       # Tube should be <= enclosure + 13 degrees
       if (s$tube > s$enclosure + 13) {
-        infoBox("Tube Temperature", paste0(s$tube, " ", "\U00b0", "C"),
-                subtitle = paste0("Tube temp > Enclosure temp + 13 ", "\U00b0", "C"),
-                color = "red", icon = icon("exclamation"))
+        title <- paste0("Tube temp > Enclosure temp + 13 ", "\U00b0", "C")
+        th <- "danger"
       } else if (s$tube > 40) {
-        infoBox("Tube Temperature", paste0(s$tube, " ", "\U00b0", "C"),
-                subtitle = "Tube temperature high", color = "yellow",
-                icon = icon("question"))
+        title <- "Tube temp high"
+        th <- "warning"
       } else {
-        infoBox("Tube Temperature", paste0(s$tube, " ", "\U00b0", "C"),
-                color = "blue",
-                icon = icon("check"))
+        title <- "Tube temp"
+        th <- "primary"
       }
+      value_box(title = title, value = paste0(s$tube, " ", "\U00b0", "C"), theme = th,
+                max_height = "130px")
     }) 
     
-    output$flows <- renderInfoBox({
+    output$flows <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
-      infoBox("Flow Act/25/Std", paste0(s$flow_act, "/", s$flow_25, "/", s$flow_std, "  L/min"),
-              color = "blue", icon = icon("info"))
+      value_box("Flow Act/25/Std", value = paste0(s$flow_act, "/", s$flow_25, "/", s$flow_std, "  L/min"),
+              theme = "info", max_height = "130px")
     })
     
-    output$volume <- renderInfoBox({
+    output$volume <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
-      infoBox("Volume", paste(s$volume, "L"),
-              color = "blue", icon = icon("info"))
+      value_box("Volume", value = paste(s$volume, "L"), theme = "info", max_height = "130px")
     })
     
-    output$filament <- renderInfoBox({
+    output$filament <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
       if (s$filament > 3.2) {
-        infoBox("Filament", paste(s$filament, "V"),
-                subtitle = "Filament voltage high", color = "yellow",
-                icon = icon("question"))
+        title <- "Filament voltage high"
+        th <- "warning"
       } else {
-        infoBox("Filament", paste0(s$filament, "V"),
-                color = "blue",
-                icon = icon("check"))
+        title <- "Filament"
+        th <- "primary"
       }
+      value_box(title = title, value = paste0(s$filament, "V"), theme = th, 
+                max_height = "130px")
     })
     
-    output$tape <- renderInfoBox({
+    output$tape <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
-      infoBox("Tape Pressure", paste(s$tape, "mmHg"),
-              color = "blue", icon = icon("info"))
+      value_box("Tape Pressure", value = paste(s$tape, "mmHg"), theme = "info", 
+                max_height = "130px")
+      
     })
     
-    output$sdd <- renderInfoBox({
+    output$sdd <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
-      infoBox("SDD", paste0(s$sdd, " ", "\U00b0", "C"),
-              color = "blue", icon = icon("info"))
+      value_box("SDD", value = paste0(s$sdd, " ", "\U00b0", "C"), theme = "info", 
+                max_height = "130px")
     })
-    output$dpp <- renderInfoBox({
+    
+    output$dpp <- renderUI({
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
-      infoBox("DPP", paste0(s$dpp, " ", "\U00b0", "C"),
-              color = "blue", icon = icon("info"))
+      value_box("DPP", value = paste0(s$dpp, " ", "\U00b0", "C"), theme = "info", 
+                max_height = "130px")
     })
     
     ts_plot <- function(param, df) {
