@@ -173,9 +173,14 @@ siteServer <- function(id, site) {
             mutate(time_hour = time_hour - lubridate::hours(1))
           xact <- bind_rows(xact, x2, x3, x4)
         }
-        
-        ae33 <- ae33_ts() |>
-          select(time_hour=time, BC=`_value`)
+
+        ae33 <- ae33_ts()
+        if (is.null(ae33)) {
+          ae33 <- tibble(time_hour = as.POSIXct(NA),
+                         BC = numeric(0))
+        } else {
+          ae33 <- select(ae33, time_hour=time, BC=`_value`)  
+        }
         acsm <- acsm_ts() |>
           mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
           summarise(value = median(value, na.rm = TRUE),
@@ -259,9 +264,15 @@ siteServer <- function(id, site) {
     
     aeth <- reactive({
       
-      df <- ae33_ts() |>
-        select(time_hour=time, BC=`_value`) 
-
+      df <- ae33_ts()
+      if (is.null(df)) {
+        df <- tibble(time_hour = as.POSIXct(NA),
+                     BC = numeric(0))
+      } else {
+        df <- df |>
+          select(time_hour=time, BC=`_value`) 
+      }
+      
       g <- ggplot(df, aes(x = time_hour, y = BC)) + 
         geom_line(linewidth = 1) +
         geom_point(size = 1.8) +
@@ -307,11 +318,16 @@ siteServer <- function(id, site) {
       }
       
       # We want BC too (I think)
-      ae33 <- ae33_ts() |>
-        mutate(param = "BC") |>
-        select(time_hour=time, param, value=`_value`)
-      
-      
+      ae33 <- ae33_ts()
+      if (is.null(ae33)) {
+        ae33 <- tibble(time_hour = as.POSIXct(NA),
+                       BC = numeric(0))
+      } else {
+        ae33 <- ae33 |>
+          mutate(param = "BC") |>
+          select(time_hour=time, param, value=`_value`)
+      }
+
       if (input$fraction == "Fraction of Mass") {
         # Set negatives to 0 to make a reasonable mass fraction plot
         df <- bind_rows(acsm, xact, ae33) |>
@@ -358,7 +374,6 @@ siteServer <- function(id, site) {
     output$plot <- renderPlot({
      
       validate(need(input$dates[1] <= input$dates[2], "End date must not be before start date"))
-      
       p1 <- pm()
       p2 <- acsm()
       p3 <- xact()
