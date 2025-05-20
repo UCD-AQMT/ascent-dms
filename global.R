@@ -16,6 +16,9 @@ library(bsicons)
 thematic_shiny(font = "auto")
 theme_set(theme_minimal(base_size = 14))
 
+# Use a spinner that doesn't bounce the screen
+options(spinner.type = 7)
+
 # Enable bookmarking
 enableBookmarking(store = "url")
 

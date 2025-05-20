@@ -32,6 +32,17 @@ xactUI <- function(id) {
       uiOutput(ns("dpp"))
     ),
     layout_column_wrap(
+      width = 1/6,
+      checkboxInput(ns("by_date"), "Specify Date Range", value = FALSE),
+      conditionalPanel(
+        condition = "input.by_date == 1",
+        dateRangeInput(ns("dates"), "Date Range", min = "2023-01-01",
+                       max = Sys.Date() + 1, start = Sys.Date() - 7,
+                       end = Sys.Date() + 1),
+        ns = ns
+      )
+    ),
+    layout_column_wrap(
       width = 1/2,
       gap = "8px",
       card(
@@ -99,12 +110,26 @@ xactServer <- function(id, site) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      tbl(con, I("xact.sample_analysis")) |>
-        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
-        filter(site_code == !!site()) |>
-        arrange(desc(sample_datetime)) |>
-        head(200) |>
-        collect()
+      if (!input$by_date) {
+       df <- tbl(con, I("xact.sample_analysis")) |>
+         inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+         filter(site_code == !!site()) |>
+         arrange(desc(sample_datetime)) |>
+         head(200) |>
+         collect()
+      } else {
+        interval <- input$dates[2] - input$dates[1]
+        validate(need(interval >= 0, "waiting for valid date range"))
+        validate(need(interval < 180, "Please limit date interval for Xact to 180 days"))
+        df <- tbl(con, I("xact.sample_analysis")) |>
+          inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+          filter(site_code == !!site(),
+                 sample_datetime >= !!input$dates[1],
+                 sample_datetime <= !!input$dates[2]) |>
+          collect()
+      }
+      
+      df
       
     })
     

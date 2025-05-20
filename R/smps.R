@@ -26,6 +26,18 @@ smpsUI <- function(id) {
       uiOutput(ns("sheath_temp")),
     ),
     layout_column_wrap(
+      width = 1/6,
+      min_height = "60px",
+      checkboxInput(ns("by_date"), "Specify Date Range", value = FALSE),
+      conditionalPanel(
+        condition = "input.by_date == 1",
+        dateRangeInput(ns("dates"), "Date Range", min = "2023-01-01",
+                       max = Sys.Date() + 1, start = Sys.Date() - 1,
+                       end = Sys.Date() + 1),
+        ns = ns
+      ) 
+    ),
+    layout_column_wrap(
       width = 1/2,
       card(
         plotlyOutput(ns("scan")),
@@ -65,13 +77,29 @@ smpsServer <- function(id, site) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      tbl(con, I("smps.sample_analysis")) |>
-        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
-        filter(site_code == !!site()) |>
-        select(-concentration_json, -raw_concentration_json) |>
-        arrange(desc(sample_start)) |>
-        head(200) |>
-        collect()
+      if (!input$by_date) {
+        df <- tbl(con, I("smps.sample_analysis")) |>
+          inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+          filter(site_code == !!site()) |>
+          select(-concentration_json, -raw_concentration_json) |>
+          arrange(desc(sample_start)) |>
+          head(200) |>
+          collect()
+      } else {
+        interval <- input$dates[2] - input$dates[1]
+        validate(need(interval >= 0, "waiting for valid date range"))
+        validate(need(interval < 60, "Please limit date interval for SMPS to 60 days"))
+        df <- tbl(con, I("smps.sample_analysis")) |>
+          inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+          filter(site_code == !!site(),
+                 sample_start >= !!input$dates[1],
+                 sample_start <= !!input$dates[2]) |>
+          select(-concentration_json, -raw_concentration_json) |>
+          collect()
+      }
+      
+      df
+
 
     })
     
@@ -85,9 +113,8 @@ smpsServer <- function(id, site) {
         arrange(desc(sample_start)) |>
         head(1) |>
         collect()
-
-      scan <- jsonlite::stream_in(textConnection(df$concentration_json), 
-                                          verbose = FALSE) |>
+      
+      scan <- as_tibble(yyjsonr::read_json_str(df$concentration_json)) |>
         tidyr::pivot_longer(everything(), names_to = "midpoint", values_to = "value") |>
         mutate(midpoint = as.numeric(midpoint))
 

@@ -49,6 +49,18 @@ acsmUI <- function(id) {
       uiOutput(ns("rh_out"))
     ),
     layout_column_wrap(
+      width = 1/6,
+      min_height = "60px",
+      checkboxInput(ns("by_date"), "Specify Date Range", value = FALSE),
+      conditionalPanel(
+        condition = "input.by_date == 1",
+        dateRangeInput(ns("dates"), "Date Range", min = "2023-01-01",
+                       max = Sys.Date() + 1, start = Sys.Date() - 1,
+                       end = Sys.Date() + 1),
+        ns = ns
+      )
+    ),
+    layout_column_wrap(
       width = 1/2,
       card(
         plotlyOutput(ns("fractions")),
@@ -94,20 +106,39 @@ acsmServer <- function(id, site) {
     
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      last <- Sys.time()
-      first <- last - 60 * 60 * 24 # 24 hrs
-      df <- sa |>
-        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
-        inner_join(select(tps, -id, -site_record_id),
-                   by = c("id"="sample_analysis_id")) |>
-        inner_join(select(mls, -id, -site_record_id), by = c("id"="sample_analysis_id")) |>
-        inner_join(select(calib, -id, -site_record_id), 
-                   by = c("id"="sample_analysis_id")) |>
-        filter(site_code == !!site(),
-               start_date > first) |>
-        collect()
+      if (!input$by_date) {
+        last <- Sys.time()
+        first <- last - 60 * 60 * 24 # 24 hrs
+        df <- sa |>
+          inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+          inner_join(select(tps, -id, -site_record_id),
+                     by = c("id"="sample_analysis_id")) |>
+          inner_join(select(mls, -id, -site_record_id), by = c("id"="sample_analysis_id")) |>
+          inner_join(select(calib, -id, -site_record_id), 
+                     by = c("id"="sample_analysis_id")) |>
+          filter(site_code == !!site(),
+                 start_date > first) |>
+          collect()
+        
+       } else {
+         interval <- input$dates[2] - input$dates[1]
+         validate(need(interval >= 0, "waiting for valid date range"))
+         validate(need(interval <= 90, "Please limit date interval for ACSM to 90 days"))
+         df <- sa |>
+           inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+           inner_join(select(tps, -id, -site_record_id),
+                      by = c("id"="sample_analysis_id")) |>
+           inner_join(select(mls, -id, -site_record_id), by = c("id"="sample_analysis_id")) |>
+           inner_join(select(calib, -id, -site_record_id), 
+                      by = c("id"="sample_analysis_id")) |>
+           filter(site_code == !!site(),
+                  start_date >= !!input$dates[1],
+                  start_date <= !!input$dates[2]) |>
+           collect()
+         
+       }
       validate(need(nrow(df) > 0, "No data for site"))
-      
+
       df
       
     })

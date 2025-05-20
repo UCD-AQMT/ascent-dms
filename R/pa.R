@@ -18,6 +18,17 @@ paUI <- function(id) {
       uiOutput(ns("channel_flags")),
       uiOutput(ns("confidence"))
     ),
+    layout_column_wrap(
+      width = 1/6,
+      checkboxInput(ns("by_date"), "Specify Date Range", value = FALSE),
+      conditionalPanel(
+        condition = "input.by_date == 1",
+        dateRangeInput(ns("dates"), "Date Range", min = "2023-01-01",
+                       max = Sys.Date() + 1, start = Sys.Date() - 1,
+                       end = Sys.Date() + 1),
+        ns = ns
+      )
+    ),
     card(
       layout_sidebar(
         sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = options,
@@ -56,13 +67,28 @@ paServer <- function(id, site) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      tbl(con, I("purpleair.sample_analysis")) |>
-        inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
-        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
-        filter(site_code == !!site()) |>
-        arrange(desc(last_seen)) |>
-        head(200) |>
-        collect()
+      if (!input$by_date) {
+        df <- tbl(con, I("purpleair.sample_analysis")) |>
+          inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
+          inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+          filter(site_code == !!site()) |>
+          arrange(desc(last_seen)) |>
+          head(200) |>
+          collect()
+      } else {
+        interval <- input$dates[2] - input$dates[1]
+        validate(need(interval >= 0, "waiting for valid date range"))
+        validate(need(interval < 90, "Please limit date interval for PurpleAir to 90 days"))
+        df <- tbl(con, I("purpleair.sample_analysis")) |>
+          inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
+          inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+          filter(site_code == !!site(),
+                 last_seen >= !!input$dates[1],
+                 last_seen <= !!input$dates[2]) |>
+          collect()
+      }
+      
+      df
       
     })
     
@@ -144,7 +170,7 @@ paServer <- function(id, site) {
                 showcase = bs_icon("info"), theme = theme)
       
     })
-    
+
     output$plot1 <- renderPlotly({
       
       df <- get_range() |>
@@ -158,7 +184,7 @@ paServer <- function(id, site) {
     })
     
     output$plot2 <- renderPlotly({
-      
+
       df <- get_range() |>
         select(last_seen, any_of(input$plot2_y)) |>
         tidyr::pivot_longer(any_of(input$plot2_y), names_to = "param", values_to = "value")

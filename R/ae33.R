@@ -22,6 +22,18 @@ ae33UI <- function(id) {
       uiOutput(ns("database")),
     ),
     layout_column_wrap(
+      width = 1/6,
+      min_height = "60px",
+      checkboxInput(ns("by_date"), "Specify Date Range", value = FALSE),
+      conditionalPanel(
+        condition = "input.by_date == 1",
+        dateRangeInput(ns("dates"), "Date Range", min = "2023-01-01",
+                       max = Sys.Date() + 1, start = Sys.Date() - 1,
+                       end = Sys.Date() + 1),
+        ns = ns
+      ) 
+    ),
+    layout_column_wrap(
       width = 1/2,
       gap = "8px",
       card(
@@ -79,13 +91,26 @@ ae33Server <- function(id, site) {
       
       invalidateLater(1000 * 60 * 3) # every three minutes
       
-      # last 12 hours
-      flux_query <- glue::glue('from(bucket: "measurements") |> ',
-                               'range(start: -12h) |> ',
-                               'filter(fn: (r) => r._measurement == "ae33_{site()}_raw") |> ',
-                               'drop(columns: ["_start", "_stop"])'
-                               )
-
+      if (!input$by_date) {
+        # last 12 hours
+        flux_query <- glue::glue('from(bucket: "measurements") |> ',
+                                 'range(start: -12h) |> ',
+                                 'filter(fn: (r) => r._measurement == "ae33_{site()}_raw") |> ',
+                                 'drop(columns: ["_start", "_stop"])'
+        )
+      } else {
+        interval <- input$dates[2] - input$dates[1]
+        validate(need(interval >= 0, "waiting for valid date range"))
+        validate(need(interval < 15, "Please limit date interval for AE33 to 14 days"))
+        flux_query <- glue::glue('from(bucket: "measurements") |> ',
+                                 'range(start: {input$dates[1]}T00:00:00Z,',
+                                 'stop: {input$dates[2]}T23:59:59Z) |> ',
+                                 'filter(fn: (r) => r._measurement == "ae33_{site()}_raw") |> ',
+                                 'drop(columns: ["_start", "_stop"])'
+        )
+      }
+      
+      
       df_list <- ae33_client$query(flux_query)
       validate(need(!is.null(df_list), "No data within time period"))
       
