@@ -88,6 +88,7 @@ paServer <- function(id, site) {
           collect()
       }
       
+      validate(need(nrow(df) > 0, "No data in time range"))
       df
       
     })
