@@ -139,6 +139,9 @@ acsmServer <- function(id, site) {
        }
       validate(need(nrow(df) > 0, "No data for site"))
 
+      # Handle ACSM year end bug where Year is incorrect if sample spans the year change
+      df <- filter(df, stop_doy > start_doy)
+
       df
       
     })
