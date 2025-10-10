@@ -235,7 +235,7 @@ acsmServer <- function(id, site) {
         th <- "danger"
         title <- "Status Error"
       } else {
-        tdiff <- Sys.time() - s$stop_date
+        tdiff <- difftime(Sys.time(), s$stop_date, units = "mins")
         if (tdiff > (60 * 24)) {
           title <- paste("Last data", round(tdiff / (60 * 24)), "days ago")
           val <- "Offline"
