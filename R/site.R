@@ -25,9 +25,7 @@ siteUI <- function(id) {
                             selected = "Total Mass"),
       input_task_button(ns("go"), "Plot")
       ),
-    card(plotOutput(ns("plot"), height = 1000) |>
-           withSpinner()
-         )
+    card(plotOutput(ns("plot"), height = 1000))
   )
 }
 
@@ -58,7 +56,7 @@ siteServer <- function(id, site) {
     })
     
     xact_ts <- reactive({
-
+      
       df <- tbl(con, I("xact.sample_analysis")) |>
         select(id, site_number, sample_datetime, sample_type) |>
         inner_join(select(tbl(con, I("xact.raw_measurements")),  
@@ -72,10 +70,12 @@ siteServer <- function(id, site) {
                sample_type == 1) |>
         select(sample_datetime, element, value) |>
         collect()
+      df
       
     })
     
     smps_ts <- reactive({
+      
       df <- tbl(con, I("smps.sample_analysis")) |>
         inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
@@ -94,7 +94,6 @@ siteServer <- function(id, site) {
       
       smps_records <- jsonlite::stream_in(textConnection(df$concentration_json), 
                                           verbose = FALSE)
-      
       midpoints <- as.numeric(names(smps_records))
       
       dM <- dMdlogDp(midpoints, smps_records) * dlogDp(midpoints)
@@ -215,12 +214,16 @@ siteServer <- function(id, site) {
                               if_else(name == "PA_PM25", "PurpleAir PM2.5",
                                       name)))
       
+      title <- site_names |>
+        filter(site_code == site()) |>
+        pull(site_name)
+      
       g <- ggplot(ts_data, aes(x = time_hour, y = value, color = name)) + 
         geom_line(linewidth = 1) +
         scale_x_datetime(labels = scales::label_date_short(),
                          limits = date_range()) +
         labs(y = expression(atop("Aerosol Mass", mu*g~m^-3)),
-             title = site()) +
+             title = title) +
         theme(axis.title.x = element_blank())
 
     })

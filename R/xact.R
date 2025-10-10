@@ -47,9 +47,10 @@ xactUI <- function(id) {
       gap = "8px",
       card(
         layout_sidebar(
-          sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = options,
-                                        selected = "tube")),
-          plotlyOutput(ns("plot1"), height = "250px"),
+          sidebar = sidebar(selectInput(ns("upscale_element"), "Upscale check", 
+                                        choices = c("Nb", "Cr", "Cd", "Pb"),
+                                        selected = "Nb")),
+          plotlyOutput(ns("upscale"), height = "250px"),
           padding = c(0,5,0,5)
         ),
         full_screen = TRUE,
@@ -73,7 +74,8 @@ xactUI <- function(id) {
         layout_sidebar(
           sidebar = sidebar(selectInput(ns("element"), "Element", choices = elems,
                                         selected = "S")),
-          plotlyOutput(ns("ts")), height = "250px",
+          withSpinner(plotlyOutput(ns("ts")), fill = TRUE),
+          height = "250px",
           padding = c(0,5,0,5)
         ),
         full_screen = TRUE,
@@ -154,6 +156,27 @@ xactServer <- function(id, site) {
         arrange(desc(sample_datetime)) |>
         collect()
       
+    })
+    
+    get_qc_samples <- reactive({
+      
+      # Use date range from get_range() to determine query range
+      range <- get_range()
+      first <- min(range$sample_datetime)
+      last <- max(range$sample_datetime)
+      
+      df <- tbl(con, I("xact.raw_measurements")) |>
+        select(-id, -site_record_id, -site_number) |>
+        inner_join(tbl(con, I("xact.sample_analysis")),
+                   by = c("sample_analysis_id"="id")) |>
+        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+        filter(site_code == !!site(),
+               sample_type == 2,
+               sample_datetime >= first,
+               sample_datetime <= last) |>
+        arrange(desc(sample_datetime)) |>
+        collect()
+
     })
     
     make_valuebox <- function(title, value, theme) {
@@ -348,11 +371,41 @@ xactServer <- function(id, site) {
       
     }
     
-    output$plot1 <- renderPlotly({
+    
+    output$upscale <- renderPlotly({
       
-      df <- get_range()
-      g <- ts_plot(input$plot1_y, df)
+      if (input$upscale_element == "Nb") {
+        df <- get_elements() |>
+          filter(element == input$upscale_element)
+      } else {
+        df <- get_qc_samples() |>
+          filter(element == input$upscale_element)
+      }
+
+      # get the settings (temporarily read from csv)
+      param <- paste0("upscale_", tolower(input$upscale_element))
+      
+      upscale_settings <- xact_settings |>
+        filter(name == param) |>
+        rename(upscale=value)
+      
+      df <- df |>
+        left_join(upscale_settings,
+                  join_by(site_number, between(sample_datetime, start_date, end_date))) |>
+        mutate(upscale_min = upscale * 0.85,
+               upscale_max = upscale * 1.15)
+      
+      
+      g <- ggplot(df, aes(x = sample_datetime, y = value)) + 
+        geom_hline(aes(yintercept = upscale_min), linetype = "dashed") +
+        geom_hline(aes(yintercept = upscale_max), linetype = "dashed") +
+        geom_line() +
+        geom_point() +
+        scale_x_datetime(labels = scales::label_date()) +
+        labs(y = ngm3()) +
+        theme(axis.title.x = element_blank())
       ggplotly(g, dynamicTicks = TRUE)
+      
       
     })
     

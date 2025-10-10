@@ -2,7 +2,7 @@
 ae33UI <- function(id) {
   
   ns <- NS(id)
-  
+
   page_fillable(
     layout_column_wrap(
       width = 1/6,
@@ -37,7 +37,7 @@ ae33UI <- function(id) {
       width = 1/2,
       gap = "8px",
       card(
-        plotlyOutput(ns("ebc")),
+        withSpinner(plotlyOutput(ns("ebc")), fill = TRUE),
         full_screen = TRUE
       ),
       card(
@@ -49,7 +49,9 @@ ae33UI <- function(id) {
       width = 1/2,
       gap = "8px",
       card(
-        plotlyOutput(ns("flow_plot")),
+        selectInput(ns("plot_y"), label = "Label", choices = ae33_fields, multiple = TRUE,
+                    selected = "tpcnt"),
+        plotlyOutput(ns("ts_plot")),
         full_screen = TRUE
       ),
       card(
@@ -276,26 +278,44 @@ ae33Server <- function(id, site) {
       
     })
     
-    output$flow_plot <- renderPlotly({
-      df <- get_recent() 
+    output$ts_plot <- renderPlotly({
+      
+      df <- get_recent()
       validate(need(nrow(df > 0), "No data in time period"))
-      
+
       df <- df |>
-        select(time, flow1, flow2, flowC) |>
+        select(time, any_of(input$plot_y)) |>
         mutate(time = as.POSIXct(time, tz = "UTC")) |>
-        tidyr::pivot_longer(flow1:flowC, names_to = "flow", values_to = "value")
-      
-      g <- ggplot(df, aes(x = time, y = value, color = flow)) +
-        geom_line() +
-        scale_x_datetime(labels = scales::label_date()) +
-        labs(y = "L/min") +
-        theme(axis.title.x = element_blank())
-      ggplotly(g, dynamicTicks = TRUE) |>
-        layout(margin = plot_margins,
-               legend = list(tracegroupgap = 0))
-      
-      
-    })
+        mutate(across(bit64::is.integer64, bit64::as.integer.integer64)) |>
+        tidyr::pivot_longer(any_of(input$plot_y), names_to = "param", values_to = "value")
+
+      g <- ggplot(df, aes(x = time, y = value, color = param)) + geom_line() +
+          scale_x_datetime(labels = scales::label_date()) +
+          theme(axis.title.x = element_blank())
+      ggplotly(g, dynamicTicks = TRUE)  
+
+    })    
+    
+    # output$flow_plot <- renderPlotly({
+    #   df <- get_recent() 
+    #   validate(need(nrow(df > 0), "No data in time period"))
+    #   
+    #   df <- df |>
+    #     select(time, flow1, flow2, flowC) |>
+    #     mutate(time = as.POSIXct(time, tz = "UTC")) |>
+    #     tidyr::pivot_longer(flow1:flowC, names_to = "flow", values_to = "value")
+    #   
+    #   g <- ggplot(df, aes(x = time, y = value, color = flow)) +
+    #     geom_line() +
+    #     scale_x_datetime(labels = scales::label_date()) +
+    #     labs(y = "L/min") +
+    #     theme(axis.title.x = element_blank())
+    #   ggplotly(g, dynamicTicks = TRUE) |>
+    #     layout(margin = plot_margins,
+    #            legend = list(tracegroupgap = 0))
+    #   
+    #   
+    # })
     
     output$compensation <- renderPlotly({
       df <- get_recent() 

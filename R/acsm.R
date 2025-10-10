@@ -63,7 +63,7 @@ acsmUI <- function(id) {
     layout_column_wrap(
       width = 1/2,
       card(
-        plotlyOutput(ns("fractions")),
+        withSpinner(plotlyOutput(ns("fractions")), fill = TRUE),
         full_screen = TRUE
       ),
       layout_column_wrap(
@@ -159,6 +159,9 @@ acsmServer <- function(id, site) {
                datetime >= min_dt,
                datetime <= max_dt) |>
         collect()
+      validate(need(nrow(df) > 0, "No data for site"))
+      
+      df
       
       
     })
@@ -205,7 +208,7 @@ acsmServer <- function(id, site) {
     output$fractions <- renderPlotly({
       
       df <- get_range()
-      
+
       pdf <- df |>
         select(start_date, stop_date, chl:so4) |>
         tidyr::pivot_longer(chl:so4, names_to = "param", values_to = "value")

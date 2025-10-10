@@ -6,7 +6,9 @@ networkUI <- function(id) {
   page_fillable(
     DT::dataTableOutput(ns("tbl")) |>
       withSpinner(),
-    p("click on a cell for details")
+    p("click on a cell for details"),
+    p("Offline: data over 24 hrs old"),
+    p("Lagging: data over 1 hr old (non-Xact); over 4 hrs old (Xact urban); over 12 hrs old (Xact rural)")
   )
   
 }
@@ -15,7 +17,7 @@ networkServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
     xact_status <- reactive({
-      
+      reload_heartbeat()
       df <- tbl(con, I("xact.sample_analysis")) |>
         select(site_number, sample_datetime, sample_type) |>
         inner_join(select(tbl_sites, site_number, site_code),
@@ -33,7 +35,7 @@ networkServer <- function(id) {
     })
     
     smps_status <- reactive({
-      
+      reload_heartbeat()
       df <- tbl(con, I("smps.sample_analysis")) |>
         inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
@@ -52,7 +54,7 @@ networkServer <- function(id) {
     })
     
     ae33_status <- reactive({
-
+      reload_heartbeat()
       flux_query <- glue::glue('from(bucket: "measurements") |> ', 
                                'range(start: 0, stop: -0s) |> ',
                                'filter(fn: (r) => r._field == "STinst") |> ',
@@ -81,7 +83,8 @@ networkServer <- function(id) {
     })
     
     acsm_status <- reactive({
-      
+      reload_heartbeat()
+
       df <- tbl(con, I("acsm.sample_analysis")) |>
         inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
@@ -94,12 +97,13 @@ networkServer <- function(id) {
                Status = if_else(Lag < HoursAllowed, "online",
                                 if_else(Lag < 24, "lagging", "offline")),
                Instrument = "ACSM") |>
+        filter(Lag > 0) |> # Need to remove negatives because of acsm end of year bug
         select(site_code, Instrument, Lag, Status)
-      
+
     })
     
     pa_status <- reactive({
-      
+      reload_heartbeat()
       df <- tbl(con, I("purpleair.sample_analysis")) |>
         inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
         inner_join(select(tbl_sites, site_code, site_number), 
@@ -117,9 +121,12 @@ networkServer <- function(id) {
       
     })
     
+    reload_heartbeat <- reactiveVal(0)
+    
     status_df <- reactive({
       
-      invalidateLater(1000 * 60 * 3) # every three minutes
+      invalidateLater(1000 * 60 * 10) # every ten minutes
+      isolate(reload_heartbeat(reload_heartbeat() + 1))
       
       xact <- xact_status()
       acsm <- acsm_status()
@@ -130,10 +137,11 @@ networkServer <- function(id) {
       bind_rows(xact, acsm, pa, ae33, smps) |>
         select(-Lag) |>
         tidyr::pivot_wider(names_from = Instrument, values_from = Status) |>
-        select(Site=site_code, ACSM, AE33, SMPS, Xact, PurpleAir) |>
+        inner_join(site_names, by = "site_code") |>
+        arrange(site_number) |>
+        select(Site=site_name, ACSM, AE33, SMPS, Xact, PurpleAir) |>
         tidyr::complete(fill = list(Xact="offline", ACSM="offline", PurpleAir="offline",
-                                    AE33="offline", SMPS="offline")) |>
-        arrange(Site)
+                                    AE33="offline", SMPS="offline"))
       
     })
     
@@ -145,7 +153,9 @@ networkServer <- function(id) {
                     style = "bootstrap",
                     options = list(dom = "t",
                                    ordering = FALSE,
-                                   pageLength = 15),
+                                   pageLength = 15,
+                                   autoWidth = TRUE,
+                                   columnDefs = list(list(width = "30%", targets = 0))),
                     selection = list(mode = "single", target = "cell")) |>
         formatStyle(2:6,
                     backgroundColor = styleEqual(

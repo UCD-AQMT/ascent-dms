@@ -22,7 +22,7 @@ shinyServer(function(input, output, session) {
   observe({
     if (!is.null(network())) {
       if (length(network() > 0)) {
-               
+    
         cl <- network()
         # If first column is clicked, go to the site view for the clicked site
         if (cl$col == 0) {
@@ -31,13 +31,12 @@ shinyServer(function(input, output, session) {
                          selected = "site")
           updateSelectInput(session = session, 
                             inputId = "site_all",
-                            selected = cl$value)
+                            selected = site_list[cl$row])
         } else {
           # Otherwise, the use clicked on a specific instrument, so go to that page
           cols <- c("acsm", "ae33", "smps", "xact", "pa")
           tab_selected <- cols[cl$col]
-          # Site table here is in alphabetical order
-          site_selected <- sort(site_list)[cl$row]
+          site_selected <- site_list[cl$row]
           nav_select(session = session,
                          id = "tab",
                          selected = tab_selected)
