@@ -154,7 +154,7 @@ siteServer <- function(id, site) {
       if ("acsm" %in% input$mass) {
         # For Xact, need total minus S
         xact <- xact_ts() |>
-          filter(element != "S") |>
+          filter(!element %in% c("S", "Nb")) |>
           summarise(Metals = sum(value, na.rm = TRUE) / 1000,
                     .by = sample_datetime) |>
           mutate(time_hour = lubridate::floor_date(sample_datetime, "hour")) |>
@@ -287,7 +287,6 @@ siteServer <- function(id, site) {
     })
     
     mass_fraction <- reactive({
-      
       acsm <- acsm_ts() |>
         mutate(time_hour = lubridate::floor_date(start_date, "hour")) |>
         summarise(value = median(value, na.rm = TRUE),
@@ -295,7 +294,7 @@ siteServer <- function(id, site) {
       
       # For Xact, need total minus S
       xact <- xact_ts() |>
-        filter(element != "S") |>
+        filter(!element %in% c("S", "Nb")) |>
         summarise(Metals = sum(value, na.rm = TRUE) / 1000,
                   .by = sample_datetime) |>
         mutate(time_hour = lubridate::floor_date(sample_datetime, "hour")) |>
