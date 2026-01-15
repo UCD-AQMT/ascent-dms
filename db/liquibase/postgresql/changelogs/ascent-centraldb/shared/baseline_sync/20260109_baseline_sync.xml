@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+		
+        <!-- database schema generation -->
+		<include file="baseline_sync_schemas.xml" relativeToChangelogFile="true"/>
+		<include file="baseline_sync_schema_objects.xml" relativeToChangelogFile="true"/>
+
+        <!-- load data into lookup tables -->
+        <include file="baseline_sync_loadData_acsm_params.xml" relativeToChangelogFile="true" />
+        <include file="baseline_sync_loadData_common_column_mappings.xml" relativeToChangelogFile="true" />
+        <include file="baseline_sync_loadData_common_sites.xml" relativeToChangelogFile="true" />
+        <include file="baseline_sync_loadData_purpleair_sensors.xml" relativeToChangelogFile="true" />
+        <include file="baseline_sync_loadData_xact_element_params.xml" relativeToChangelogFile="true" />
+        <include file="baseline_sync_loadData_xact_env_params.xml" relativeToChangelogFile="true" />
+	
+</databaseChangeLog>

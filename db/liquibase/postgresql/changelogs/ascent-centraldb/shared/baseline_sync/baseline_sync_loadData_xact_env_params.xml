@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+	<changeSet id="1" author="rudi.demarco" labels="task/baseline-changelog-sync-7" context="project-initialization">
+		<comment>load data for table xact.env_params</comment>
+		<loadData encoding="UTF-8" file="loadData/xact_env_params.csv" quotchar="&quot;" relativeToChangelogFile="true"
+			schemaName="xact" tableName="env_params">
+			<column name="param" header="param" type="string" />
+			<column name="unit" header="unit" type="string" />
+            <column name="description" header="description" type="string" />
+		</loadData>
+	</changeSet>
+	
+</databaseChangeLog>

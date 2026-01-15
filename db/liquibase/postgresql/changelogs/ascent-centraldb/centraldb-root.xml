@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>	
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:secure="http://www.liquibase.org/xml/ns/secure"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+        http://www.liquibase.org/xml/ns/secure
+        http://www.liquibase.org/xml/ns/secure/liquibase-secure-latest.xsd">
+
+	<!-- Base release initializes the project with the baseline database schema starting point -->
+	<include file="shared/baseline_sync/20260109_baseline_sync.xml" relativeToChangelogFile="true"/>
+	<changeSet author="rudi.demarco" id="tagDatabase_v2026.0" context="project-initialization" labels="task/baseline-changelog-sync-7">
+		<tagDatabase tag="version_2026.0" />
+	</changeSet>
+	
+</databaseChangeLog>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+	<changeSet id="1" author="db.admin" labels="pre-deploy" context="pre-deploy execution process" runOrder="first" runAlways="true">
+		<comment>set current user to admin role for execution of psql</comment>
+		<sql>
+			SET ROLE azure_pg_admin;
+		</sql>
+	</changeSet>
+
+	<changeSet id="2" author="db.admin" labels="post-deploy" context="post-deploy execution process" runOrder="last" runAlways="true">
+		<comment>reset role back to current user</comment>
+		<sql>			
+			RESET ROLE;
+		</sql>
+	</changeSet>
+	
+	<!--Add additional changelog references to centraldb-root.xml-->
+	<include file="centraldb-root.xml" relativeToChangelogFile="true"/>
+	
+</databaseChangeLog>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+
+	<changeSet id="1" author="rudi.demarco" labels="task/baseline-changelog-sync-7" context="project-initialization">
+		<comment>load data for table common.sites</comment>
+		<loadData encoding="UTF-8" file="loadData/common_sites.csv" quotchar="&quot;" relativeToChangelogFile="true"
+			schemaName="common" tableName="sites">
+            <column name="site_number" header="site_name" type="numeric" />
+            <column name="site_name" header="site_name" type="string" />
+            <column name="site_code" header="site_code" type="string" />
+            <column name="description" header="description" type="string" />
+            <column name="latitude" header="latitude" type="numeric" />
+            <column name="timezone" header="timezone" type="string" />
+            <column name="gmt_offset" header="gmt_offset" type="numeric" />
+            <column name="site_contact" header="site_contact" type="string" />
+            <column name="contact_email" header="contact_email" type="string" />
+            <column name="elevation" header="elevation" type="numeric" />
+		</loadData>
+	</changeSet>
+	
+</databaseChangeLog>
