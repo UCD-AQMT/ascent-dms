@@ -697,3 +697,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Liquibase properties files (contains secrets)
+db/liquibase/postgresql/changelogs/**/*.properties
+
+# ASCENT Database Setup Scripts Shell Command Script File (parameters may vary per developer)
+db/liquibase/postgresql/changelogs/**/*.sh

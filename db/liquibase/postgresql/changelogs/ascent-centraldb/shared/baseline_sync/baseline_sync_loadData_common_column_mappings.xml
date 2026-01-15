@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+
+	<changeSet id="1" author="rudi.demarco" labels="task/baseline-changelog-sync-7" context="project-initialization">
+		<comment>load data for table common.column_mappings</comment>
+		<loadData encoding="UTF-8" file="loadData/common_column_mappings.csv" quotchar="&quot;" relativeToChangelogFile="true"
+			schemaName="common" tableName="column_mappings">
+			<column name="table_schema" header="table_schema" type="string" />
+			<column name="table_name" header="table_name" type="string" />
+			<column name="file_column_name" header="file_column_name" type="string" />
+            <column name="db_column_name" header="db_column_name" type="string" />
+            <column name="column_type" header="column_type" type="string" />
+            <column name="column_required" header="column_required" type="boolean" />
+            <column name="value_required" header="value_required" type="boolean" />
+            <column name="grouping" header="grouping" type="string" />
+		</loadData>
+	</changeSet>
+	
+</databaseChangeLog>
