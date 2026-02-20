@@ -1,0 +1,16 @@
+The ASCENT (Atmospheric Science and Chemistry mEasurement NeTwork) data are freely
+ available to the public and the scientific community. Since these data are the product
+ of extensive and continuous effort by the team to maintain ASCENT instrumentation and
+ assure collection and processing of high quality data, we expect users of this data to
+ ensure that the responsible ASCENT team members receive fair credit for their work, and
+ are offered the opportunity to contribute to the data analysis and co-authored manuscripts,
+ as appropriate. Note that co-authorship eligibility is not limited to writing sections of
+ a paper but rather it encompasses the broader contribution to data collection and analysis.
+ Early communication with ASCENT team members and individual site PIs (contact information
+ available below) is expected to assure the quality and limitations of the data are accurately
+ represented in the planned research.
+When using these data in a publication or presentation, the National Science Foundation,
+ Mid-scale Research Infrastructure (AGS 2131914), should be acknowledged. We suggest the following
+ text be added to the acknowledgement section of publications:
+ “The ASCENT data used in this work were supported by US NSF Mid-scale Research
+ Infrastructure grant, AGS 2131914”.

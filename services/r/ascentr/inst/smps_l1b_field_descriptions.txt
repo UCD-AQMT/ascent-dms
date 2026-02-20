@@ -1,0 +1,52 @@
+site_number: ASCENT site number
+site_code: ASCENT site code
+sample_datetime_UTC: Datetime of sample start (UTC)
+scan_number: Scan number
+test_name: Name assigned to the scan
+detector_status: Detector status provided by the instrument. ("Normal Scan" for nominal operation)
+classifier_errors: Classifier errors provided by the instrument. ("Normal Scan" for nominal operation)
+communication_status: Communication status (0 for nominal operation)
+neutralizer_status: Neutralizer status
+detector_inlet_flow_L_min: Detector inlet flow rate set point (L/min)
+detector_counting_flow_L_min: Detector counting flow rate set point (L/min)
+impactor_flow_L_min: Impactor flow rate set point (L/min)
+impactor_d50_nm: Diameter at which 50% of particle will be removed by impactor (nm)
+sheath_flow_L_min: Set point of the DMA sheath flow rate (L/min)
+sheath_temp_degC: Sheath temperature (degrees C)
+sheath_pressure_Pa: Sheath flow pressure (kPa)
+sheath_relative_humidity_percent: Sheath flow relative humidity (%)
+mean_free_path_m: Mean free path (m)
+gas_viscosity_Pa-s: Gas viscosity (Pa*s)
+low_voltage_V: Low voltage for scan (V)
+high_voltage_V: High voltage for scan (V)
+lower_size_nm: Lower limit of scan (nm)
+upper_size_nm: Upper limit of scan (nm)
+wide_range_scan_mode: Status of wide-range scan mode (1 indicates wide-range scan mode)
+scan_direction: Scanning direction
+hv_polarity: HV polarity
+dma_v_ramping_up_s: Time for DMA voltage ramping up (s)
+dma_v_ramping_down_s: Time for DMA voltage ramping down (s)
+dma_column_transit_time_s: Time for DMA column transit (s)
+dma_exit_to_optical_detector_s: Time for DMA exit to optical detector (s)
+dma_at_low_voltage_s: Time for DMA at low voltage (s)
+dma_at_high_voltage_s: Time for DMA at high voltage (s)
+adjustment_s: Time adjustement factor (s)
+dilution_factor: Dilution factor
+aerosol_density_g_cm3: Assumed aerosol density (g/cm^3)
+median_nm: Median number concentration particle size (nm)
+mean_nm: Mean number concentration particle size (nm)
+geo_mean_nm: Geometric mean number concentration particle size (nm)
+mode_nm: Mode of number concentration particle size (nm)
+geo_std_dev: Geometric standard deviation of number concentration particle size
+total_concentration_1_cm3: Total number concentration of scan at sample conditions (#/cm^3)
+volume_concentration_um3_cm3: Total volume concentration of scan at sample conditions (μm^3/cm^3)
+stp_factor: Multiplication conversion factor to standard temperature (0°C) and pressure (1 atm)
+number_concentration_stp_1_cm3: Total number concentration of scan at standard conditions (#/cm^3)
+volume_concentration_stp_um3_cm3: Total volume concentration of scan at standard conditions (μm^3/cm^3)
+concentration_json: Concentration (dN/dlogDp) by size bin midpoint in JSON format at sample conditions (#/cm^3)
+raw_concentration_json: Raw uncorrected concentration (dN/dlogDp) by size bin in JSON format at sample conditions (#/cm^3)
+sample_analysis_id: An id that uniquely identifies this measurement in the respective table of the ASCENT database
+site_record_id: An id that identifies this measurement in the respective table of the local site database
+qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
+flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
+comment: Comments that provide more detail about any flags applied to the record

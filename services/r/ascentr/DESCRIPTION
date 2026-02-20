@@ -1,0 +1,30 @@
+Package: ascentr
+Type: Package
+Title: Tools for interacting with the ASCENT database
+Version: 0.1.17
+Authors@R: c(
+    person(
+      "Sean", "Raffuse",
+      email = "sraffuse@ucdavis.edu",
+      role = c("aut", "cre")
+    )
+  )
+Description: More about what it does (maybe more than one line).
+    Continuation lines should be indented.
+License: AGPL (>= 3)
+Imports:
+  dplyr,
+  purrr,
+  yyjsonr,
+  config,
+  DBI,
+  RPostgres,
+  influxdbclient,
+  glue,
+  units,
+  ggplot2,
+  patchwork,
+  httr
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
