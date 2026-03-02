@@ -15,8 +15,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
   
   
   qc <- qc |>
+    mutate(flag = as.character(flag)) |>
     rename(manual_flag=flag, manual_comment=comment)
-  
+
   df <- l1b |>
     left_join(qc, by = join_by(between(sample_datetime_utc,
                                        sample_datetime_UTC_start,
@@ -161,7 +162,10 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(hour_stats, by = "sample_hour_utc") |>
     mutate(number_concentration_stp_1_cm3 = total_concentration_1_cm3 * stp_factor,
            volume_concentration_stp_um3_cm3 = volume_concentration_um3_cm3 * stp_factor) |>
-    left_join(hour_scans, by = "sample_hour_utc") |>
+    left_join(hour_scans, by = "sample_hour_utc") 
+
+  # Before reattaching json null any values outside of the sampling range
+  df_valid <- df_valid |>
     rowwise() |>
     mutate(concentration_json = yyjsonr::write_json_str(mean_scan),
            raw_concentration_json = yyjsonr::write_json_str(mean_raw_scan),

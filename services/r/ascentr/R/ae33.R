@@ -432,9 +432,6 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   l1b <- readr::read_csv(l1b_file)
   qc <- readr::read_csv(manual_qc_file)
 
-  date_min <- min(l1b$sample_datetime_UTC)
-  date_max <- max(l1b$sample_datetime_UTC)
-
   qc <- qc |>
     rename(manual_flag=flag, manual_comment=comment)
 

@@ -190,6 +190,13 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
   l1a <- acsm_l1a(site, start_dt, end_dt, con)
   df <- l1a$df
 
+  # timestamp in the text file we ingest is of by 600 s because it is the start/stop time
+  # of the final sample in the full 10 minute measurement so need to correct to match with
+  # data we are getting from the hdf
+  df <- df |>
+    mutate(sample_datetime_UTC = sample_datetime_UTC - 600,
+           sample_datetime_end_UTC = sample_datetime_end_UTC - 600)
+  
   # 10. TPS readings bad (do not consider other TPS flags when this is triggered)
   f10 <- df |>
     filter(interlock == -9999 | heater_pwm == -9999) |>

@@ -24,8 +24,40 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
     return(NULL)
   }
 
-  smps_records <- purrr::map(df$concentration_json,
-                             \(x) as_tibble(yyjsonr::read_json_str(x)))
+  read_and_trim <- function(js, min_scan, max_scan) {
+    if (is.na(js)) {
+      return(NA)
+    }
+    x <- as_tibble(yyjsonr::read_json_str(js)) |>
+      tidyr::pivot_longer(everything(), names_to = "size", values_to = "value") |>
+      mutate(size = as.numeric(size)) |>
+      filter(size >= min_scan, size <= max_scan) |>
+      tidyr::pivot_wider(names_from = size, values_from = value)
+  }
+
+  scan_inputs <- df |>
+    select(js=concentration_json, min_scan=lower_size, max_scan=upper_size)
+  smps_records <- purrr::pmap(scan_inputs, read_and_trim,
+                              .progress = "Reading and trimming SMPS scans")
+  conc_json <- purrr::map(smps_records, yyjsonr::write_json_str)
+
+  raw_inputs <- df |>
+    select(js=raw_concentration_json, min_scan=lower_size, max_scan=upper_size)
+  raw_check <- raw_inputs |>
+    filter(!is.na(js))
+  if (nrow(raw_check) == 0) {
+    conc_json_raw <- NA
+  } else {
+    smps_raw <- purrr::pmap(raw_inputs, read_and_trim,
+                            .progress = "Reading and trimming SMPS raw scans")
+    conc_json_raw <- purrr::map(smps_raw, yyjsonr::write_json_str)
+  }
+  
+  
+  
+  
+  # smps_records <- purrr::map(df$concentration_json,
+  #                            \(x) as_tibble(yyjsonr::read_json_str(x)))
 
   # Make unit aware
   # Make sure degrees and percents aren't converted to symbols
@@ -78,7 +110,7 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
 
   std_pressure <- units::set_units(101.325, kPa)
   std_temp <- units::set_units(273.15, K)
-
+  
   df <- df |>
     mutate(volume_concentration = V,
            sheath_temp_K = units::set_units(sheath_temp, K),
@@ -89,9 +121,17 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
     # Here we cut out aerosol_humidity and aerosol_temperature because our setup doesn't have it
     select(site_number, site_code, sample_datetime_utc=sample_start,
            scan_number, test_name:total_concentration, volume_concentration,
-           stp_factor, total_concentration_stp, volume_concentration_stp, concentration_json,
-           raw_concentration_json, sample_analysis_id=id, site_record_id)
+           stp_factor, total_concentration_stp, volume_concentration_stp,
+           sample_analysis_id=id, site_record_id)
 
+  # Add the trimmed json back
+  df$concentration_json <- unlist(conc_json)
+  df$raw_concentration_json <- unlist(conc_json_raw)
+  df <- df |>
+    mutate(raw_concentration_json = if_else(raw_concentration_json == "[null]",
+                                            NA, raw_concentration_json)) |>
+    relocate(sample_analysis_id, site_record_id, .after = raw_concentration_json)
+  
   # Add units to field names
   unit_suffix <- purrr::map(df, get_unit_suffix)
   unit_parens <- purrr::map(df, get_unit_paren)
