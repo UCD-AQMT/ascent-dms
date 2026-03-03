@@ -85,9 +85,12 @@ networkServer <- function(id) {
     acsm_status <- reactive({
       reload_heartbeat()
 
+      now <- Sys.time()
+      
       df <- tbl(con, I("acsm.sample_analysis")) |>
         inner_join(select(tbl_sites, site_code, site_number), 
                    by = "site_number") |>
+        filter(start_date < now) |> # Need to remove negatives because of acsm end of year bug
         select(site_code, start_date) |>
         summarise(Last = max(start_date, na.rm = TRUE),
                   .by = site_code) |>
@@ -97,7 +100,6 @@ networkServer <- function(id) {
                Status = if_else(Lag < HoursAllowed, "online",
                                 if_else(Lag < 24, "lagging", "offline")),
                Instrument = "ACSM") |>
-        filter(Lag > 0) |> # Need to remove negatives because of acsm end of year bug
         select(site_code, Instrument, Lag, Status)
 
     })
