@@ -1,0 +1,31 @@
+site_number: ASCENT site number
+site_code: ASCENT site code
+sample_datetime_UTC: Datetime of sample start (UTC)
+status: Overall instrument status code (sum of all decimal values of the status flags)
+cont_status: Controller status (0 – ready for operation; 100 – reset detected, not ready for operation; 255 – busy)
+detect_status: Detector status
+led_status: LED status (0 – Led driver initialization ERROR; 10 – Led driver OK)
+valve_status: (0 - measurement; 10 - flowmeter calibration; 1100 - warm-up/clean air; 1011 - bypass)
+cont_temp_degC: Control temperature (degrees C)
+supply_temp_degC: Power supply board temperature (degrees C)
+pressure_Pa: Reference pressure used to convert to volumetric flow (Pa)
+temperature_degC: Reference temperature used to convert to volumetric flow (degrees C)
+flow1_L_min: Measured flow through spot 1 (L/min)
+flow2_L_min: Measured flow through spot 2 (L/min)
+flowc_L_min: Common (total) flow through the optical chamber (L/min)
+tape_adv_count: Number of tape advances since start
+ref_[n]: Raw signal reference for channel [n]
+sens1_[n]: Raw signal at sensing spot 1 for channel [n]
+sens2_[n]: Raw signal at sensing spot 2 for channel [n]
+bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature and pressure (ng/m3)
+bc1_[n]_STP_ng_m3: Uncompensated BC calculated from spot 1 for channel [n] at standard temperature and pressure (ng/m3)
+bc2_[n]_STP_ng_m3: Uncompensated BC calculated from spot 2 for channel [n] at standard temperature and pressure (ng/m3)
+k_[n]: Compensation parameter for channel [n]
+bb_percent: Percentage of BC created by biomass burning, determined by Sandradewi model
+att1_[n]: Attenuation at sensing spot 1 for channel [n]
+att2_[n]: Attenuation at sensing spot 2 for channel [n]
+sample_analysis_id: An id that uniquely identifies this measurement in the respective table of the ASCENT database. Currently empty for AE33 data.
+site_record_id: An id that identifies this measurement in the respective table of the local site database. Currently empty for AE33 data.
+qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
+flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
+comment: Comments that provide more detail about any flags applied to the record
