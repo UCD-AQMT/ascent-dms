@@ -35,6 +35,7 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
 
   level <- switch(level,
                   "0" = "Level 0. Raw instrument data",
+                  "1" = "Level 1. Preliminary, unvalidated data in native time resolution as acquired in real time with automated quality control checks applied.",
                   "1a" = "Level 1a. Preliminary, unvalidated data in native time resolution as acquired in real time.",
                   "1b" = "Level 1b. Preliminary, unvalidated data in native time resolution as acquired in real time with automated quality control checks applied.",
                   "2" = "Level 2. Delivered, validated data in hourly resolution and standard atmospheric conditions.")

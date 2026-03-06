@@ -48,8 +48,8 @@ downloadServer <- function(id) {
       
       levels <- switch(input$instrument,
                        "Xact" = c("1"),
-                       "SMPS" = c("0", "1"),
-                       "AE33" = c("0", "1"))
+                       "SMPS" = c("1"),
+                       "AE33" = c("1"))
       updateSelectInput(session, "level", choices = levels)
       
     })
@@ -67,7 +67,7 @@ downloadServer <- function(id) {
     export_data <- reactive({
       
       if (input$instrument == "SMPS") {
-        d <- smps_data()
+        d <- smps_data_reactive()
       }
       if (input$instrument == "Xact") {
         d <- xact_data()
@@ -137,15 +137,16 @@ downloadServer <- function(id) {
     })
     
     ## SMPS ------
-    smps_data <- reactive({
+    smps_data_reactive <- reactive({
       
       ds <- switch(input$level,
                    "0" = smps_l0(),
-                   "1" = smps_l1a())
+                   "1" = smps_l1())
       
     })
     
     # Build the AIM csv file from the database output
+    ## Not currently working
     smps_l0 <- reactive({
       
       datasets <- smps_datasets(input$site, input$dates[1], input$dates[2], con)
@@ -159,7 +160,7 @@ downloadServer <- function(id) {
       # Iterate over the datasets
       aim_file_data <- function(ds_value, start_time, end_time, site, cols, con, n) {
         # get data and metadata
-        meta <- smps_metadata(site, start_time, end_time, con)
+        meta <- smps_settings(site, start_time, end_time, con)
         df <- smps_data(site, start_time, end_time, con)
         # build aim file
         shiny::incProgress(1/n, message = paste("Constructing", n, 
@@ -184,10 +185,31 @@ downloadServer <- function(id) {
       
     })
     
-    smps_l1a <- reactive({
-      df <- smps_l1a_df(input$site, input$dates[1], input$dates[2], con)
+    # Deprecated
+    # smps_l1a <- reactive({
+    #   df <- smps_l1a_df(input$site, input$dates[1], input$dates[2], con)
+    #   if (input$metadata) {
+    #     meta <- smps_l1_metadata(input$site, input$dates[1], input$dates[2], level = "1a", con)  
+    #     temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
+    #     dir.create(temp_dir)
+    #     txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
+    #     writeLines(meta, txt_file)
+    #     csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
+    #     readr::write_csv(df, csv_file, na = "")
+    #     zip::zip(
+    #       zipfile = temp_file(), 
+    #       files = c(txt_file, csv_file),
+    #       mode = "cherry-pick"
+    #     )
+    #   } else {
+    #     readr::write_csv(df, temp_file(), na = "")
+    #   }
+    # })
+    
+    smps_l1 <- reactive({
+      df <- smps_l1b_df(input$site, input$dates[1], input$dates[2], con)
       if (input$metadata) {
-        meta <- smps_l1a_metadata(input$site, input$dates[1], input$dates[2], con)  
+        meta <- smps_l1_metadata(input$site, input$dates[1], input$dates[2], level = "1b", con)  
         temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
         dir.create(temp_dir)
         txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
@@ -200,28 +222,60 @@ downloadServer <- function(id) {
           mode = "cherry-pick"
         )
       } else {
-        readr::write_lines(df, temp_file(), na = "")
+        readr::write_csv(df, temp_file(), na = "")
       }
-      
-      
     })
     
     ## AE33 --------
     ae33_data <- reactive({
       
       ds <- switch(input$level,
-                   "0" = ae33_l0(),
-                   "1a" = ae33_l1a())
+                   "0" = ae33_l0_reactive(),
+                   "1" = ae33_l1_reactive())
       
     })
     
-    ae33_l1a <- reactive({
+    ae33_l0_reactive <- reactive({
       
-      #results <- ascentr::ae33_l1a(input$site, input$dates[1], input$dates[2], ae33_con)
+      #TODO
+      
+    })
+    
+    # Deprecated
+    # ae33_l1a_reactive <- reactive({
+    #   
+    #   results <- ae33_l1a(input$site, input$dates[1], input$dates[2], ae33_con)
+    #   
+    #   if (input$metadata) {
+    #     
+    #     metadata <- ae33_l1_metadata(input$site, input$dates[1], input$dates[2], 
+    #                                  level = "1a", con)
+    #     temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
+    #     dir.create(temp_dir)
+    #     txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
+    #     writeLines(metadata, txt_file)
+    #     csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
+    #     readr::write_csv(results, csv_file, na = "")
+    #     zip::zip(
+    #       zipfile = temp_file(), 
+    #       files = c(txt_file, csv_file),
+    #       mode = "cherry-pick"
+    #     )
+    #   } else {
+    #     readr::write_csv(results, temp_file(), na = "")  
+    #   }
+    #   
+    #   
+    # })
+    
+    ae33_l1_reactive <- reactive({
+      
+      results <- ae33_l1b(input$site, input$dates[1], input$dates[2], ae33_con)
       
       if (input$metadata) {
         
-        #metadata <- ascentr::ae33_l1a_metadata(input$site, input$dates[1], input$dates[2], con)
+        metadata <- ae33_l1_metadata(input$site, input$dates[1], input$dates[2], 
+                                     level = "1b", con)
         temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
         dir.create(temp_dir)
         txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
@@ -239,7 +293,6 @@ downloadServer <- function(id) {
       
       
     })
-    
     
     # Need to fix this
     content_type <- reactive({

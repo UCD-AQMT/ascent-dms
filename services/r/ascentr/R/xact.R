@@ -232,6 +232,17 @@ xact_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con,
 
 }
 
+#' Title
+#'
+#' @param site 
+#' @param start_dt 
+#' @param end_dt 
+#' @param con 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 xact_l1b <- function(site, start_dt, end_dt, con) {
 
   l1a <- xact_l1a_df(site, start_dt, end_dt, con)

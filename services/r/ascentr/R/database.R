@@ -7,8 +7,8 @@
 #' @export
 #'
 #' @examples
-get_db_connection <- function(config_name) {
-  args <- config::get(config_name)
+get_db_connection <- function(config_name, ...) {
+  args <- config::get(config_name, ...)
   con <- DBI::dbConnect(RPostgres::Postgres(),
                         dbname = args$dbname,
                         user = args$user,
