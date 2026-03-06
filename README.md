@@ -19,4 +19,3 @@ Monorepo for ASCENT Data Management System (DMS) services and infrastructure.
   - release/v2025.1	(Minor Optional)
   - release/v2026.10 	(Minor Optional)
 
-## Test
