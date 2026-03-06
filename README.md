@@ -4,7 +4,7 @@ Monorepo for ASCENT Data Management System (DMS) services and infrastructure.
 ## Branch Naming Convention Policy
 ### General guidelines to keep a consistent naming convention for branches
 - Branch name must match with regex pattern
-  - (?-i)^((feature|bugfix|hotfix|docs|task|update)/[a-z0-9-]+-[a-z0-9]+|release/v[0-9]{4}.[0-9]+(.[0-9]+)?)$
+  - ^((feature|bugfix|hotfix|docs|task|update)\/[a-z0-9-]+-[a-z0-9]+|release\/v[0-9]{4}\.[0-9]+(\.[0-9]+)?)$
 - Branch name examples:
   - Standard Branches (Prefix/Description-IssueID)
     - feature/user-login-T-123
