@@ -4,8 +4,8 @@
 # sites were running)
 
 library(dplyr)
-library(ascentr)
-con <- ascentr::get_db_connection("dataconnection")
+#library(ascentr)
+con <- get_db_connection("dataconnection")
 
 site <- tbl(con, I("common.sites")) |>
   filter(site_code != "Test") |>

@@ -4,9 +4,9 @@
 # sites were running)
 
 library(dplyr)
-library(ascentr)
-con <- ascentr::get_db_connection("dataconnection")
-influx <- ascentr::get_flux_client("dataconnection")
+#library(ascentr)
+con <- get_db_connection("dataconnection")
+influx <- get_flux_client("dataconnection")
 
 
 site <- tbl(con, I("common.sites")) |>
