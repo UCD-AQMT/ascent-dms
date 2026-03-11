@@ -1,22 +1,31 @@
 #!/bin/bash
 
+# Set variable values
+dbhost=<development-database-host-url>
+dbuser=<your-database-user-name>
+dbname=measurements_<database-user-name>
+liquibasepropfile=<your-liquibase.properties>
+
+# Note: To run psql commands without manual password entry, prepend each command with the password, like PGPASSWORD=***** psql ... 
+
+
 # Note: this process should be ran after configuring your Liquibase properties file
 echo "Liquibase target database environment setup"
 
 # Step 1 - connect to database server and postgres default database to execute the create database script (to create target dev database)
 echo "Step 1 - connecting to server and creating the target database"
-psql -h <database host name/address> \
+psql -h $dbhost \
 -p 5432 \
--U <db_username> \
+-U $dbuser \
 -d postgres \
--c "CREATE DATABASE <db_name> WITH OWNER = azure_pg_admin;" # note: change the database name accordingly
+-c "CREATE DATABASE $dbname WITH OWNER = azure_pg_admin;" # note: change the database name accordingly
 
 # Step 2 - connect to database server and the created target database to execute the create liquibase schema script (create liquibase schema for migrations)
 echo "Step 2 - connecting to server and creating the [liquibase] schema in the target database"
-psql -h <database host name/address> \
+psql -h $dbhost \
 -p 5432 \
--U <db_username> \
--d <db_name> \
+-U $dbuser \
+-d $dbname \
 -c "SET ROLE azure_pg_admin;" \
 -c "CREATE SCHEMA IF NOT EXISTS liquibase;" \
 -c "RESET ROLE;"
@@ -24,20 +33,20 @@ psql -h <database host name/address> \
 # Step 3 - execute liquibase status command to create liquibase meta tables in [liquibase] schema of the target database (your liquibase.properties file must be configured)
 # Note: make sure to execute this command in the directory of the root changelogs
 echo "Step 3 - executing the liquibase status command to create the meta tables in the [liquibase] schema"
-liquibase status --defaults-file=<liqubase properties file (e.g. liquibase.properties)>
+liquibase status --defaults-file=$liquibasepropfile
 
 # Step 4 - connect to database server and target database to execute script to change the owner of the liquibase scheam meta tables to azure_pg_admin
 echo "Step 4 - connecting to server and changing the [liquibase] schema meta tables to azure_pg_admin"
-psql -h <database host name/address> \
+psql -h $dbhost \
 -p 5432 \
--U <db_username> \
--d <db_name> \
+-U $dbuser \
+-d $dbname \
 -c "ALTER TABLE IF EXISTS liquibase.databasechangelog OWNER to azure_pg_admin;" \
 -c "ALTER TABLE IF EXISTS liquibase.databasechangeloglock OWNER to azure_pg_admin;"
 
 # Step 5 - applying Liquibase changelogs to target database
 echo "Step 5 - applying Liquibase changelogs to target database"
-liquibase update --defaults-file=<liquibase properties file (e.g. liquibase.properties)>
+liquibase update --defaults-file=$liquibasepropfile
 
 # Finished
 echo "Script has finished processing"
