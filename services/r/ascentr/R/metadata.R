@@ -44,7 +44,7 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
   data_policy <- paste(readLines(policy_path), collapse = "\n")
 
   site_pi <- paste0(site_info$site_contact, " (", site_info$contact_email, ")")
-  contacts <- glue::glue("ASCENT PI: Nga Lee (Sally) Ng (ng@chbe.gatech.edu)\n",
+  contacts <- glue::glue("ASCENT PI: Nga Lee (Sally) Ng (ng@caltech.edu)\n",
                    "Site PI: {site_pi}")
 
   metadata_text <- glue::glue("ASCENT Site: {site_info$site_name}\n",
