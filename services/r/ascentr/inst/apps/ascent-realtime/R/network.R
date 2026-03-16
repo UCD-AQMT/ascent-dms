@@ -22,7 +22,9 @@ networkServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
     # background map
-    states_sf <- sf::st_read(system.file("/data/gis/cb_2018_us_state_5m.shp", 
+    
+    # This might not work correctly with our current repo structure...
+    states_sf <- sf::st_read(system.file("/data/gis/cb_2018_us_state_5m.shp",
                                          package="ascentr"))
     
     plot_data <- reactive({

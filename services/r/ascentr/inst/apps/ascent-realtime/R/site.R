@@ -11,23 +11,33 @@ siteUI <- function(id) {
       dateInput(ns("date"), "Date", min = minimum_date, value = Sys.Date()),
       actionButton(ns("prev"), "< Prev"),
       actionButton(ns("nextdt"), "Next >"),
-      p("All data displayed in local time")
+      p("Data are preliminary and unvalidated. All data displayed in local time.")
     ),
     layout_column_wrap(
       width = 1/2,
+      #min_height = "400px",
+      max_height = "700px",
       card(
+        min_height = "200px",
+        max_height = "700px",
         card_header("ACSM"),
         plotOutput(ns("acsm"))
         ),
       card(
+        min_height = "200px",
+        max_height = "700px",
         card_header("Xact"),
         plotOutput(ns("xact"))
         ),
       card(
+        min_height = "200px",
+        max_height = "700px",
         card_header("Aethalometer"),
         plotOutput(ns("ae33"))
         ),
       card(
+        min_height = "200px",
+        max_height = "700px",
         card_header("SMPS"),
         plotOutput(ns("smps"))
         )
@@ -79,7 +89,7 @@ siteServer <- function(id) {
                start_date <= !!dts[2]) |>
         collect()
     
-      validate(need(nrow(df) > 0, "No data for time period"))
+      shiny::validate(need(nrow(df) > 0, "No data for time period"))
       
       pdf <- df |>
         select(start_date, chl:so4) |>
@@ -114,7 +124,7 @@ siteServer <- function(id) {
         arrange(desc(sample_datetime)) |>
         collect()
       
-      validate(need(nrow(df) > 0, "No data for time period"))
+      shiny::validate(need(nrow(df) > 0, "No data for time period"))
       
       # limit to the 8 most abundant elements in the data
       elems <- df |>
@@ -128,11 +138,15 @@ siteServer <- function(id) {
       df <- df |>
         filter(element %in% elems)
       
+      # convert to micrograms
+      df <- df |>
+        mutate(value = value / 1000)
+      
       ggplot(df, aes(x = sample_datetime, y = value, fill = element)) +
         geom_bar(stat = "identity") +
         scale_x_datetime(labels = scales::label_date_short(tz = local_tz()),
                          date_breaks = "2 hours") +
-        labs(y = expression("Most abundant elements"~(ng/m^3))) +
+        labs(y = expression("Most abundant elements"~(mu*g/m^3))) +
 #        theme_minimal(base_size = 14) +
         theme(axis.title.x = element_blank())
     
@@ -148,28 +162,33 @@ siteServer <- function(id) {
         pull(site_code)
 
       flux_query <- glue::glue('from(bucket: "measurements") |> ',
-                               'range(start: {strftime(dts[1], format = "%FT%TZ")},',
-                               'stop: {strftime(dts[2], format = "%FT%TZ")}) |> ',
+                               'range(start: {strftime(dts[1], format = "%FT%TZ", tz = "UTC")},',
+                               'stop: {strftime(dts[2], format = "%FT%TZ", tz = "UTC")}) |> ',
                                'filter(fn: (r) => r._measurement == "ae33_{site}_raw" ',
                                'and (r._field == "EBC_1" or r._field == "EBC_2" or r._field == "EBC_3" ',
-                               'or r._field == "EBC_4" or r._field == "EBC_5" or r._field == "EBC_6")) |> ',
+                               'or r._field == "EBC_4" or r._field == "EBC_5" or r._field == "EBC_6" or r._field == "EBC_7")) |> ',
                                'drop(columns: ["_start", "_stop"]) |> ',
-                               'aggregateWindow(every: 15m, fn: mean)',)
-            
-      df_list <- ae33_con$query(flux_query)
-      validate(need(!is.null(df_list), "No data in time period"))
+                               'aggregateWindow(every: 15m, fn: mean)')
       
+      wavelength_colors <- c(`370`="#610061", `470`="#00a9ff", `520`="#36ff00",
+                             `590`="#ffdf00", `660`="#ff0000", `880`="#610000", `950`="#000000")
+          
+      df_list <- ae33_con$query(flux_query)
+      shiny::validate(need(!is.null(df_list), "No data in time period"))
+
       df <- df_list |>
         purrr::list_rbind() |>
         select(time, parameter=`_field`, value=`_value`) |>
         filter(!is.na(value)) |>
         left_join(ae33_channels, by = "parameter")
       
-      validate(need(nrow(df > 0), "No data in time period"))
+      shiny::validate(need(nrow(df > 0), "No data in time period"))
       
       g <- ggplot(df, aes(x = time, y = value, color = factor(wavelength))) +
         geom_line() +
-        scale_x_datetime(labels = scales::label_date_short(), date_breaks = "2 hours") +
+        scale_x_datetime(labels = scales::label_date_short(tz = local_tz()),
+                         date_breaks = "2 hours") +
+        scale_color_manual(values = wavelength_colors) +
         labs(y = expression("BC by wavelength "~(mu*g/m^3)),
              color = "wavelength") +
         #theme_minimal(base_size = 14) +
@@ -219,9 +238,9 @@ siteServer <- function(id) {
         scale_color_viridis_c(option = "H", limits = c(0, 50000), oob = scales::squish) +
         labs(y = "mobility diameter (nm)",
              fill = "dN/dlogDp") +
-        theme(legend.position = "top",
-              legend.direction = "horizontal",
-              legend.key.width = unit(30, "mm"),
+        theme(#legend.position = "top",
+              #legend.direction = "horizontal",
+              legend.key.height = unit(10, "mm"),
               axis.title.x = element_blank()) 
       g
     })

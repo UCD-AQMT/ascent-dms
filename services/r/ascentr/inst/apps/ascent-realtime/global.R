@@ -10,6 +10,9 @@ library(thematic)
 library(shinycssloaders)
 library(ggplot2)
 
+# testing
+library(ascentr)
+
 # Minimum date for data viewing
 minimum_date <- "2025-01-01"
 

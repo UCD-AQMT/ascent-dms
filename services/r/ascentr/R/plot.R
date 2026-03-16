@@ -139,7 +139,7 @@ map_ascent <- function(dfs, states = NULL, point_size = 4) {
 
 #below code works - putting in function so it does run when loading package
 periodic <- function(variables) {
-  per_table <- read.csv("c:/Users/sraffuse/OneDrive - University of California, Davis/Documents/PeriodicTable/periodic_table.csv")
+  #per_table <- read.csv("c:/Users/sraffuse/OneDrive - University of California, Davis/Documents/PeriodicTable/periodic_table.csv")
 
   con <- get_db_connection("dataconnection")
   x <- xact_l1a_df("QueensCollege", "2025-01-01", "2025-12-31", con)

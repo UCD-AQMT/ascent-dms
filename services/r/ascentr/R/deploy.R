@@ -11,8 +11,8 @@
 deploy <- function(file, title, ...) {
   writeLines(
     c(
-      'pkgload::load_all()',
-      'options(shiny.autoload.r = FALSE)',
+      'pkgload::load_all("./services/r/ascentr/")',
+      #'options(shiny.autoload.r = FALSE)',
       sprintf('shiny::shinyAppDir("%s")', file)
     ),
     "app.R"

@@ -4,7 +4,4 @@ Sys.setenv(
   RENV_PATHS_LOCKFILE = file.path("./services/r/renv.lock")
 )
 
-renv::init(bare = TRUE, restart = FALSE)
-
-# Load package
-devtools::load_all("./services/r/ascentr/")
+source("./services/r/renv/activate.R")
