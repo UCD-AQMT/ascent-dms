@@ -47,6 +47,7 @@ site_list <- tbl_sites |>
 site_names <- tbl_sites |>
   filter(site_code != "Test") |>
   select(site_number, site_code, site_name) |>
+  arrange(site_number) |>
   collect()
 
 
