@@ -7,7 +7,6 @@ library(influxdbclient)
 library(bsicons)
 library(units)
 library(thematic)
-library(shinycssloaders)
 library(ggplot2)
 
 # testing

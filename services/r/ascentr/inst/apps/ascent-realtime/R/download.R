@@ -22,8 +22,7 @@ downloadUI <- function(id) {
       uiOutput(ns("mybutton")),
       width = "300px"
     ),
-    card(verbatimTextOutput(ns("meta_text")) |>
-           withSpinner()
+    card(verbatimTextOutput(ns("meta_text"))
     )
   )
 }
