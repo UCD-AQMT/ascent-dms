@@ -2,8 +2,8 @@
 # Batch download the ACSM auto QC files for all time through 2024 one file per year per site.
 
 library(dplyr)
-library(ascentr)
-con <- ascentr::get_db_connection("dataconnection")
+#library(ascentr)
+con <- get_db_connection("dataconnection")
 
 site <- tbl(con, I("common.sites")) |>
   filter(site_code != "Test") |>

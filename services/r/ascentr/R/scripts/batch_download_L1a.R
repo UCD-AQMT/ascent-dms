@@ -3,8 +3,8 @@
 # starting with 2024 when most of the sites were in the right place
 
 library(dplyr)
-library(ascentr)
-con <- ascentr::get_db_connection("dataconnection")
+#library(ascentr)
+con <- get_db_connection("dataconnection")
 
 site <- tbl(con, I("common.sites")) |>
   filter(site_code != "Test") |>
@@ -76,7 +76,7 @@ purrr::walk2(runs$start_date, runs$site, \(x, y) smps_monthly(x, y, con ,folder)
 
 
 # ae33
-ae33_con <- ascentr::get_flux_client("dataconnection")
+ae33_con <- get_flux_client("dataconnection")
 
 ae33_monthly <- function(start_date, site, con, ae33_con, folder) {
 

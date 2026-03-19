@@ -27,7 +27,7 @@ build_aim_files <- function(site, start_dt, end_dt, con) {
   aim_file_data <- function(ds_value, start_time, end_time, site, cols, con) {
 
     # get data and metadata
-    meta <- smps_metadata(site, start_time, end_time, con)
+    meta <- smps_settings(site, start_time, end_time, con)
     df <- smps_data(site, start_time, end_time, con)
     # build aim file
     file <- build_aim_file(meta, df, ds_value, cols)

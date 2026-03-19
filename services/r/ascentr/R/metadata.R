@@ -35,6 +35,7 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
 
   level <- switch(level,
                   "0" = "Level 0. Raw instrument data",
+                  "1" = "Level 1. Preliminary, unvalidated data in native time resolution as acquired in real time with automated quality control checks applied.",
                   "1a" = "Level 1a. Preliminary, unvalidated data in native time resolution as acquired in real time.",
                   "1b" = "Level 1b. Preliminary, unvalidated data in native time resolution as acquired in real time with automated quality control checks applied.",
                   "2" = "Level 2. Delivered, validated data in hourly resolution and standard atmospheric conditions.")
@@ -43,7 +44,7 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
   data_policy <- paste(readLines(policy_path), collapse = "\n")
 
   site_pi <- paste0(site_info$site_contact, " (", site_info$contact_email, ")")
-  contacts <- glue::glue("ASCENT PI: Nga Lee (Sally) Ng (ng@chbe.gatech.edu)\n",
+  contacts <- glue::glue("ASCENT PI: Nga Lee (Sally) Ng (ng@caltech.edu)\n",
                    "Site PI: {site_pi}")
 
   metadata_text <- glue::glue("ASCENT Site: {site_info$site_name}\n",
