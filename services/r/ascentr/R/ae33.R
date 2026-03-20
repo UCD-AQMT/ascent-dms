@@ -263,11 +263,41 @@ ae33_l1b <- function(site, start_dt, end_dt, con) {
   if (is.null(df)) {
     return(NULL)
   }
+  
+  
+  # Make sure data are arranged
+  df <- arrange(df, sample_datetime_UTC)
+  
+  # Originally, AE33's were set to the incorrect C value. Each site changed at a different
+  # time. Change is stored in this data file
+  c_change_path <- system.file("ae33_c_value_change_date.csv", package="ascentr")
+  c_change <- read.csv(c_change_path, stringsAsFactors = FALSE) |>
+    mutate(c_value_change_date = as.POSIXct(c_value_change_date, tz = "UTC")) |>
+    filter(site_code == site) |>
+    pull(c_value_change_date)
+  
+  correction_factor <- 1.57 / 1.39
+  
+  # If change happened after start_dt, at least some must be updated
+  if (c_change > start_dt) {
+    # If change is after end_dt, all of it needs to be updated, otherwise partial
+    if (c_change > end_dt) {
+      print("Data prior to C value update - applying correction")
+      df <- df |>
+        mutate(across(starts_with("bc"), ~.x * correction_factor))
+    } else {
+      print("Partial data prior to C value update - applying correction to earlier data")
+      df_pre <- df |>
+        filter(sample_datetime_UTC < c_change)
+      df_post <- setdiff(df, df_pre)
+      df_pre <- df_pre |>
+        mutate(across(starts_with("bc"), ~.x * correction_factor))
+      df <- bind_rows(df_pre, df_post)
+    }
+  }
 
   # Auto-qc
 
-  # Make sure data are arranged
-  df <- arrange(df, sample_datetime_UTC)
 
   # parse the statuses into flags.
   statuses <- df |>
