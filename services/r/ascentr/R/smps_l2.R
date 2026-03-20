@@ -102,7 +102,8 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
   
   # Process scan statistics by hour for valid samples
   hour_scans <- df |>
-    filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |>
+    filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
+    filter(qc_outcome < 4) |> # within those hours, only process valid scans
     group_by(sample_hour_utc) |>
     summarise(mean_scan = calc_mean_scan(concentration_json),
               mean_raw_scan = calc_mean_scan(raw_concentration_json))
@@ -124,24 +125,6 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               geo_std_dev = calc_geosd(name, value, geo_mean_nm),
               .by = sample_hour_utc)
 
-  
-  # Take all the flag/comment strings apart and put them back together with unique flags only
-  recompose_flags <- function(x) {
-    x <- x[!is.na(x)]
-    if (length(x) == 0) {
-      return(NA)
-    } else {
-      y <- strsplit(x, ":", fixed = TRUE) |>
-        purrr::list_c() |>
-        unique() |>
-        sort()
-      if (length(y) > 1) {
-        paste(y, collapse = ":")
-      } else {
-        return(y)
-      }
-    }
-  }
   
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
@@ -193,7 +176,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
       rename(sample_datetime_UTC=sample_hour_utc) 
   }
 
-  
+  return(result)
   
   
 }

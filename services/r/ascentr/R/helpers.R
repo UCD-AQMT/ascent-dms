@@ -72,6 +72,24 @@ get_unit_paren <- function(x) {
 
 }
 
+# Take all the flag/comment strings apart and put them back together with unique flags only
+recompose_flags <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) {
+    return(NA)
+  } else {
+    y <- strsplit(x, ":", fixed = TRUE) |>
+      purrr::list_c() |>
+      unique() |>
+      sort()
+    if (length(y) > 1) {
+      paste(y, collapse = ":")
+    } else {
+      return(y)
+    }
+  }
+}
+
 # taken from SO: https://stackoverflow.com/questions/13673894/suppress-nas-in-paste
 clean_paste <- function(x, collapse) {
   paste(x[!is.na(x)], collapse = collapse)
