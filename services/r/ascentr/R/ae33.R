@@ -492,30 +492,11 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   
   # To properly calculate BB% at hourly resolution, we convert the 1-minute data to
   # concentration, average that to 1hr, then convert back.
-  # BB% is calculated using 950nm (channel 7)
-  
-  ###### TESTING BB Math  --- This is not currently correct
-  
-  mac_470 <- 14.54
-  mac_950 <- 7.19
-  ang_ff <- 1
-  ang_bb <- 2
-  
-  bb_calcs <- df |>
-    select(sample_datetime_UTC, bc_2_STP_ng_m3, bc_6_STP_ng_m3, bc_7_STP_ng_m3, bb_percent) |>
-    mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
-           abs_950 = bc_7_STP_ng_m3 * mac_950,
-           abs_bb = (abs_470 - abs_950 * (470/950)^-ang_ff) / ((470/950)^-ang_bb - (470/950)^-ang_ff),
-           bc_bb = abs_bb / 7.77,
-           bb_frac = bc_bb / bc_6_STP_ng_m3)
-  
-  
-  
-  #####
-  
-  
+
+  # This will produce a bias when averaged up because the bb_percent is fixed at [0-100]
+  # when it falls outside
   df <- df |>
-    mutate(bb_conc = bc_7_STP_ng_m3 * bb_percent / 100)
+    mutate(bb_conc = bc_6_STP_ng_m3 * bb_percent / 100)
   
   
   # AE33 sampling is every 1 minute - 60 samples per hour
@@ -540,7 +521,9 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
               across(starts_with("att"), ~mean(.x, na.rm = TRUE)),
               bb_conc = mean(bb_conc, na.rm = TRUE),
               .by = sample_hour_UTC) |>
-    mutate(bb_percent = bb_conc / bc_7_STP_ng_m3 * 100) |>
+    mutate(bb_percent = bb_conc / bc_6_STP_ng_m3 * 100,
+           bb_percent = if_else(bb_percent > 100, 100, 
+                                if_else(bb_percent < 0, 0, bb_percent))) |>
     select(-bb_conc)
   
   # rejoin with flags and other info
