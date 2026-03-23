@@ -164,7 +164,11 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               qc_outcome = max(qc_outcome),
               flag = recompose_flags(flag),
               comment = recompose_flags(comment),
-              .by = sample_hour_utc)
+              .by = sample_hour_utc) |>
+    mutate(flag = if_else(qc_outcome < 4, "391", flag),
+           comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+           qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+
 
   if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
