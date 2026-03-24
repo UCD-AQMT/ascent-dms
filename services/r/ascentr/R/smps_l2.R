@@ -13,7 +13,6 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
   l1b <- readr::read_csv(l1b_file)
   qc <- readr::read_csv(manual_qc_file)
   
-  
   qc <- qc |>
     mutate(flag = as.character(flag)) |>
     rename(manual_flag=flag, manual_comment=comment)
@@ -106,7 +105,8 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
     filter(qc_outcome < 4) |> # within those hours, only process valid scans
     group_by(sample_hour_utc) |>
     summarise(mean_scan = calc_mean_scan(concentration_json),
-              mean_raw_scan = calc_mean_scan(raw_concentration_json))
+              mean_raw_scan = calc_mean_scan(raw_concentration_json)) |>
+    ungroup()
   
   # Put columns in numerical order and replace NA w/ zero, then calculate stats
   hour_stats <- hour_scans |>
@@ -147,12 +147,14 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
            volume_concentration_stp_um3_cm3 = volume_concentration_um3_cm3 * stp_factor) |>
     left_join(hour_scans, by = "sample_hour_utc") 
 
-  # Before reattaching json null any values outside of the sampling range
+  # Need to convert to lists to convince yyjsonr that these are not arrays   
+  # Add scans
   df_valid <- df_valid |>
     rowwise() |>
-    mutate(concentration_json = yyjsonr::write_json_str(mean_scan),
-           raw_concentration_json = yyjsonr::write_json_str(mean_raw_scan),
-           .keep = "unused")
+    mutate(concentration_json = write_atomic_json(mean_scan),
+           raw_concentration_json = write_atomic_json(mean_raw_scan),
+           .keep = "unused") |>
+    ungroup()
 
   # Get the flags and associated data for the invalid time periods, which will be filled with nulls
   flags_hourly_invalid <- df |>

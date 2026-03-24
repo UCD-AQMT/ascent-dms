@@ -39,7 +39,7 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
     select(js=concentration_json, min_scan=lower_size, max_scan=upper_size)
   smps_records <- purrr::pmap(scan_inputs, read_and_trim,
                               .progress = "Reading and trimming SMPS scans")
-  conc_json <- purrr::map(smps_records, yyjsonr::write_json_str)
+  conc_json <- purrr::map(smps_records, write_atomic_json)
 
   raw_inputs <- df |>
     select(js=raw_concentration_json, min_scan=lower_size, max_scan=upper_size)
@@ -50,15 +50,9 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
   } else {
     smps_raw <- purrr::pmap(raw_inputs, read_and_trim,
                             .progress = "Reading and trimming SMPS raw scans")
-    conc_json_raw <- purrr::map(smps_raw, yyjsonr::write_json_str)
+    conc_json_raw <- purrr::map(smps_raw, write_atomic_json)
   }
   
-  
-  
-  
-  # smps_records <- purrr::map(df$concentration_json,
-  #                            \(x) as_tibble(yyjsonr::read_json_str(x)))
-
   # Make unit aware
   # Make sure degrees and percents aren't converted to symbols
   units::units_options(auto_convert_names_to_symbols = FALSE)
