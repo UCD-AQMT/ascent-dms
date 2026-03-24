@@ -175,3 +175,8 @@ calc_dMdlogDp <- function(dNdlogDp, midpoints, density = 1.4) {
   dMdlogDp <- t(apply(dNdlogDp, MARGIN = 1, function(x) x * mass_convert))    #ug/m3
 }
 
+# Need to convert to lists to convince yyjsonr that these are not arrays   
+write_atomic_json <- function(x) {
+  y <- as.list(x)
+  yyjsonr::write_json_str(y, auto_unbox = TRUE, digits = 4)
+}
