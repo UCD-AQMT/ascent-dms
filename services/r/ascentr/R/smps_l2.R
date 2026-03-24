@@ -26,14 +26,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
 
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
-    mutate(final_flag = if_else(is.na(manual_flag), flag,
-                                if_else(is.na(flag), manual_flag,
-                                        paste(manual_flag, flag, sep = ":"))),
-           final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
-                                      pmax(qc_outcome, manual_qc_outcome)),
-           final_comment = if_else(is.na(manual_comment), comment,
-                                   if_else(is.na(comment), manual_comment,
-                                           paste(manual_comment, comment, sep = " : ")))) |>
+    coalesce_flags() |>
     mutate(sample_hour_utc = lubridate::floor_date(sample_datetime_utc, "1 hour"),
            .after = site_code)
   

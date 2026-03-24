@@ -368,7 +368,7 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file) {
   # Xact specific flags
   available_flags <- tibble(manual_flag = c("111", "686", "459", "659"),
                             manual_qc_outcome = c(1, 9, 4, 4))
-  
+
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct()
   
@@ -388,6 +388,10 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file) {
                                        sample_datetime_UTC_end))) |>
     left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
+
+  # Coalesce flags and comments
+  df <- df |>
+    coalesce_flags()
 
   df
   
