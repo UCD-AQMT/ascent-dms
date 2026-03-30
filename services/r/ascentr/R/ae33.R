@@ -459,8 +459,9 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct()
 
-  l1b <- readr::read_csv(l1b_file)
-  qc <- readr::read_csv(manual_qc_file)
+  # Increasing guess_max here to make sure that some tape advances are caught
+  l1b <- readr::read_csv(l1b_file, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, guess_max = 50000)
 
   qc <- qc |>
     mutate(flag = as.character(flag)) |>
@@ -483,15 +484,6 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
     select(!(flag:manual_qc_outcome)) |>
     rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
   
-  # To properly calculate BB% at hourly resolution, we convert the 1-minute data to
-  # concentration, average that to 1hr, then convert back.
-
-  # This will produce a bias when averaged up because the bb_percent is fixed at [0-100]
-  # when it falls outside
-  df <- df |>
-    mutate(bb_conc = bc_6_STP_ng_m3 * bb_percent / 100)
-  
-  
   # AE33 sampling is every 1 minute - 60 samples per hour
   # Require 30 samples for a valid hourly measurement
   samples_required <- 30
@@ -512,12 +504,36 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
     summarise(across(starts_with("bc"), ~mean(.x, na.rm = TRUE)),
               across(starts_with("k_"), ~mean(.x, na.rm = TRUE)),
               across(starts_with("att"), ~mean(.x, na.rm = TRUE)),
-              bb_conc = mean(bb_conc, na.rm = TRUE),
-              .by = sample_hour_UTC) |>
-    mutate(bb_percent = bb_conc / bc_6_STP_ng_m3 * 100,
-           bb_percent = if_else(bb_percent > 100, 100, 
+              .by = sample_hour_UTC)
+
+  
+  # To properly calculate BB% at hourly resolution, we use the 1-hr BC values, along with
+  # MAC values to derive hourly absorption. Then use Zotter et al., 2017 Eq 13 to find
+  # BC_ff/BC_tot. 
+  # Assumptions:
+  # MAC_ff == MAC_bb
+  # Absorption Angstrom Exponent (alpha) ff = 1, bb = 2
+  mac_470 <- ae33_MAC |>
+    filter(wavelength == 470) |>
+    pull(MAC)
+  
+  mac_950 <- ae33_MAC |>
+    filter(wavelength == 950) |>
+    pull(MAC)
+  
+  alpha_ff <- 1
+  alpha_bb <- 2
+  
+  data_hourly_valid <- data_hourly_valid |>
+    mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
+           abs_950 = bc_7_STP_ng_m3 * mac_950,
+           upper_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_ff,
+           lower_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_bb,
+           ff_fraction = 1 / (1 - upper_term / lower_term),
+           bb_percent = (1 - ff_fraction) * 100,
+           bb_percent = if_else(bb_percent > 100, 100,
                                 if_else(bb_percent < 0, 0, bb_percent))) |>
-    select(-bb_conc)
+    select(-upper_term, -lower_term, -ff_fraction)
   
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
@@ -535,7 +551,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(select(valid_hours, sample_hour_UTC, sample_count=valid), 
               by = "sample_hour_UTC") |>
     left_join(data_hourly_valid, by = "sample_hour_UTC")
-  
+
   # Get the flags and associated data for the invalid time periods, which will be filled
   # with nulls
   # Some may be invalid because not enough samples but no bad qc_outcome. If so, downgrade
@@ -548,11 +564,15 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
               flag = recompose_flags(flag),
               comment = recompose_flags(comment),
               .by = sample_hour_UTC) |>
-    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid)) |>
-    mutate(flag = if_else(qc_outcome < 4, "391", flag),
-           comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
-           qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid))
   
+  if (nrow(flags_hourly_invalid) > 0) {
+    flags_hourly_invalid <- flags_hourly_invalid |>
+      mutate(flag = if_else(qc_outcome < 4, "391", flag),
+             comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+             qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+  }
+
   if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
       arrange(sample_hour_UTC) |>
@@ -572,4 +592,9 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   return(result)
   
 }
+
+# Mass Absorption Cross-sections from Magee manual (ver 1.59, pg 22)
+ae33_MAC <- tibble(channel = 1:7,
+                   wavelength = c(370, 470, 520, 590, 660, 880, 950),
+                   MAC = c(18.47, 14.54, 13.14, 11.58, 10.35, 7.77, 7.19))
 
