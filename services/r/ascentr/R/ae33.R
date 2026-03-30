@@ -547,6 +547,11 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(select(valid_hours, sample_hour_UTC, sample_count=valid), 
               by = "sample_hour_UTC") |>
     left_join(data_hourly_valid, by = "sample_hour_UTC")
+  
+  if (nrow(df_valid) == 0) {
+    warning("No valid hours for ", l1b_file, "\nreturning null.")
+    return(NULL)
+  } 
 
   # Get the flags and associated data for the invalid time periods, which will be filled
   # with nulls
