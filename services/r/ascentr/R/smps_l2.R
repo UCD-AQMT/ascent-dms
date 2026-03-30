@@ -30,10 +30,6 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
     mutate(sample_hour_utc = lubridate::floor_date(sample_datetime_utc, "1 hour"),
            .after = site_code)
   
-  df <- df |>
-    select(!(qc_outcome:manual_qc_outcome)) |>
-    rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
-
   calc_mean_scan <- function(x) {
     purrr::map(x, \(x) as_tibble(yyjsonr::read_json_str(x))) |>
       purrr::list_rbind() |>

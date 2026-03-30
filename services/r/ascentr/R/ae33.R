@@ -480,10 +480,6 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
     mutate(sample_hour_UTC = lubridate::floor_date(sample_datetime_UTC, "1 hour"),
            .after = site_code)
 
-  df <- df |>
-    select(!(flag:manual_qc_outcome)) |>
-    rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
-  
   # AE33 sampling is every 1 minute - 60 samples per hour
   # Require 30 samples for a valid hourly measurement
   samples_required <- 30
@@ -533,7 +529,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
            bb_percent = (1 - ff_fraction) * 100,
            bb_percent = if_else(bb_percent > 100, 100,
                                 if_else(bb_percent < 0, 0, bb_percent))) |>
-    select(-upper_term, -lower_term, -ff_fraction)
+    select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
   
   # rejoin with flags and other info
   flags_hourly_valid <- df |>

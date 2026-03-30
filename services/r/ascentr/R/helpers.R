@@ -92,15 +92,18 @@ recompose_flags <- function(x) {
 
 # Coalesce manual and automated QC flags and comments
 coalesce_flags <- function(df) {
-  mutate(df,
-         final_flag = if_else(is.na(manual_flag), flag,
+  df |>
+    mutate(final_flag = if_else(is.na(manual_flag), flag,
                               if_else(is.na(flag), manual_flag,
                                       paste(manual_flag, flag, sep = ":"))),
-         final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
-                                    pmax(qc_outcome, manual_qc_outcome)),
-         final_comment = if_else(is.na(manual_comment), comment,
-                                 if_else(is.na(comment), manual_comment,
-                                         paste(manual_comment, comment, sep = " : "))))
+           final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
+                                      pmax(qc_outcome, manual_qc_outcome)),
+           final_comment = if_else(is.na(manual_comment), comment,
+                                   if_else(is.na(comment), manual_comment,
+                                           paste(manual_comment, comment, sep = " : ")))) |>
+    select(-flag, -comment, -qc_outcome, -manual_flag, -manual_comment, -manual_qc_outcome) |>
+    rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
+
 }
 
 # taken from SO: https://stackoverflow.com/questions/13673894/suppress-nas-in-paste
