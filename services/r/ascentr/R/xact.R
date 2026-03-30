@@ -389,11 +389,56 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
+  # Remove Nb - it is used by the Xact for QC and is not from the ambient sample
+  df <- df |>
+    filter(element != "Nb")
+  
+
   # Coalesce flags and comments
   df <- df |>
     coalesce_flags()
+  
+  # Back calculate sampling time from volume and flow rate
+  
+  ## Do we want to keep the 30 minute samples in the urban samples? Based on the volume
+  ## and flow, some of them are 29 minutes - less than the 50% threshold.
+  # For the rural sites, we have more than enough - cast them to the hour
 
-  df
+  df <- df |>
+    mutate(sample_time_est_min = volume_L / flow_act_L_min,
+           sample_time_frac = sample_time_est_min / sample_time_min,
+           sample_datetime_UTC = lubridate::floor_date(sample_datetime_UTC, "hours"))
+  
+  valid_hours <- df |>
+    filter(sample_time_frac >= 0.45)
+  invalid_hours <- setdiff(df, valid_hours)
+  
+  # Get the flags and associated data for the invalid time periods, which will be filled with nulls
+  flags_hourly_invalid <- invalid_hours |>
+    mutate(flag = if_else(qc_outcome < 4, "391", flag),
+           comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+           qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome),
+           across(c(concentration_ng_m3, concentration_stp_ng_m3, uncertainty_ng_m3,
+                    uncertainty_stp_ng_m3), ~NA))
+  
+  
+  # Combine valid and invalid
+  if (nrow(flags_hourly_invalid) > 0) {
+    result <- bind_rows(valid_hours, flags_hourly_invalid) |>
+      arrange(sample_datetime_UTC)
+  } else {
+    result <- valid_hours |>
+      arrange(sample_datetime_UTC)
+  }
+  
+  
+  # Select the L2 hourly output fields
+  result <- result |>
+    select(-alarm, -pump_start_time_UTC, -at_degC:-wind_dir_degrees,
+           -sample_datetime_UTC_start, -sample_datetime_UTC_end, -sample_time_frac)
+  
+
+  
   
 }
 
