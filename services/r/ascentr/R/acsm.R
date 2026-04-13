@@ -472,42 +472,224 @@ acsm_l1b <- function(site, start_dt, end_dt, con) {
 
 }
 
-# For now, takes l1b data and makes it hourly
-acsm_l2 <- function(acsm_l1b_data) {
+ascm_l2_from_files <- function(site, site_file, con) {
+  
+  # ACMS specific list
+  available_flags <- tibble(manual_flag = c("111", "686", "659", "664"),
+                            manual_qc_outcome = c(1, 9, 4, 4))
+  
+  available_flags <- bind_rows(available_flags, common_manual_flags) |>
+    distinct() |>
+    rename(flag=manual_flag, qc_outcome=manual_qc_outcome)
+  
+  # file produced by site using Igor code
+  site_df <- readr::read_csv(site_file)
+  
+  # timestamp in database is off by 600 s because it is the start/stop time
+  # it will not match with this
 
-  df <- acsm_l1b_data$df
-
-  # Average to hourly resolution
+  # Igor time format is seconds since 1904-01-01 (!?)
+  df <- site_df |>
+    mutate(sample_datetime_UTC = as.POSIXct(timeW, origin = "1904-01-01"))
+  
+  # Get site number from db
+  site_number <- tbl(con, I("common.sites")) |>
+    filter(site_code == site) |>
+    pull(site_number)
+  
+  if (length(site_number) != 1) {
+    stop(site, " is not a valid site_code")
+  }
+  
+  # Add common fields
   df <- df |>
-    mutate(sample_datetime_UTC = lubridate::floor_date(sample_datetime_UTC, unit = "hour")) |>
-    summarise(site_record_id_start = min(site_record_id),
-              site_record_id_end = max(site_record_id),
-              samples = n(),
-              status = max(status),
-              site_number = first(site_number),
+    mutate(site_code = site,
+           site_number = site_number,
+           flag = as.character(flag))
+  
+  # The output includes composite flags, and some of them are overrides. For example,
+  # 659:111 would mean a scan flagged as bad was changed to valid.
+  df_flagged <- filter(df, !is.na(flag))
+  df_unflagged <- setdiff(df, df_flagged)
+  all_flags <- stringr::str_split(df_flagged$flag, pattern = ":")
+  
+  # Are there any unexpected flag values?
+  flags <- unique(unlist(all_flags))
+  bad_flags <- any(!flags %in% available_flags$flag)
+  if (bad_flags) {
+    bad <- flags[which(!flags %in% available_flags$flag)]
+    msg <- paste(bad, collapse = ", ")
+    stop("Unexpected flag value(s): ", msg)
+  }
+  
+  # Flags are good, but need to take them apart - for each record with a flag, compute a
+  # final qc_outcome and flag list. Generally, qc_outcome is max, but 111 overrides in
+  # this case and removes all other flags.
+  resolve_acsm_flags <- function(x) {
+    if (length(x) == 1) {
+      flag <- x
+      qc_outcome <- available_flags$qc_outcome[available_flags$flag == x]
+    } else {
+      if (any(x == "111")) {
+        flag <- "111"
+        qc_outcome <- 1
+      } else {
+        qc_outcome <- max(available_flags$qc_outcome[available_flags$flag == x])
+        flag <- paste0(sort(x), collapse = ":")
+      }
+    }
+    data.frame(flag, qc_outcome)
+  }
+  
+  flags_outcomes <- purrr::map(all_flags, resolve_acsm_flags) |>
+    purrr::list_rbind()
+  
+  df_flagged <- df_flagged |>
+    mutate(flag = flags_outcomes$flag,
+           qc_outcome = flags_outcomes$qc_outcome)
+  df_unflagged <- df_unflagged |>
+    mutate(qc_outcome = 1)
+  df <- bind_rows(df_flagged, df_unflagged) |>
+    arrange(sample_datetime_UTC)
+  
+  # Now have the native resolution data in the necessary form and can average to hourly
+  df <- df |>
+    mutate(sample_hour_UTC = lubridate::floor_date(sample_datetime_UTC, "1 hour"))
+  
+  # ACSM sampling is every 10 minutes - 6 samples per hour
+  # Require 3 samples for a valid hourly measurement
+  samples_required <- 3
+  hourly_counts <- df |>
+    mutate(valid = if_else(qc_outcome < 4, "valid", "invalid")) |>
+    summarise(count = n(),
+              .by = c(sample_hour_UTC, valid)) |>
+    tidyr::pivot_wider(names_from = valid, values_from = count)
+  
+  valid_hours <- hourly_counts |>
+    filter(valid >= samples_required)
+  invalid_hours <- setdiff(hourly_counts, valid_hours)
+
+  ## TODO: Not sure if these error calculations are correct because I don't know the units
+  ## yet. The results certainly look wrong.
+  
+  
+  # Process hourly results for valid samples
+  data_hourly_valid <- df |>
+    filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |> # only valid hours
+    filter(qc_outcome < 4) |> # within those hours only process valid observations
+    summarise(across(c(Org, SO4, NH4, NO3, Chl), ~mean(.x, na.rm = TRUE)),
+              across(starts_with("m"), ~mean(.x, na.rm = TRUE)),
+              across(c(NO3_30, NO3_46, HOA, OOA), ~mean(.x, na.rm = TRUE)),
+              across(ends_with("err"), ~(sum((.x - mean(.x))^2))),
+              .by = sample_hour_UTC)
+  
+  # rejoin with flags and other info
+  flags_hourly_valid <- df |>
+    filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |>
+    filter(qc_outcome < 4) |>
+    select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
+    summarise(site_number = first(site_number),
               site_code = first(site_code),
-              across(chl_ug_m3:t_3_degC, median),
-              dryerstats_n = sum(dryerstats_n),
               qc_outcome = max(qc_outcome),
-              flag = clean_paste(sort(unique(flag)), collapse = ":"),
-              comment = clean_paste(unique(comment), collapse = "  :  "),
-              .by = sample_datetime_UTC)
+              flag = recompose_flags(flag),
+              comment =recompose_flags(comment),
+              .by = sample_hour_UTC)
+  
+  df_valid <- flags_hourly_valid |>
+    left_join(select(valid_hours, sample_hour_UTC, sample_count=valid), 
+              by = "sample_hour_UTC") |>
+    left_join(data_hourly_valid, by = "sample_hour_UTC")
+  
+  if (nrow(df_valid) == 0) {
+    warning("No valid hours for ", site_file, "\nreturning null.")
+    return(NULL)
+  } 
+  
+  # Get the flags and associated data for the invalid time periods, which will be filled
+  # with nulls
+  # Some may be invalid because not enough samples but no bad qc_outcome. If so, downgrade
+  flags_hourly_invalid <- df |>
+    filter(sample_hour_UTC %in% invalid_hours$sample_hour_UTC) |>
+    select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
+    summarise(site_number = first(site_number),
+              site_code = first(site_code),
+              qc_outcome = max(qc_outcome),
+              flag = recompose_flags(flag),
+              comment = recompose_flags(comment),
+              .by = sample_hour_UTC) |>
+    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid))
+  
+  if (nrow(flags_hourly_invalid) > 0) {
+    flags_hourly_invalid <- flags_hourly_invalid |>
+      mutate(flag = if_else(qc_outcome < 4, "391", flag),
+             comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+             qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+  }
+  
+  if (nrow(flags_hourly_invalid) > 0) {
+    result <- bind_rows(df_valid, flags_hourly_invalid) |>
+      arrange(sample_hour_UTC) |>
+      rename(sample_datetime_UTC=sample_hour_UTC)  
+  } else {
+    result <- df_valid |>
+      arrange(sample_hour_UTC) |>
+      rename(sample_datetime_UTC=sample_hour_UTC) 
+  }
+  
+  # Rearrange and rename for final export
+  
+  ## TODO: Add the error/uncertainty terms when I have them
 
-  # Update metadata fields
-  # Lose: sample_analysis_id, site_record_id, sample_datetime_end_UTC
-  # Gain: site_record_id_start, site_record_id_end, samples
-  mdf <- acsm_l1b_data$mdf |>
-    filter(!param %in% c("sample_analysis_id", "site_record_id", "sample_datetime_end_UTC"))
-
-  added_records <- tibble(param = c("site_record_id_start", "site_record_id_end", "samples"),
-                        export_fieldname = c("site_record_id_start", "site_record_id_end", "samples"),
-                        export_description = c("Id that identifies the first raw measurement in the respective table of the local site database",
-                                               "Id that identifies the last raw measurement in the respective table of the local site database",
-                                               "Number of measurements aggregated to create this record"))
-
-  mdf <- bind_rows(added_records, mdf)
-  return(list(df=df, mdf=mdf))
+  result <- result |>
+    select(sample_datetime_UTC, site_number, site_code, sample_count,
+           organic_aerosol_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
+           ammonium_ug_m3=NH4, chloride_ug_m3=Chl, org_mz29_ug_m3=m29,
+           org_mz43_ug_m3=m44, org_mz44_ug_m3=m44, org_mz55_ug_m3=m55,
+           org_mz57_ug_m3=m57, org_mz60_ug_m3=m60, org_mz69_ug_m3=m69,
+           org_mz71_ug_m4=m71, org_mz73_ug_m3=m73, no3_mz30_ug_m3=NO3_30,
+           no3_mz46_ug_m3=NO3_46, hoa_ug_m3=HOA, ooa_ug_m3=OOA,
+           qc_outcome, flag, comment)
 
 }
+
+
+
+# # For now, takes l1b data and makes it hourly
+# acsm_l2 <- function(acsm_l1b_data) {
+# 
+#   df <- acsm_l1b_data$df
+# 
+#   # Average to hourly resolution
+#   df <- df |>
+#     mutate(sample_datetime_UTC = lubridate::floor_date(sample_datetime_UTC, unit = "hour")) |>
+#     summarise(site_record_id_start = min(site_record_id),
+#               site_record_id_end = max(site_record_id),
+#               samples = n(),
+#               status = max(status),
+#               site_number = first(site_number),
+#               site_code = first(site_code),
+#               across(chl_ug_m3:t_3_degC, median),
+#               dryerstats_n = sum(dryerstats_n),
+#               qc_outcome = max(qc_outcome),
+#               flag = clean_paste(sort(unique(flag)), collapse = ":"),
+#               comment = clean_paste(unique(comment), collapse = "  :  "),
+#               .by = sample_datetime_UTC)
+# 
+#   # Update metadata fields
+#   # Lose: sample_analysis_id, site_record_id, sample_datetime_end_UTC
+#   # Gain: site_record_id_start, site_record_id_end, samples
+#   mdf <- acsm_l1b_data$mdf |>
+#     filter(!param %in% c("sample_analysis_id", "site_record_id", "sample_datetime_end_UTC"))
+# 
+#   added_records <- tibble(param = c("site_record_id_start", "site_record_id_end", "samples"),
+#                         export_fieldname = c("site_record_id_start", "site_record_id_end", "samples"),
+#                         export_description = c("Id that identifies the first raw measurement in the respective table of the local site database",
+#                                                "Id that identifies the last raw measurement in the respective table of the local site database",
+#                                                "Number of measurements aggregated to create this record"))
+# 
+#   mdf <- bind_rows(added_records, mdf)
+#   return(list(df=df, mdf=mdf))
+# 
+# }
 
 
