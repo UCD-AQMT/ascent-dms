@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+        <changeSet id="1" author="rudi.demarco">
+            <comment>Create schema dependencies</comment>
+            <sql>
+                CREATE SCHEMA acsm
+                    AUTHORIZATION postgres;
+
+                CREATE SCHEMA ae33
+                    AUTHORIZATION postgres;
+
+                CREATE SCHEMA common
+                    AUTHORIZATION postgres;
+
+                CREATE SCHEMA liquibase
+                    AUTHORIZATION postgres;
+
+                CREATE SCHEMA smps
+                    AUTHORIZATION postgres;
+
+                CREATE SCHEMA xact
+                    AUTHORIZATION postgres;
+            </sql>
+        </changeSet>
+
+
+
+</databaseChangeLog>
