@@ -57,7 +57,7 @@ downloadServer <- function(id) {
     observeEvent(input$dummybutton, {
       showModal(modalDialog(
         title = "Message",
-        "Please accept the data policy to download data"
+        "Please read and accept the data policy to download data"
       ))
     })
     
