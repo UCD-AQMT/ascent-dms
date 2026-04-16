@@ -475,8 +475,10 @@ acsm_l1b <- function(site, start_dt, end_dt, con) {
 ascm_l2_from_files <- function(site, site_file, con) {
   
   # ACMS specific list
-  available_flags <- tibble(manual_flag = c("111", "686", "659", "664"),
-                            manual_qc_outcome = c(1, 9, 4, 4))
+  # 460A here is "interference in sulfate suspected from high organic signal, contact PI"
+  # I'm making that a suspect outcome
+  available_flags <- tibble(manual_flag = c("111", "686", "659", "664", "460A"),
+                            manual_qc_outcome = c(1, 9, 4, 4, 3))
   
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct() |>
@@ -512,7 +514,7 @@ ascm_l2_from_files <- function(site, site_file, con) {
   df_flagged <- filter(df, !is.na(flag))
   df_unflagged <- setdiff(df, df_flagged)
   all_flags <- stringr::str_split(df_flagged$flag, pattern = ":")
-  
+
   # Are there any unexpected flag values?
   flags <- unique(unlist(all_flags))
   bad_flags <- any(!flags %in% available_flags$flag)
@@ -534,7 +536,7 @@ ascm_l2_from_files <- function(site, site_file, con) {
         flag <- "111"
         qc_outcome <- 1
       } else {
-        qc_outcome <- max(available_flags$qc_outcome[available_flags$flag == x])
+        qc_outcome <- max(available_flags$qc_outcome[available_flags$flag %in% x])
         flag <- paste0(sort(x), collapse = ":")
       }
     }
@@ -569,10 +571,6 @@ ascm_l2_from_files <- function(site, site_file, con) {
     filter(valid >= samples_required)
   invalid_hours <- setdiff(hourly_counts, valid_hours)
 
-  ## TODO: Not sure if these error calculations are correct because I don't know the units
-  ## yet. The results certainly look wrong.
-  
-  
   # Process hourly results for valid samples
   data_hourly_valid <- df |>
     filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |> # only valid hours
@@ -580,7 +578,7 @@ ascm_l2_from_files <- function(site, site_file, con) {
     summarise(across(c(Org, SO4, NH4, NO3, Chl), ~mean(.x, na.rm = TRUE)),
               across(starts_with("m"), ~mean(.x, na.rm = TRUE)),
               across(c(NO3_30, NO3_46, HOA, OOA), ~mean(.x, na.rm = TRUE)),
-              across(ends_with("err"), ~(sum((.x - mean(.x))^2))),
+              across(ends_with("err"), ~sqrt(sum(.x^2))),
               .by = sample_hour_UTC)
   
   # rejoin with flags and other info
@@ -617,7 +615,8 @@ ascm_l2_from_files <- function(site, site_file, con) {
               flag = recompose_flags(flag),
               comment = recompose_flags(comment),
               .by = sample_hour_UTC) |>
-    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid))
+    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid),
+              by = "sample_hour_UTC")
   
   if (nrow(flags_hourly_invalid) > 0) {
     flags_hourly_invalid <- flags_hourly_invalid |>
@@ -637,59 +636,19 @@ ascm_l2_from_files <- function(site, site_file, con) {
   }
   
   # Rearrange and rename for final export
-  
-  ## TODO: Add the error/uncertainty terms when I have them
-
   result <- result |>
     select(sample_datetime_UTC, site_number, site_code, sample_count,
-           organic_aerosol_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
-           ammonium_ug_m3=NH4, chloride_ug_m3=Chl, org_mz29_ug_m3=m29,
-           org_mz43_ug_m3=m44, org_mz44_ug_m3=m44, org_mz55_ug_m3=m55,
+           organics_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
+           ammonium_ug_m3=NH4, chloride_ug_m3=Chl, 
+           organics_uncertainty_ug_m3=Org_err, sulfate_uncertainty_ug_m3=SO4_err,
+           nitrate_uncertainty_ug_m3=NO3_err, ammonium_uncertainty_ug_m3=NH4_err,
+           chloride_uncertainty_ug_m3=Chl_err,
+           org_mz29_ug_m3=m29, org_mz43_ug_m3=m44, org_mz44_ug_m3=m44, org_mz55_ug_m3=m55,
            org_mz57_ug_m3=m57, org_mz60_ug_m3=m60, org_mz69_ug_m3=m69,
            org_mz71_ug_m4=m71, org_mz73_ug_m3=m73, no3_mz30_ug_m3=NO3_30,
            no3_mz46_ug_m3=NO3_46, hoa_ug_m3=HOA, ooa_ug_m3=OOA,
            qc_outcome, flag, comment)
 
 }
-
-
-
-# # For now, takes l1b data and makes it hourly
-# acsm_l2 <- function(acsm_l1b_data) {
-# 
-#   df <- acsm_l1b_data$df
-# 
-#   # Average to hourly resolution
-#   df <- df |>
-#     mutate(sample_datetime_UTC = lubridate::floor_date(sample_datetime_UTC, unit = "hour")) |>
-#     summarise(site_record_id_start = min(site_record_id),
-#               site_record_id_end = max(site_record_id),
-#               samples = n(),
-#               status = max(status),
-#               site_number = first(site_number),
-#               site_code = first(site_code),
-#               across(chl_ug_m3:t_3_degC, median),
-#               dryerstats_n = sum(dryerstats_n),
-#               qc_outcome = max(qc_outcome),
-#               flag = clean_paste(sort(unique(flag)), collapse = ":"),
-#               comment = clean_paste(unique(comment), collapse = "  :  "),
-#               .by = sample_datetime_UTC)
-# 
-#   # Update metadata fields
-#   # Lose: sample_analysis_id, site_record_id, sample_datetime_end_UTC
-#   # Gain: site_record_id_start, site_record_id_end, samples
-#   mdf <- acsm_l1b_data$mdf |>
-#     filter(!param %in% c("sample_analysis_id", "site_record_id", "sample_datetime_end_UTC"))
-# 
-#   added_records <- tibble(param = c("site_record_id_start", "site_record_id_end", "samples"),
-#                         export_fieldname = c("site_record_id_start", "site_record_id_end", "samples"),
-#                         export_description = c("Id that identifies the first raw measurement in the respective table of the local site database",
-#                                                "Id that identifies the last raw measurement in the respective table of the local site database",
-#                                                "Number of measurements aggregated to create this record"))
-# 
-#   mdf <- bind_rows(added_records, mdf)
-#   return(list(df=df, mdf=mdf))
-# 
-# }
 
 
