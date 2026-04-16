@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 1. Insert the existing app-level version into table -->
+    <changeSet id="update-app-version-2025.01" author="rudi.demarco">
+        <insert schemaName="common" tableName="settings">
+            <column name="value" value="2025.01"/>
+            <column name="name"  value="db_version"/>
+        </insert>
+    </changeSet>
+
+    <!-- 2. Tag the database for Liquibase engine/rollback purposes -->
+    <changeSet id="tag-v2025.01" author="rudi.demarco">
+        <tagDatabase tag="2025.01"/>
+    </changeSet>
+
+</databaseChangeLog>

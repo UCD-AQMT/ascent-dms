@@ -11,6 +11,12 @@
     <include file="baseline_sync_schema_objects.xml" relativeToChangelogFile="true"/>
 
     <!-- load data into lookup tables -->
-    <include file="" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_common_data_tables.xml" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_common_sites.xml" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_xact_element_params.xml" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_xact_env_params.xml" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_acsm_column_mappings.xml" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_smps_column_mappings.xml" relativeToChangelogFile="true" />
+    <include file="baseline_sync_loadData_xact_column_mappings.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

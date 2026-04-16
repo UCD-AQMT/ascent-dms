@@ -8,26 +8,24 @@
         <changeSet id="1" author="rudi.demarco">
             <comment>Create schema dependencies</comment>
             <sql>
-                CREATE SCHEMA acsm
+                CREATE SCHEMA IF NOT EXISTS acsm
                     AUTHORIZATION postgres;
 
-                CREATE SCHEMA ae33
+                CREATE SCHEMA IF NOT EXISTS ae33
                     AUTHORIZATION postgres;
 
-                CREATE SCHEMA common
+                CREATE SCHEMA IF NOT EXISTS common
                     AUTHORIZATION postgres;
 
-                CREATE SCHEMA liquibase
+                CREATE SCHEMA IF NOT EXISTS liquibase
                     AUTHORIZATION postgres;
 
-                CREATE SCHEMA smps
+                CREATE SCHEMA IF NOT EXISTS smps
                     AUTHORIZATION postgres;
 
-                CREATE SCHEMA xact
+                CREATE SCHEMA IF NOT EXISTS xact
                     AUTHORIZATION postgres;
             </sql>
         </changeSet>
-
-
 
 </databaseChangeLog>

@@ -6,9 +6,10 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!-- Base release initializes the project with the baseline database schema starting point -->
-	<include file="shared/baseline_sync/20260415_baseline_sync.xml" relativeToChangelogFile="true"/>
-	<changeSet author="rudi.demarco" id="NEED TAG FORMAT" context="" labels="NEED STANDARD LABLE FORMAT">
-		<tagDatabase tag="NEED VERSION FORMAT" />
-	</changeSet>
+	<include file="baseline_sync/20260415_baseline_sync.xml" relativeToChangelogFile="true" labels="issue-7, baseline-changelog-sync" />
 
+    <!-- Tag database version -->
+    <include file="baseline_sync/baseline_sync_tag_db_version.xml" relativeToChangelogFile="true" labels="issue-7, baseline-changelog-sync" />
+
+    <!-- Include next changelog here -->
 </databaseChangeLog>
