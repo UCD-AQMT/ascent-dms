@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Set variable values
+dbhost=<development-database-host-url> # e.g. localhost
+dbuser=postgres
+dbname=<name-of-database> # e.g. measurements_dev
+liquibasepropfile=<your-liquibase.properties> # The liquibase.properties file configured to the database you specified above
+
+# Note: To run psql commands without manual password entry, prepend each command with the password, like PGPASSWORD=***** psql ... 
+
+
+# Note: this process should be ran after configuring your Liquibase properties file
+echo "Liquibase target database environment setup"
+
+# Step 1 - connect to database server and postgres default database to execute the create database script (to create target dev database)
+echo "Step 1 - connecting to host and creating the target database"
+psql -h $dbhost \
+-p 5432 \
+-U $dbuser \
+-d postgres \
+-c "CREATE DATABASE $dbname WITH OWNER = $dbuser;" # note: change the database name accordingly
+
+# Step 2 - connect to database server and the created target database to execute the create liquibase schema script (create liquibase schema for migrations)
+echo "Step 2 - connecting to host and creating the [liquibase] schema in the target database"
+psql -h $dbhost \
+-p 5432 \
+-U $dbuser \
+-d $dbname \
+-c "CREATE SCHEMA IF NOT EXISTS liquibase;"
+
+# Step 3 - execute liquibase status command to create liquibase meta tables in [liquibase] schema of the target database (your liquibase.properties file must be configured)
+# Note: make sure to execute this command in the directory of the root changelogs
+echo "Step 3 - executing the liquibase status command to create the meta tables in the [liquibase] schema"
+liquibase status --defaults-file=$liquibasepropfile
+
+# Step 4 - applying Liquibase changelogs to target database
+echo "Step 4 - applying Liquibase changelogs to target database"
+liquibase update --defaults-file=$liquibasepropfile
+
+# Finished
+echo "Script has finished processing"
