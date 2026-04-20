@@ -1,0 +1,14 @@
+site_number,Site,Statement for IE,Statement for CE
+1,1. Delta Junction,Step-wise IE values were used following each calibration,CDCE output was used for periods suspected of acidic aerosol; for other periods CE=0.5
+2,2. Cheeka Peak/Makah,,
+3,3. LA - Pico Rivera,,
+4,4. Rubidoux,Step-wise IE/RIE values were used following each calibration,CDCE output was used for periods of high ammonium nitrate mass fraction; for other periods CE=0.5
+5,5. Joshua Tree,Average IE/RIE values from two calibrations were used,"CDCE output was used for periods suspected of acidic aerosol; for other periods, CE = 0.5"
+6,6. Yellowstone,,
+7,7. La Casa,,
+8,8. Houston UH West,Average of three IE/RIE calibrations performed in October and November 2024 applied to entire 2024 dataset,"CDCE output was used for periods suspected of acidic aerosol; for other periods, CE = 0.5"
+9,9. Lawrenceville,,
+10,10. Queens College,Average of 5 IE/RIE calibrations applied to 07/05/2022-04/19/2024; Average of 3 IE/RIE calibrations applied between 04/19/2024-12/31/2024,"CDCE output was used for periods of high ammonium nitrate or suspected acidic aerosol; for other periods, CE = 0.5"
+11,11. South DeKalb,Average IE/RIEs applied between 04/20/2023-08/29/2023; Average IE/RIEs applied between 08/29/2023-02/13/2024; Average IE/RIEs applied between 04/09/2024-08/.01/2024; Average IE/RIEs applied between 09/10/2024-12/31/2024,"CE is always 0.5, likely due to low level of SO4"
+12,12. Look Rock,,
+,,,

@@ -181,10 +181,41 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
 
   }
 
-  glue::glue("{basic}\n",
-             "\n",
-             "Field Descriptions\n",
-             "{field_descriptions}")
+  if (level == "2") {
+    # Need statement on processing. Not sure how we'll do this in the future
+    statements_path <- system.file("ACSM IE_CE Statement Summary for Metadata file.csv",
+                                   package = "ascentr")
+    statements <- read.csv(statements_path)
+    site_num <- tbl(con, I("common.sites")) |>
+      filter(site_code == site) |>
+      pull(site_number)
+    statements <- statements |>
+      filter(site_number == site_num)
+    
+    ie <- statements$Statement.for.IE
+    ce <- statements$Statement.for.CE
+  
+    stp <- paste("Data converted to ASCENT STP assuming hydrostatic pressure and sampling temperature of 25 C.\n",
+                 "STP conversion factor for site = ", round(acsm_stp(site, con), 3))
+    
+    out <- glue::glue("{basic}\n",
+                        "\n",
+                        "Data Processing Details\n",
+                        "{clean_paste(c(stp, ie, ce), collapse = '\n')}",
+                        "\n\n",
+                        "Field Descriptions\n",
+                        "{field_descriptions}",
+                        )
+    
+    
+  } else {
+    out <- glue::glue("{basic}\n",
+               "\n",
+               "Field Descriptions\n",
+               "{field_descriptions}")
+  }
+  
+  out  
 
 }
 
@@ -306,7 +337,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
 #' @export
 #'
 #' @examples
-ascm_l2_from_files <- function(site, site_file, con) {
+acsm_l2_from_files <- function(site, site_file, con) {
   
   # ACMS specific list
   # 460A here is "interference in sulfate suspected from high organic signal, contact PI"
@@ -320,7 +351,7 @@ ascm_l2_from_files <- function(site, site_file, con) {
   
   # file produced by site using Igor code
   site_df <- readr::read_csv(site_file)
-  
+
   # timestamp in database is off by 600 s because it is the start/stop time
   # it will not match with this
   
@@ -349,20 +380,11 @@ ascm_l2_from_files <- function(site, site_file, con) {
   
   ## Need to convert values to ASCENT STP (1 atm, 0C) assuming hydrostatic pressure from
   ## site altitude and trailer temp of 25C
-  # This cannot currently be done further upstream because of the external reprocessing
-  # Relationship between pressure and altitude from https://en.wikipedia.org/wiki/Atmospheric_pressure
-  exponent <- -(9.80665 * 0.02896968) / (8.31446 * 0.00976)
-  # Pressure in Pa
-  p_sample <- 101325 * (1 + (0.00976 * elev) / 288.15)^exponent
-  t_sample <- 298.15 + 25 # sample temp K
-  
-  p_stp <- 101325
-  t_stp <- 298.15
-  
-  stp_factor <- (p_stp * t_sample) / (p_sample * t_stp)
+  stp_fact <- acsm_stp(site, con)
   
   df <- df |>
-    mutate(across(Org:OOA, ~.x * stp_factor))
+    mutate(stp_factor = stp_fact,
+           across(Org:OOA, ~.x * stp_fact))
   
   # The output includes composite flags, and some of them are overrides. For example,
   # 659:111 would mean a scan flagged as bad was changed to valid.
@@ -492,7 +514,7 @@ ascm_l2_from_files <- function(site, site_file, con) {
   
   # Rearrange and rename for final export
   result <- result |>
-    select(site_number, site_code,sample_datetime_UTC, sample_count,
+    select(site_number, site_code, sample_datetime_UTC, sample_count, 
            organics_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
            ammonium_ug_m3=NH4, chloride_ug_m3=Chl, 
            organics_uncertainty_ug_m3=Org_err, sulfate_uncertainty_ug_m3=SO4_err,
@@ -506,6 +528,27 @@ ascm_l2_from_files <- function(site, site_file, con) {
   
 }
 
+## Need to convert values to ASCENT STP (1 atm, 0C) assuming hydrostatic pressure from
+## site altitude and trailer temp of 25C
+# This cannot currently be done further upstream because of the external reprocessing
+# Relationship between pressure and altitude from https://en.wikipedia.org/wiki/Atmospheric_pressure
+acsm_stp <- function(site, con) {
+  
+  elev <- tbl(con, I("common.sites")) |>
+    filter(site_code == site) |>
+    pull(elevation)
+  
+  exponent <- -(9.80665 * 0.02896968) / (8.31446 * 0.00976)
+  # Pressure in Pa
+  p_sample <- 101325 * (1 + (0.00976 * elev) / 288.15)^exponent
+  t_sample <- 298.15 + 25 # sample temp K
+  
+  p_stp <- 101325
+  t_stp <- 298.15
+  
+  stp_fact <- (p_stp * t_sample) / (p_sample * t_stp) 
+  
+}
 
 # 
 # #### Not ready yet
