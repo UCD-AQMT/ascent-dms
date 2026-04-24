@@ -104,7 +104,7 @@ ae33_l1a <- function(site, start_dt, end_dt, con) {
 #' @export
 #'
 #' @examples
-ae33_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
+ae33_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
 
   # basic metadata
   basic <- basic_metadata(site, "AE33", start_dt, end_dt, level = level, con = con)
@@ -118,7 +118,8 @@ ae33_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   # field definitions
   template <- switch(level,
                      "1a" = "ae33_l1a_field_descriptions.txt",
-                     "1b" = "ae33_l1b_field_descriptions.txt")
+                     "1b" = "ae33_l1b_field_descriptions.txt",
+                     "2" = "ae33_l2_field_descriptions.txt")
   fields_path <- system.file(template, package="ascentr")
   fields <- paste(readLines(fields_path), collapse = "\n")
 
@@ -565,7 +566,8 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
               flag = recompose_flags(flag),
               comment = recompose_flags(comment),
               .by = sample_hour_UTC) |>
-    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid))
+    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid),
+              by = "sample_hour_UTC")
   
   if (nrow(flags_hourly_invalid) > 0) {
     flags_hourly_invalid <- flags_hourly_invalid |>
@@ -586,7 +588,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   
   # Rearrange to final field order
   result <- result |>
-    select(sample_datetime_UTC, site_number, site_code, sample_count:bb_percent,
+    select(site_number, site_code, sample_datetime_UTC, sample_count:bb_percent,
            qc_outcome, flag, comment) |>
     mutate()
 

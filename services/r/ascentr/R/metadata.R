@@ -26,7 +26,11 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
   site_info <- tbl(con, I("common.sites")) |>
     filter(site_code == site) |>
     collect()
-
+  
+  if (nrow(site_info) == 0) {
+    stop(site, " not found in sites table")
+  }
+ 
   instrument_description <- switch(instrument,
                                    "Xact" = "Cooper Xact 625 Ambient Metals Monitor",
                                    "SMPS" = "TSI Scanning Mobility Particle Sizer (SMPS) Model 3938",

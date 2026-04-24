@@ -273,7 +273,7 @@ downloadServer <- function(id) {
       
       if (input$metadata) {
         
-        metadata <- ae33_l1_metadata(input$site, input$dates[1], input$dates[2], 
+        metadata <- ae33_metadata(input$site, input$dates[1], input$dates[2], 
                                      level = "1b", con)
         temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
         dir.create(temp_dir)
