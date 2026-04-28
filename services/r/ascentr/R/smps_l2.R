@@ -31,6 +31,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
            .after = site_code)
   
   calc_mean_scan <- function(x) {
+    if (typeof(x) != "character") {
+      return(NA)
+    }
     purrr::map(x, \(x) as_tibble(yyjsonr::read_json_str(x))) |>
       purrr::list_rbind() |>
       summarise(across(everything(), mean))
@@ -64,6 +67,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
 
     prob <- cumsum(w)/sum(w)
     ps <- which(abs(prob - .5) == min(abs(prob - .5)))
+    if (length(ps) > 1) {
+      return(mean(x[ps]))      
+    } 
     return(x[ps])
   }
 
@@ -87,7 +93,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
   valid_hours <- hourly_counts |>
     filter(valid >= samples_required)
   invalid_hours <- setdiff(hourly_counts, valid_hours)
-  
+ 
   # Process scan statistics by hour for valid samples
   hour_scans <- df |>
     filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
@@ -96,7 +102,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
     summarise(mean_scan = calc_mean_scan(concentration_json),
               mean_raw_scan = calc_mean_scan(raw_concentration_json)) |>
     ungroup()
-  
+
   # Put columns in numerical order and replace NA w/ zero, then calculate stats
   hour_stats <- hour_scans |>
     select(-mean_raw_scan) |>
@@ -113,8 +119,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               mode_nm = name[which.max(value)],
               geo_std_dev = calc_geosd(name, value, geo_mean_nm),
               .by = sample_hour_utc)
-
-  
+browser()
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
     filter(qc_outcome < 4) |>
@@ -145,6 +150,16 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
            .keep = "unused") |>
     ungroup()
 
+  # If we were unable to calculate statistics for some hours, they need to be invalidated
+  no_stats <- df_valid |>
+    filter(is.na(mean_nm)) |>
+    pull(sample_hour_utc)
+  
+  df_valid <- df_valid |>
+    mutate(qc_outcome = if_else(sample_hour_utc %in% no_stats, 4, qc_outcome),
+           flag = if_else(sample_hour_utc %in% no_stats, "659", flag),
+           comment = if_else(sample_hour_utc %in% no_stats, "659-Unspecified sampling anomaly", comment))
+  
   # Get the flags and associated data for the invalid time periods, which will be filled with nulls
   flags_hourly_invalid <- df |>
     filter(sample_hour_utc %in% invalid_hours$sample_hour_utc) |>
@@ -164,11 +179,13 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
   if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
       arrange(sample_hour_utc) |>
-      rename(sample_datetime_UTC=sample_hour_utc)  
+      rename(sample_datetime_UTC=sample_hour_utc) |>
+      relocate(sample_datetime_UTC, .after = site_code)
   } else {
     result <- df_valid |>
       arrange(sample_hour_utc) |>
-      rename(sample_datetime_UTC=sample_hour_utc) 
+      rename(sample_datetime_UTC=sample_hour_utc) |>
+      relocate(sample_datetime_UTC, .after = site_code) 
   }
 
   return(result)
