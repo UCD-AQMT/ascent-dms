@@ -118,6 +118,47 @@ smps_columns <- function(con) {
 }
 
 
+#' Title
+#'
+#' @param site
+#' @param start_dt
+#' @param end_dt
+#' @param con
+#' @param version
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+smps_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
+  
+  # basic metadata
+  basic <- basic_metadata(site, "SMPS", start_dt, end_dt, level = level, con = con)
+  
+  # field definitions
+  template <- switch(level,
+                     "1a" = "smps_l1a_field_descriptions.txt",
+                     "1b" = "smps_l1b_field_descriptions.txt",
+                     "2" = "smps_l2_field_descriptions.txt")
+  fields_path <- system.file(template, package="ascentr")
+  fields <- paste(readLines(fields_path), collapse = "\n")
+  
+  # metadata from instrument settings
+  settings <- smps_settings(site, start_dt, end_dt, con) |>
+    mutate(line = paste0(name, ": ", value, "    ", start_date))
+  setting_desc <- paste(settings$line, collapse = "\n")
+  
+  glue::glue("{basic}\n",
+             "\n",
+             "Field Descriptions\n",
+             "{fields}\n",
+             "\n",
+             "Instrument metadata\n",
+             "(Parameter: value    effective datetime (UTC))\n",
+             "{setting_desc}")
+  
+}
+
 #' Integrate number/volume/mass distribution
 #'
 #' @param dWdlogDp
@@ -177,6 +218,9 @@ calc_dMdlogDp <- function(dNdlogDp, midpoints, density = 1.4) {
 
 # Need to convert to lists to convince yyjsonr that these are not arrays   
 write_atomic_json <- function(x) {
+  if (typeof(x) != "list") {
+    return(NA)
+  }
   y <- as.list(x)
   yyjsonr::write_json_str(y, auto_unbox = TRUE, digits = 4)
 }
