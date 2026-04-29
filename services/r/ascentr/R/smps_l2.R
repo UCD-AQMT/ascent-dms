@@ -1,7 +1,7 @@
 # SMPS L2 data - hourly and validated for delivery
 # Initial version uses L1b files as input. Later versions will be built from database.
 
-smps_l2_from_files <- function(l1b_file, manual_qc_file) {
+smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # SMPS specific flags
   available_flags <- tibble(manual_flag = c("111", "686", "683", "458A", "659"),
@@ -24,6 +24,12 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
+  # Limit to after start_datetime if provided
+  if (!is.null(start_datetime)) {
+    df <- df |>
+      filter(sample_datetime_utc >= start_datetime)
+  }
+  
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
     coalesce_flags() |>
@@ -119,7 +125,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               mode_nm = name[which.max(value)],
               geo_std_dev = calc_geosd(name, value, geo_mean_nm),
               .by = sample_hour_utc)
-browser()
+
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
     filter(qc_outcome < 4) |>
