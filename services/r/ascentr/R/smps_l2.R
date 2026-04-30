@@ -12,9 +12,12 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   l1b <- readr::read_csv(l1b_file)
   qc <- readr::read_csv(manual_qc_file)
-  
+
   qc <- qc |>
-    mutate(flag = as.character(flag)) |>
+    mutate(flag = as.character(flag),
+           sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
+                                             sample_datetime_UTC_start,
+                                             sample_datetime_UTC_end)) |>
     rename(manual_flag=flag, manual_comment=comment)
 
   df <- l1b |>
@@ -29,7 +32,12 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     df <- df |>
       filter(sample_datetime_utc >= start_datetime)
   }
-  
+      
+  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
+  df <- df |>
+    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
+           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
+
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
     coalesce_flags() |>
@@ -176,11 +184,14 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
               qc_outcome = max(qc_outcome),
               flag = recompose_flags(flag),
               comment = recompose_flags(comment),
-              .by = sample_hour_utc) |>
-    mutate(flag = if_else(qc_outcome < 4, "391", flag),
-           comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
-           qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
-
+              .by = sample_hour_utc)
+  if (nrow(flags_hourly_invalid) > 0) {
+    flags_hourly_invalid <- flags_hourly_invalid |>
+      mutate(flag = if_else(qc_outcome < 4, "391", flag),
+             comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+             qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+    
+  }
 
   if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
