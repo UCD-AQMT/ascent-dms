@@ -179,7 +179,7 @@ xact_l1a_df <- function(site, start_dt, end_dt, con) {
 #' @export
 #'
 #' @examples
-xact_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con,
+xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
                               metadata_fields = NULL) {
 
   # basic metadata
@@ -374,7 +374,7 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file) {
   
   l1b <- readr::read_csv(l1b_file)
   qc <- readr::read_csv(manual_qc_file)
-  
+browser()  
   qc <- qc |>
     mutate(flag = as.character(flag),
            sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
