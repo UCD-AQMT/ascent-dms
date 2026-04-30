@@ -465,7 +465,10 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   qc <- readr::read_csv(manual_qc_file, guess_max = 50000)
 
   qc <- qc |>
-    mutate(flag = as.character(flag)) |>
+    mutate(flag = as.character(flag),
+           sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
+                                             sample_datetime_UTC_start,
+                                             sample_datetime_UTC_end)) |>
     rename(manual_flag=flag, manual_comment=comment)
 
   df <- l1b |>
