@@ -1,6 +1,16 @@
 # SMPS L2 data - hourly and validated for delivery
 # Initial version uses L1b files as input. Later versions will be built from database.
 
+#' Title
+#'
+#' @param l1b_file 
+#' @param manual_qc_file 
+#' @param start_datetime 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # SMPS specific flags
@@ -9,9 +19,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct()
-  
-  l1b <- readr::read_csv(l1b_file)
-  qc <- readr::read_csv(manual_qc_file)
+
+  l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, show_col_types = FALSE, guess_max = 50000)
 
   qc <- qc |>
     mutate(flag = as.character(flag),
@@ -32,7 +42,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     df <- df |>
       filter(sample_datetime_utc >= start_datetime)
   }
-      
+  
   # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
   df <- df |>
     mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
@@ -103,6 +113,8 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     summarise(count = n(),
               .by = c(sample_hour_utc, valid)) |>
     tidyr::pivot_wider(names_from = valid, values_from = count)
+  
+  hourly_record_count <- nrow(hourly_counts)
   
   valid_hours <- hourly_counts |>
     filter(valid >= samples_required)
@@ -205,6 +217,12 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
       relocate(sample_datetime_UTC, .after = site_code) 
   }
 
+  # Confirm that the result has the same number of rows as first calculated
+  if (nrow(result) != hourly_record_count) {
+    stop(paste0("Number of hourly records returned (", nrow(result), 
+               ") does not equal number of records input (", hourly_record_count, ")"))
+  }
+  
   return(result)
   
   
