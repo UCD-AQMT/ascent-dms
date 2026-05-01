@@ -1,0 +1,17 @@
+site_number: ASCENT site number
+site_code: ASCENT site code
+sample_datetime_UTC: Datetime of sample start (UTC)
+sample_type: 'sample'= an ambient sample, 'QC'= a quality control measurement
+element: The measured element
+concentration_ng_m3: Element concentration at ambient conditions (ng/m3)
+uncertainty_ng_m3: Instrument concentration uncertainty calculated based on the most updated recommendation from manufacturer at ambient conditions (ng/m3)
+sample_time_min: Instrument setting for sampling duration (min)
+sample_analysis_id: An id that uniquely identifies this measurement in the respective table of the ASCENT database
+site_record_id: An id that identifies this measurement in the respective table of the local site database
+stp_factor: Multiplication conversion factor to standard temperature (0 degrees C) and pressure (1 atm)
+concentration_stp_ng_m3: Element concentration at standard temperature and pressure (ng/m3)
+uncertainty_stp_ng_m3: Instrumental concentration uncertainty calculated based on the most updated recommendation from manufacturer at standard temperature and pressure (ng/m3)
+flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
+qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
+comment: Comments that provide more detail about any flags applied to the record
+sample_time_est_min: Estimate of actual sampling time based on measured volume and flow rate (min)
