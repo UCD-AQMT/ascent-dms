@@ -371,6 +371,16 @@ xact_l1b <- function(site, start_dt, end_dt, con) {
 
 }
 
+#' Title
+#'
+#' @param l1b_file 
+#' @param manual_qc_file 
+#' @param start_datetime 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 xact_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
   
   # Xact specific flags
