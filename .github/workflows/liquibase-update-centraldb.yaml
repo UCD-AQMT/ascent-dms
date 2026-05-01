@@ -1,0 +1,11 @@
+name: Liquibase Central Db CI
+
+# Configure what triggers this workflow [push, pull request, or manual trigger]
+on: [push, pull_request, workflow_dispatch]
+  branches:
+    - main
+  paths:
+    - 'db/liquibase/postgresql/changelogs/ascent-centraldb/**'
+
+
+# Setup the jobs that this workflow will execute
