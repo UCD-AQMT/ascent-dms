@@ -1,0 +1,19 @@
+site_number: ASCENT site number
+site_code: ASCENT site code
+sample_datetime_UTC: Datetime of sample start (UTC)
+stp_factor: Multiplication conversion factor to standard temperature (0°C) and pressure (1 atm)
+qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
+flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
+comment: Comments that provide more detail about any flags applied to the record
+sample_count: Number of scans in this hourly average
+total_concentration_1_cm3: Total mean hourly number concentration of scan at sample conditions (#/cm^3)
+volume_concentration_um3_cm3: Total mean hourly volume concentration of scan at sample conditions (μm^3/cm^3)
+mean_nm: Mean number concentration particle size (nm)
+geo_mean_nm: Geometric mean number concentration particle size (nm)
+median_nm: Median number concentration particle size (nm)
+mode_nm: Mode of number concentration particle size (nm)
+geo_std_dev: Geometric standard deviation of number concentration particle size
+number_concentration_stp_1_cm3: Total hourly mean number concentration at standard conditions (#/cm^3)
+volume_concentration_stp_um3_cm3: Total hourly mean volume concentration at standard conditions (μm^3/cm^3)
+concentration_json: Mean hourly concentration (dN/dlogDp) by size bin midpoint in JSON format at sample conditions (#/cm^3)
+raw_concentration_json: Raw mean hourly uncorrected concentration (dN/dlogDp) by size bin in JSON format at sample conditions (#/cm^3)

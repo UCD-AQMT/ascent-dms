@@ -104,7 +104,7 @@ ae33_l1a <- function(site, start_dt, end_dt, con) {
 #' @export
 #'
 #' @examples
-ae33_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
+ae33_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
 
   # basic metadata
   basic <- basic_metadata(site, "AE33", start_dt, end_dt, level = level, con = con)
@@ -118,7 +118,8 @@ ae33_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   # field definitions
   template <- switch(level,
                      "1a" = "ae33_l1a_field_descriptions.txt",
-                     "1b" = "ae33_l1b_field_descriptions.txt")
+                     "1b" = "ae33_l1b_field_descriptions.txt",
+                     "2" = "ae33_l2_field_descriptions.txt")
   fields_path <- system.file(template, package="ascentr")
   fields <- paste(readLines(fields_path), collapse = "\n")
 
@@ -263,11 +264,41 @@ ae33_l1b <- function(site, start_dt, end_dt, con) {
   if (is.null(df)) {
     return(NULL)
   }
+  
+  
+  # Make sure data are arranged
+  df <- arrange(df, sample_datetime_UTC)
+  
+  # Originally, AE33's were set to the incorrect C value. Each site changed at a different
+  # time. Change is stored in this data file
+  c_change_path <- system.file("ae33_c_value_change_date.csv", package="ascentr")
+  c_change <- read.csv(c_change_path, stringsAsFactors = FALSE) |>
+    mutate(c_value_change_date = as.POSIXct(c_value_change_date, tz = "UTC")) |>
+    filter(site_code == site) |>
+    pull(c_value_change_date)
+  
+  correction_factor <- 1.57 / 1.39
+  
+  # If change happened after start_dt, at least some must be updated
+  if (c_change > start_dt) {
+    # If change is after end_dt, all of it needs to be updated, otherwise partial
+    if (c_change > end_dt) {
+      print("Data prior to C value update - applying correction")
+      df <- df |>
+        mutate(across(starts_with("bc"), ~.x * correction_factor))
+    } else {
+      print("Partial data prior to C value update - applying correction to earlier data")
+      df_pre <- df |>
+        filter(sample_datetime_UTC < c_change)
+      df_post <- setdiff(df, df_pre)
+      df_pre <- df_pre |>
+        mutate(across(starts_with("bc"), ~.x * correction_factor))
+      df <- bind_rows(df_pre, df_post)
+    }
+  }
 
   # Auto-qc
 
-  # Make sure data are arranged
-  df <- arrange(df, sample_datetime_UTC)
 
   # parse the statuses into flags.
   statuses <- df |>
@@ -429,32 +460,147 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct()
 
-  l1b <- readr::read_csv(l1b_file)
-  qc <- readr::read_csv(manual_qc_file)
+  # Increasing guess_max here to make sure that some tape advances are caught
+  l1b <- readr::read_csv(l1b_file, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, guess_max = 50000)
 
   qc <- qc |>
+    mutate(flag = as.character(flag),
+           sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
+                                             sample_datetime_UTC_start,
+                                             sample_datetime_UTC_end)) |>
     rename(manual_flag=flag, manual_comment=comment)
 
   df <- l1b |>
     left_join(qc, by = join_by(between(sample_datetime_UTC,
                                        sample_datetime_UTC_start,
                                        sample_datetime_UTC_end))) |>
-    left_join(available_flags, by = "manual_flag")
+    left_join(available_flags, by = "manual_flag") |>
+    mutate(flag = as.character(flag))
 
-  # Coalesce flags and comments
+  # Coalesce flags and comments and calculate the base hour
   df <- df |>
-    mutate(final_flag = if_else(is.na(manual_flag), flag,
-                                if_else(is.na(flag), manual_flag,
-                                        paste(manual_flag, flag, sep = ":"))),
-           final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
-                                      pmax(qc_outcome, manual_qc_outcome)),
-           final_comment = if_else(is.na(manual_comment), comment,
-                                   if_else(is.na(comment), manual_comment,
-                                           paste(manual_comment, comment, sep = " : "))))
+    coalesce_flags() |>
+    mutate(sample_hour_UTC = lubridate::floor_date(sample_datetime_UTC, "1 hour"),
+           .after = site_code)
 
-  df <- df |>
-    select(!(flag:manual_qc_outcome)) |>
-    rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
+  # AE33 sampling is every 1 minute - 60 samples per hour
+  # Require 30 samples for a valid hourly measurement
+  samples_required <- 30
+  hourly_counts <- df |>
+    mutate(valid = if_else(qc_outcome < 4, "valid", "invalid")) |>
+    summarise(count = n(),
+              .by = c(sample_hour_UTC, valid)) |>
+    tidyr::pivot_wider(names_from = valid, values_from = count)
+  
+  valid_hours <- hourly_counts |>
+    filter(valid >= samples_required)
+  invalid_hours <- setdiff(hourly_counts, valid_hours)
 
+  # Process hourly results for valid samples
+  data_hourly_valid <- df |>
+    filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |> # only valid hours
+    filter(qc_outcome < 4) |> # within those hours only process valid observations
+    summarise(across(starts_with("bc"), ~mean(.x, na.rm = TRUE)),
+              across(starts_with("k_"), ~mean(.x, na.rm = TRUE)),
+              across(starts_with("att"), ~mean(.x, na.rm = TRUE)),
+              .by = sample_hour_UTC)
+
+  
+  # To properly calculate BB% at hourly resolution, we use the 1-hr BC values, along with
+  # MAC values to derive hourly absorption. Then use Zotter et al., 2017 Eq 13 to find
+  # BC_ff/BC_tot. 
+  # Assumptions:
+  # MAC_ff == MAC_bb
+  # Absorption Angstrom Exponent (alpha) ff = 1, bb = 2
+  mac_470 <- ae33_MAC |>
+    filter(wavelength == 470) |>
+    pull(MAC)
+  
+  mac_950 <- ae33_MAC |>
+    filter(wavelength == 950) |>
+    pull(MAC)
+  
+  alpha_ff <- 1
+  alpha_bb <- 2
+  
+  data_hourly_valid <- data_hourly_valid |>
+    mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
+           abs_950 = bc_7_STP_ng_m3 * mac_950,
+           upper_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_ff,
+           lower_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_bb,
+           ff_fraction = 1 / (1 - upper_term / lower_term),
+           bb_percent = (1 - ff_fraction) * 100,
+           bb_percent = if_else(bb_percent > 100, 100,
+                                if_else(bb_percent < 0, 0, bb_percent))) |>
+    select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
+  
+  # rejoin with flags and other info
+  flags_hourly_valid <- df |>
+    filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |>
+    filter(qc_outcome < 4) |>
+    select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
+    summarise(site_number = first(site_number),
+              site_code = first(site_code),
+              qc_outcome = max(qc_outcome),
+              flag = recompose_flags(flag),
+              comment =recompose_flags(comment),
+              .by = sample_hour_UTC)
+  
+  df_valid <- flags_hourly_valid |>
+    left_join(select(valid_hours, sample_hour_UTC, sample_count=valid), 
+              by = "sample_hour_UTC") |>
+    left_join(data_hourly_valid, by = "sample_hour_UTC")
+  
+  if (nrow(df_valid) == 0) {
+    warning("No valid hours for ", l1b_file, "\nreturning null.")
+    return(NULL)
+  } 
+
+  # Get the flags and associated data for the invalid time periods, which will be filled
+  # with nulls
+  # Some may be invalid because not enough samples but no bad qc_outcome. If so, downgrade
+  flags_hourly_invalid <- df |>
+    filter(sample_hour_UTC %in% invalid_hours$sample_hour_UTC) |>
+    select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
+    summarise(site_number = first(site_number),
+              site_code = first(site_code),
+              qc_outcome = max(qc_outcome),
+              flag = recompose_flags(flag),
+              comment = recompose_flags(comment),
+              .by = sample_hour_UTC) |>
+    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid),
+              by = "sample_hour_UTC")
+  
+  if (nrow(flags_hourly_invalid) > 0) {
+    flags_hourly_invalid <- flags_hourly_invalid |>
+      mutate(flag = if_else(qc_outcome < 4, "391", flag),
+             comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+             qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+  }
+
+  if (nrow(flags_hourly_invalid) > 0) {
+    result <- bind_rows(df_valid, flags_hourly_invalid) |>
+      arrange(sample_hour_UTC) |>
+      rename(sample_datetime_UTC=sample_hour_UTC)  
+  } else {
+    result <- df_valid |>
+      arrange(sample_hour_UTC) |>
+      rename(sample_datetime_UTC=sample_hour_UTC) 
+  }
+  
+  # Rearrange to final field order
+  result <- result |>
+    select(site_number, site_code, sample_datetime_UTC, sample_count:bb_percent,
+           qc_outcome, flag, comment) |>
+    mutate()
+
+  return(result)
+  
 }
+
+# Mass Absorption Cross-sections from Magee manual (ver 1.59, pg 22)
+ae33_MAC <- tibble(channel = 1:7,
+                   wavelength = c(370, 470, 520, 590, 660, 880, 950),
+                   MAC = c(18.47, 14.54, 13.14, 11.58, 10.35, 7.77, 7.19))
 

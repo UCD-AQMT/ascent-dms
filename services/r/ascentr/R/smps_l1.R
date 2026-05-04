@@ -39,7 +39,7 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
     select(js=concentration_json, min_scan=lower_size, max_scan=upper_size)
   smps_records <- purrr::pmap(scan_inputs, read_and_trim,
                               .progress = "Reading and trimming SMPS scans")
-  conc_json <- purrr::map(smps_records, yyjsonr::write_json_str)
+  conc_json <- purrr::map(smps_records, write_atomic_json)
 
   raw_inputs <- df |>
     select(js=raw_concentration_json, min_scan=lower_size, max_scan=upper_size)
@@ -50,15 +50,9 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
   } else {
     smps_raw <- purrr::pmap(raw_inputs, read_and_trim,
                             .progress = "Reading and trimming SMPS raw scans")
-    conc_json_raw <- purrr::map(smps_raw, yyjsonr::write_json_str)
+    conc_json_raw <- purrr::map(smps_raw, write_atomic_json)
   }
   
-  
-  
-  
-  # smps_records <- purrr::map(df$concentration_json,
-  #                            \(x) as_tibble(yyjsonr::read_json_str(x)))
-
   # Make unit aware
   # Make sure degrees and percents aren't converted to symbols
   units::units_options(auto_convert_names_to_symbols = FALSE)
@@ -241,46 +235,5 @@ smps_l1b_df <- function(site, start_dt, end_dt, con) {
     left_join(flags, by = "sample_analysis_id") |>
     mutate(qc_outcome = if_else(is.na(qc_outcome), 1, qc_outcome))
 
-
-}
-
-
-#' Title
-#'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
-#' @param version
-#'
-#' @returns
-#' @export
-#'
-#' @examples
-smps_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
-
-  # basic metadata
-  basic <- basic_metadata(site, "SMPS", start_dt, end_dt, level = level, con = con)
-
-  # field definitions
-  template <- switch(level,
-                     "1a" = "smps_l1a_field_descriptions.txt",
-                     "1b" = "smps_l1b_field_descriptions.txt")
-  fields_path <- system.file(template, package="ascentr")
-  fields <- paste(readLines(fields_path), collapse = "\n")
-
-  # metadata from instrument settings
-  settings <- smps_settings(site, start_dt, end_dt, con) |>
-    mutate(line = paste0(name, ": ", value, "    ", start_date))
-  setting_desc <- paste(settings$line, collapse = "\n")
-
-  glue::glue("{basic}\n",
-             "\n",
-             "Field Descriptions\n",
-             "{fields}\n",
-             "\n",
-             "Instrument metadata\n",
-             "(Parameter: value    effective datetime (UTC))\n",
-             "{setting_desc}")
 
 }

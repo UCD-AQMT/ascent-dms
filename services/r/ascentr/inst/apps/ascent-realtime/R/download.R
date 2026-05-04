@@ -57,7 +57,7 @@ downloadServer <- function(id) {
     observeEvent(input$dummybutton, {
       showModal(modalDialog(
         title = "Message",
-        "Please accept the data policy to download data"
+        "Please read and accept the data policy to download data"
       ))
     })
     
@@ -208,7 +208,7 @@ downloadServer <- function(id) {
     smps_l1 <- reactive({
       df <- smps_l1b_df(input$site, input$dates[1], input$dates[2], con)
       if (input$metadata) {
-        meta <- smps_l1_metadata(input$site, input$dates[1], input$dates[2], level = "1b", con)  
+        meta <- smps_metadata(input$site, input$dates[1], input$dates[2], level = "1b", con)  
         temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
         dir.create(temp_dir)
         txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
@@ -273,7 +273,7 @@ downloadServer <- function(id) {
       
       if (input$metadata) {
         
-        metadata <- ae33_l1_metadata(input$site, input$dates[1], input$dates[2], 
+        metadata <- ae33_metadata(input$site, input$dates[1], input$dates[2], 
                                      level = "1b", con)
         temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
         dir.create(temp_dir)

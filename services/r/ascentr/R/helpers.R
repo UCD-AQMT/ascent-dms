@@ -72,6 +72,40 @@ get_unit_paren <- function(x) {
 
 }
 
+# Take all the flag/comment strings apart and put them back together with unique flags only
+recompose_flags <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) {
+    return(NA)
+  } else {
+    y <- strsplit(x, ":", fixed = TRUE) |>
+      purrr::list_c() |>
+      unique() |>
+      sort()
+    if (length(y) > 1) {
+      paste(y, collapse = ":")
+    } else {
+      return(y)
+    }
+  }
+}
+
+# Coalesce manual and automated QC flags and comments
+coalesce_flags <- function(df) {
+  df |>
+    mutate(final_flag = if_else(is.na(manual_flag), flag,
+                              if_else(is.na(flag), manual_flag,
+                                      paste(manual_flag, flag, sep = ":"))),
+           final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
+                                      pmax(qc_outcome, manual_qc_outcome)),
+           final_comment = if_else(is.na(manual_comment), comment,
+                                   if_else(is.na(comment), manual_comment,
+                                           paste(manual_comment, comment, sep = " : ")))) |>
+    select(-flag, -comment, -qc_outcome, -manual_flag, -manual_comment, -manual_qc_outcome) |>
+    rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
+
+}
+
 # taken from SO: https://stackoverflow.com/questions/13673894/suppress-nas-in-paste
 clean_paste <- function(x, collapse) {
   paste(x[!is.na(x)], collapse = collapse)

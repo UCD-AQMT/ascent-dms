@@ -1,7 +1,17 @@
 # SMPS L2 data - hourly and validated for delivery
 # Initial version uses L1b files as input. Later versions will be built from database.
 
-smps_l2_from_files <- function(l1b_file, manual_qc_file) {
+#' Title
+#'
+#' @param l1b_file 
+#' @param manual_qc_file 
+#' @param start_datetime 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # SMPS specific flags
   available_flags <- tibble(manual_flag = c("111", "686", "683", "458A", "659"),
@@ -9,13 +19,15 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
 
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct()
-  
-  l1b <- readr::read_csv(l1b_file)
-  qc <- readr::read_csv(manual_qc_file)
-  
-  
+
+  l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, show_col_types = FALSE, guess_max = 50000)
+
   qc <- qc |>
-    mutate(flag = as.character(flag)) |>
+    mutate(flag = as.character(flag),
+           sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
+                                             sample_datetime_UTC_start,
+                                             sample_datetime_UTC_end)) |>
     rename(manual_flag=flag, manual_comment=comment)
 
   df <- l1b |>
@@ -25,24 +37,27 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
+  # Limit to after start_datetime if provided
+  if (!is.null(start_datetime)) {
+    df <- df |>
+      filter(sample_datetime_utc >= start_datetime)
+  }
+  
+  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
+  df <- df |>
+    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
+           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
+
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
-    mutate(final_flag = if_else(is.na(manual_flag), flag,
-                                if_else(is.na(flag), manual_flag,
-                                        paste(manual_flag, flag, sep = ":"))),
-           final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
-                                      pmax(qc_outcome, manual_qc_outcome)),
-           final_comment = if_else(is.na(manual_comment), comment,
-                                   if_else(is.na(comment), manual_comment,
-                                           paste(manual_comment, comment, sep = " : ")))) |>
+    coalesce_flags() |>
     mutate(sample_hour_utc = lubridate::floor_date(sample_datetime_utc, "1 hour"),
            .after = site_code)
   
-  df <- df |>
-    select(!(qc_outcome:manual_qc_outcome)) |>
-    rename(flag=final_flag, qc_outcome=final_qc_outcome, comment=final_comment)
-
   calc_mean_scan <- function(x) {
+    if (typeof(x) != "character") {
+      return(NA)
+    }
     purrr::map(x, \(x) as_tibble(yyjsonr::read_json_str(x))) |>
       purrr::list_rbind() |>
       summarise(across(everything(), mean))
@@ -76,6 +91,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
 
     prob <- cumsum(w)/sum(w)
     ps <- which(abs(prob - .5) == min(abs(prob - .5)))
+    if (length(ps) > 1) {
+      return(mean(x[ps]))      
+    } 
     return(x[ps])
   }
 
@@ -96,17 +114,21 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               .by = c(sample_hour_utc, valid)) |>
     tidyr::pivot_wider(names_from = valid, values_from = count)
   
+  hourly_record_count <- nrow(hourly_counts)
+  
   valid_hours <- hourly_counts |>
     filter(valid >= samples_required)
   invalid_hours <- setdiff(hourly_counts, valid_hours)
-  
+ 
   # Process scan statistics by hour for valid samples
   hour_scans <- df |>
-    filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |>
+    filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
+    filter(qc_outcome < 4) |> # within those hours, only process valid scans
     group_by(sample_hour_utc) |>
     summarise(mean_scan = calc_mean_scan(concentration_json),
-              mean_raw_scan = calc_mean_scan(raw_concentration_json))
-  
+              mean_raw_scan = calc_mean_scan(raw_concentration_json)) |>
+    ungroup()
+
   # Put columns in numerical order and replace NA w/ zero, then calculate stats
   hour_stats <- hour_scans |>
     select(-mean_raw_scan) |>
@@ -124,25 +146,6 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               geo_std_dev = calc_geosd(name, value, geo_mean_nm),
               .by = sample_hour_utc)
 
-  
-  # Take all the flag/comment strings apart and put them back together with unique flags only
-  recompose_flags <- function(x) {
-    x <- x[!is.na(x)]
-    if (length(x) == 0) {
-      return(NA)
-    } else {
-      y <- strsplit(x, ":", fixed = TRUE) |>
-        purrr::list_c() |>
-        unique() |>
-        sort()
-      if (length(y) > 1) {
-        paste(y, collapse = ":")
-      } else {
-        return(y)
-      }
-    }
-  }
-  
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
     filter(qc_outcome < 4) |>
@@ -164,13 +167,25 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
            volume_concentration_stp_um3_cm3 = volume_concentration_um3_cm3 * stp_factor) |>
     left_join(hour_scans, by = "sample_hour_utc") 
 
-  # Before reattaching json null any values outside of the sampling range
+  # Need to convert to lists to convince yyjsonr that these are not arrays   
+  # Add scans
   df_valid <- df_valid |>
     rowwise() |>
-    mutate(concentration_json = yyjsonr::write_json_str(mean_scan),
-           raw_concentration_json = yyjsonr::write_json_str(mean_raw_scan),
-           .keep = "unused")
+    mutate(concentration_json = write_atomic_json(mean_scan),
+           raw_concentration_json = write_atomic_json(mean_raw_scan),
+           .keep = "unused") |>
+    ungroup()
 
+  # If we were unable to calculate statistics for some hours, they need to be invalidated
+  no_stats <- df_valid |>
+    filter(is.na(mean_nm)) |>
+    pull(sample_hour_utc)
+  
+  df_valid <- df_valid |>
+    mutate(qc_outcome = if_else(sample_hour_utc %in% no_stats, 4, qc_outcome),
+           flag = if_else(sample_hour_utc %in% no_stats, "659", flag),
+           comment = if_else(sample_hour_utc %in% no_stats, "659-Unspecified sampling anomaly", comment))
+  
   # Get the flags and associated data for the invalid time periods, which will be filled with nulls
   flags_hourly_invalid <- df |>
     filter(sample_hour_utc %in% invalid_hours$sample_hour_utc) |>
@@ -182,18 +197,33 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file) {
               flag = recompose_flags(flag),
               comment = recompose_flags(comment),
               .by = sample_hour_utc)
+  if (nrow(flags_hourly_invalid) > 0) {
+    flags_hourly_invalid <- flags_hourly_invalid |>
+      mutate(flag = if_else(qc_outcome < 4, "391", flag),
+             comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+             qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
+    
+  }
 
   if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
       arrange(sample_hour_utc) |>
-      rename(sample_datetime_UTC=sample_hour_utc)  
+      rename(sample_datetime_UTC=sample_hour_utc) |>
+      relocate(sample_datetime_UTC, .after = site_code)
   } else {
     result <- df_valid |>
       arrange(sample_hour_utc) |>
-      rename(sample_datetime_UTC=sample_hour_utc) 
+      rename(sample_datetime_UTC=sample_hour_utc) |>
+      relocate(sample_datetime_UTC, .after = site_code) 
   }
 
+  # Confirm that the result has the same number of rows as first calculated
+  if (nrow(result) != hourly_record_count) {
+    stop(paste0("Number of hourly records returned (", nrow(result), 
+               ") does not equal number of records input (", hourly_record_count, ")"))
+  }
   
+  return(result)
   
   
 }

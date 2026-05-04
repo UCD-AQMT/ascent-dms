@@ -145,7 +145,7 @@ xact_l1a_df <- function(site, start_dt, end_dt, con) {
                                        "Element atomic symbol",
                                        "Element concentration at ambient conditions (ng/m3)",
                                        "Instrument concentration uncertainty calculated based on the most updated recommendation from manufacturer at ambient conditions (ng/m3)",
-                                       "Multiplication conversion factor to standard temperature (0\u00B0C) and pressure (1 atm)",
+                                       "Multiplication conversion factor to standard temperature (0 degrees C) and pressure (1 atm)",
                                        "Element concentration at standard temperature and pressure (ng/m3)",
                                        "Instrumental concentration uncertainty calculated based on the most updated recommendation from manufacturer at standard temperature and pressure (ng/m3)",
                                        "Pump start datetime (UTC)"))
@@ -179,7 +179,7 @@ xact_l1a_df <- function(site, start_dt, end_dt, con) {
 #' @export
 #'
 #' @examples
-xact_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con,
+xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
                               metadata_fields = NULL) {
 
   # basic metadata
@@ -203,14 +203,22 @@ xact_l1_metadata <- function(site, start_dt, end_dt, level = "1a", con,
     mutate(vers_text = paste(value, start_date, sep = ", "))
   v_text <- paste(vers$vers_text, collapse = "\n")
 
-  # If the metadata fields aren't provided, get them
-  if (is.null(metadata_fields)) {
-    metadata_fields <- xact_l1a_df(site, start_dt, end_dt, con)$mdf
+  # L1 metadata fields are derived from the db, L2 are from a file
+  if (level == "2") {
+    # field definitions
+    template <- "xact_l2_field_descriptions.txt"
+    fields_path <- system.file(template, package="ascentr")
+    field_descriptions <- paste(readLines(fields_path), collapse = "\n")
+  } else {
+    # If the metadata fields aren't provided, get them
+    if (is.null(metadata_fields)) {
+      metadata_fields <- xact_l1a_df(site, start_dt, end_dt, con)$mdf
+    }
+    
+    m <- metadata_fields |>
+      mutate(field_text = paste0(export_fieldname, ": ", export_description))
+    field_descriptions <- paste(m$field_text, collapse = "\n")
   }
-
-  m <- metadata_fields |>
-    mutate(field_text = paste0(export_fieldname, ": ", export_description))
-  field_descriptions <- paste(m$field_text, collapse = "\n")
 
   out <- glue::glue("{basic}\n",
              "Xact Software Versions\n",
@@ -363,18 +371,28 @@ xact_l1b <- function(site, start_dt, end_dt, con) {
 
 }
 
-xact_l2_from_files <- function(l1b_file, manual_qc_file) {
+#' Title
+#'
+#' @param l1b_file 
+#' @param manual_qc_file 
+#' @param start_datetime 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+xact_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
   
   # Xact specific flags
-  available_flags <- tibble(manual_flag = c("111", "686", "459", "659"),
-                            manual_qc_outcome = c(1, 9, 4, 4))
-  
+  available_flags <- tibble(manual_flag = c("111", "686", "459", "659", "683", "453", "641"),
+                            manual_qc_outcome = c(1, 9, 4, 4, 9, 1, 4))
+
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct()
   
-  l1b <- readr::read_csv(l1b_file)
-  qc <- readr::read_csv(manual_qc_file)
-  
+  l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, show_col_types = FALSE, guess_max = 50000)
+
   qc <- qc |>
     mutate(flag = as.character(flag),
            sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
@@ -389,7 +407,123 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file) {
     left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
-  df
+  # Remove Nb - it is used by the Xact for QC and is not from the ambient sample
+  df <- df |>
+    filter(element != "Nb")
+  
+  # Limit to after start_datetime if provided
+  if (!is.null(start_datetime)) {
+    df <- df |>
+      filter(sample_datetime_UTC >= start_datetime)
+  }
+  
+  filtered_record_count <- nrow(df)
+  
+  ##### Resolving composite flags - pull out
+  
+  # The output includes composite flags, and some of them are overrides. For example,
+  # 659:111 would mean a scan flagged as bad was changed to valid.
+  df_manual_flagged <- filter(df, !is.na(manual_flag))
+  df_manual_unflagged <- setdiff(df, df_manual_flagged)
+  all_flags <- stringr::str_split(df_manual_flagged$manual_flag, pattern = ":")
+  
+  # Are there any unexpected flag values?
+  flags <- unique(unlist(all_flags))
+  bad_flags <- any(!flags %in% available_flags$manual_flag)
+  if (bad_flags) {
+    bad <- flags[which(!flags %in% available_flags$manual_flag)]
+    msg <- paste(bad, collapse = ", ")
+    stop("Unexpected flag value(s): ", msg)
+  }
+  
+  # Flags are good, but need to take them apart - for each record with a flag, compute a
+  # final qc_outcome and flag list. Generally, qc_outcome is max, but 111 overrides in
+  # this case and removes all other flags.
+  resolve_xact_flags <- function(x) {
+    if (length(x) == 1) {
+      manual_flag <- x
+      manual_qc_outcome <- available_flags$manual_qc_outcome[available_flags$manual_flag == x]
+    } else {
+      if (any(x == "111")) {
+        manual_flag <- "111"
+        manual_qc_outcome <- 1
+      } else {
+        manual_qc_outcome <- max(available_flags$manual_qc_outcome[available_flags$manual_flag %in% x])
+        manual_flag <- paste0(sort(x), collapse = ":")
+      }
+    }
+    data.frame(manual_flag, manual_qc_outcome)
+  }
+  
+  flags_outcomes <- purrr::map(all_flags, resolve_xact_flags) |>
+    purrr::list_rbind()
+  
+  df_manual_flagged <- df_manual_flagged |>
+    mutate(manual_flag = flags_outcomes$manual_flag,
+           manual_qc_outcome = flags_outcomes$manual_qc_outcome)
+  df_manual_unflagged <- df_manual_unflagged |>
+    mutate(manual_qc_outcome = 1)
+  df <- bind_rows(df_manual_flagged, df_manual_unflagged) |>
+    arrange(sample_datetime_UTC)
+  
+  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
+  df <- df |>
+    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
+           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
+  
+  ##### end resolving manual flags
+  
+  
+  # Coalesce flags and comments
+  df <- df |>
+    coalesce_flags()
+  
+  # Back calculate sampling time from volume and flow rate
+  
+  ## Do we want to keep the 30 minute samples in the urban samples? Based on the volume
+  ## and flow, some of them are 29 minutes - less than the 50% threshold.
+  # For the rural sites, we have more than enough - cast them to the hour
+
+  df <- df |>
+    mutate(sample_time_est_min = volume_L / flow_act_L_min,
+           sample_time_frac = sample_time_est_min / sample_time_min,
+           sample_datetime_UTC = lubridate::floor_date(sample_datetime_UTC, "hours"))
+  
+  valid_hours <- df |>
+    filter(sample_time_frac >= 0.45)
+  invalid_hours <- setdiff(df, valid_hours)
+  
+  # Get the flags and associated data for the invalid time periods, which will be filled with nulls
+  flags_hourly_invalid <- invalid_hours |>
+    mutate(flag = if_else(qc_outcome < 4, "391", flag),
+           comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+           qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome),
+           across(c(concentration_ng_m3, concentration_stp_ng_m3, uncertainty_ng_m3,
+                    uncertainty_stp_ng_m3), ~NA))
+  
+  
+  # Combine valid and invalid
+  if (nrow(flags_hourly_invalid) > 0) {
+    result <- bind_rows(valid_hours, flags_hourly_invalid) |>
+      arrange(sample_datetime_UTC)
+  } else {
+    result <- valid_hours |>
+      arrange(sample_datetime_UTC)
+  }
+  
+  # Confirm we have all the data
+  if (nrow(result) != filtered_record_count) {
+    stop(paste0("Number of records returned (", nrow(result), 
+                ") does not equal number of records input (", filtered_record_count, ")"))
+  }
+  
+  # Select the L2 hourly output fields
+  result <- result |>
+    select(-alarm, -pump_start_time_UTC, -at_degC:-wind_dir_degrees,
+           -sample_datetime_UTC_start, -sample_datetime_UTC_end, -sample_time_frac)
+  
+
+  
   
 }
 

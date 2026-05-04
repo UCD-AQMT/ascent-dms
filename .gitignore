@@ -562,3 +562,5 @@ db/liquibase/postgresql/changelogs/**/*.properties
 db/liquibase/postgresql/changelogs/**/*.sh
 # RStudio local project files
 *.Rproj
+config.yml
+.positai

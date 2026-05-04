@@ -4,7 +4,7 @@
 \alias{get_db_connection}
 \title{Title}
 \usage{
-get_db_connection(config_name)
+get_db_connection(config_name, ...)
 }
 \arguments{
 \item{config_name}{}
