@@ -126,6 +126,7 @@ ae33_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   glue::glue("{basic}\n",
              "Channel #, Measurement wavelength (nm), Mass absorption cross-section (m2/g):\n",
              "{channels}\n",
+             "Data are obtained with C = 1.39, Zeta = 0.01, corresponding to tape model 8060.\n",
              "\n",
              "Field Descriptions\n",
              "{fields}")

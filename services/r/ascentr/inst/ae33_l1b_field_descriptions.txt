@@ -1,6 +1,6 @@
 site_number: ASCENT site number
 site_code: ASCENT site code
-sample_datetime_UTC: Datetime of sample start (UTC)
+sample_datetime_UTC: Datetime of sample end (UTC)
 status: Overall instrument status code (sum of all decimal values of the status flags)
 cont_status: Controller status (0 – ready for operation; 100 – reset detected, not ready for operation; 255 – busy)
 detect_status: Detector status
@@ -17,7 +17,7 @@ tape_adv_count: Number of tape advances since start
 ref_[n]: Raw signal reference for channel [n]
 sens1_[n]: Raw signal at sensing spot 1 for channel [n]
 sens2_[n]: Raw signal at sensing spot 2 for channel [n]
-bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature and pressure (ng/m3)
+bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature (0 C) and pressure (101325 Pa) (ng/m3)
 bc1_[n]_STP_ng_m3: Uncompensated BC calculated from spot 1 for channel [n] at standard temperature and pressure (ng/m3)
 bc2_[n]_STP_ng_m3: Uncompensated BC calculated from spot 2 for channel [n] at standard temperature and pressure (ng/m3)
 k_[n]: Compensation parameter for channel [n]

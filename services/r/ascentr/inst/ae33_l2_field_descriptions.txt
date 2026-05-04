@@ -2,7 +2,7 @@ site_number: ASCENT site number
 site_code: ASCENT site code
 sample_datetime_UTC: Datetime of sample start (UTC)
 sample_count: Number of observations in this hourly average
-bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature and pressure (ng/m3)
+bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature (0 C) and pressure (101325 Pa) (ng/m3)
 bc1_[n]_STP_ng_m3: Uncompensated BC calculated from spot 1 for channel [n] at standard temperature and pressure (ng/m3)
 bc2_[n]_STP_ng_m3: Uncompensated BC calculated from spot 2 for channel [n] at standard temperature and pressure (ng/m3)
 k_[n]: Compensation parameter for channel [n]
