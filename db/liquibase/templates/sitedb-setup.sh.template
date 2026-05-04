@@ -2,8 +2,11 @@
 
 # Set variable values
 dbhost=<development-database-host-url> # e.g. localhost
-dbuser=postgres
+dbuser=<your-database-user-name> # e.g. your developer login (should be a member of the db owner role), postgres, etc.
+dbpassword=<your-database-user-password> # e.g. password for your developer login
+dbowner=<database-owner-role-name> # e.g. database owner role for the project (specify the role that should own the database and have permissions to create schemas and tables)
 dbname=<name-of-database> # e.g. measurements_dev
+dbconnection_options="options=-c%20role=$dbowner" # connection options to specify the role to connect with (needed for on-prem)
 liquibasepropfile=<your-liquibase.properties> # The liquibase.properties file configured to the database you specified above
 
 # Note: To run psql commands without manual password entry, prepend each command with the password, like PGPASSWORD=***** psql ... 
@@ -18,7 +21,7 @@ psql -h $dbhost \
 -p 5432 \
 -U $dbuser \
 -d postgres \
--c "CREATE DATABASE $dbname WITH OWNER = $dbuser;" # note: change the database name accordingly
+-c "CREATE DATABASE $dbname WITH OWNER = $dbowner;" # note: change the database name accordingly
 
 # Step 2 - connect to database server and the created target database to execute the create liquibase schema script (create liquibase schema for migrations)
 echo "Step 2 - connecting to host and creating the [liquibase] schema in the target database"
@@ -26,14 +29,19 @@ psql -h $dbhost \
 -p 5432 \
 -U $dbuser \
 -d $dbname \
--c "CREATE SCHEMA IF NOT EXISTS liquibase;"
+-c "CREATE SCHEMA IF NOT EXISTS liquibase AUTHORIZATION $dbowner;"
 
-# Step 3 - execute liquibase status command to create liquibase meta tables in [liquibase] schema of the target database (your liquibase.properties file must be configured)
+# Step 3 - execute liquibase status command to create liquibase meta tables in [liquibase] schema of the target database
 # Note: make sure to execute this command in the directory of the root changelogs
 echo "Step 3 - executing the liquibase status command to create the meta tables in the [liquibase] schema"
-liquibase status --defaults-file=$liquibasepropfile
+liquibase status \
+--changelog-file=pre-post_deploy.xml \
+--url="jdbc:postgresql://$dbhost:5432/$dbname?$dbconnection_options" \
+--defaultSchemaName=liquibase \
+--username=$dbuser \
+--password=$dbpassword
 
-# Step 4 - applying Liquibase changelogs to target database
+# Step 4 - applying Liquibase changelogs to target database (your liquibase.properties file must be configured)
 echo "Step 4 - applying Liquibase changelogs to target database"
 liquibase update --defaults-file=$liquibasepropfile
 

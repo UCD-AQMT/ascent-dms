@@ -9,22 +9,22 @@
             <comment>Create schema dependencies</comment>
             <sql>
                 CREATE SCHEMA IF NOT EXISTS acsm
-                    AUTHORIZATION postgres;
+                    AUTHORIZATION ascent_db_owner;
 
                 CREATE SCHEMA IF NOT EXISTS ae33
-                    AUTHORIZATION postgres;
+                    AUTHORIZATION ascent_db_owner;
 
                 CREATE SCHEMA IF NOT EXISTS common
-                    AUTHORIZATION postgres;
+                    AUTHORIZATION ascent_db_owner;
 
                 CREATE SCHEMA IF NOT EXISTS liquibase
-                    AUTHORIZATION postgres;
+                    AUTHORIZATION ascent_db_owner;
 
                 CREATE SCHEMA IF NOT EXISTS smps
-                    AUTHORIZATION postgres;
+                    AUTHORIZATION ascent_db_owner;
 
                 CREATE SCHEMA IF NOT EXISTS xact
-                    AUTHORIZATION postgres;
+                    AUTHORIZATION ascent_db_owner;
             </sql>
         </changeSet>
 
