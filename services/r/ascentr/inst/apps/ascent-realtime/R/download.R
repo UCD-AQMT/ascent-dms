@@ -31,20 +31,40 @@ downloadUI <- function(id) {
 downloadServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
+    # Maximum allowed records for download depend on instrument
+    ae33_max <- 15000
+    acsm_max <- 10000
+    xact_max <- 2000
+    smps_max <- 5000
+    
+    
     # Dynamic UI ---------
+    
+    # Don't allow download unless number of expected records is >0 and < max and agreement
+    # is signed
+    allow_download <- reactive({
+      
+      allowed_samples <- switch(input$instrument,
+                                "AE33" = ae33_max,
+                                "ACSM" = acsm_max,
+                                "Xact" = xact_max,
+                                "SMPS" = smps_max)
+      
+      isTruthy(input$agree) && 
+        expected_samples() > 0 &&
+        expected_samples() < allowed_samples
+
+    })
     
     output$mybutton <- renderUI({
       
       ns <- session$ns
-      # Conditions for the button to be on.
-      # 1. accept data agreement
-      # 2. expect more than zero records
-      if (isTruthy(input$agree) & expected_samples() > 0) {
+      if (allow_download()) {
         downloadButton(ns("download"), "Download", icon = icon("download"))
       } else {
         actionButton(ns("dummybutton"), "Download", icon = icon("download"))
       }
-      
+
     })
     
     observeEvent(input$instrument, {
@@ -61,11 +81,19 @@ downloadServer <- function(id) {
     observeEvent(input$dummybutton, {
       showModal(modalDialog(
         title = "Message",
-        if (expected_samples() == 0) {
+        if (!isTruthy(input$agree)) {
+          "Please read and accept the data policy to download data"
+        } else if (expected_samples() == 0) {
           "No data for this instrument/date"
         } else {
-          "Please read and accept the data policy to download data"
+          allowed <- switch(input$instrument,
+                            "AE33" = ae33_max,
+                            "ACSM" = acsm_max,
+                            "Xact" = xact_max,
+                            "SMPS" = smps_max)
+          glue::glue("Please limit {input$instrument} downloads to {allowed} samples by reducing the time window.")
         }
+        
       ))
     })
     
@@ -218,8 +246,15 @@ downloadServer <- function(id) {
     acsm_reactive <- reactive({
       
       results <- acsm_l1a(input$site, input$dates[1], input$dates[2], con)
-      browser()
       
+      if (input$metadata) {
+        metadata <- acsm_metadata(input$site, input$dates[1], input$dates[2], con,
+                                  metadata_fields = results$mdf, level = "1a")
+        export_zip_shiny(results$df, metadata, fname = filename_noext(), temp_file = temp_file())
+      } else {
+        export_csv(results$df, temp_file())
+      }
+
     })
     
     # Need to fix this
@@ -231,7 +266,7 @@ downloadServer <- function(id) {
       }
     })
     
-    ### Estimate the number of records to return - keep button disabled if zero
+    ### Estimate the number of records to return - keep button disabled if zero or too high
     expected_samples <- reactiveVal(0)
     
     output$expected <- renderText({
@@ -325,15 +360,19 @@ availability <- function(site, date_start, date_end, instrument) {
                              'filter(fn: (r) => r._field == "EBC_1") |>',
                              'aggregateWindow(every: 1d, fn: count, timeSrc: "_start") |>',
                              'drop(columns: ["_start", "_stop"])')
-    expected <- ae33_con$query(flux_query) |>
-      purrr::list_rbind() |>
-      mutate(site_code = stringr::str_sub(`_measurement`, start = 6, end = -5),
-             Instrument = "AE33",
-             Samples = as.numeric(`_value`)) |>
-      filter(site_code == site) |>
-      summarise(Samples = sum(Samples)) |>
-      pull(Samples)
-    
+    ret <- ae33_con$query(flux_query)
+    if (is.null(ret)) {
+      expected <- 0
+    } else {
+      expected <- ret |>
+        purrr::list_rbind() |>
+        mutate(site_code = stringr::str_sub(`_measurement`, start = 6, end = -5),
+               Instrument = "AE33",
+               Samples = as.numeric(`_value`)) |>
+        filter(site_code == site) |>
+        summarise(Samples = sum(Samples)) |>
+        pull(Samples)
+    }
   }
   
   if (instrument == "ACSM") {

@@ -161,25 +161,31 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
   basic <- basic_metadata(site, "ACSM", start_dt, end_dt, level = level, con = con)
 
   # If the metadata fields aren't provided, get them
-  if (is.null(metadata_fields)) {
-    if (level == "1a") {
-      metadata_fields <- acsm_l1a(site, start_dt, end_dt, con)$mdf
+  if (level == "2") {
+    # field definitions
+    template <- "acsm_l2_field_descriptions.txt"
+    fields_path <- system.file(template, package="ascentr")
+    field_descriptions <- paste(readLines(fields_path), collapse = "\n")
+  } else {
+    if (is.null(metadata_fields)) {
+      if (level == "1a") {
+        metadata_fields <- acsm_l1a(site, start_dt, end_dt, con)$mdf
+        m <- metadata_fields |>
+          mutate(field_text = paste0(export_fieldname, ": ", export_description))
+        field_descriptions <- paste(m$field_text, collapse = "\n")
+      } else if (level == "1b") {
+        metadata_fields <- acsm_l1b(site, start_dt, end_dt, con)$mdf
+        m <- metadata_fields |>
+          mutate(field_text = paste0(export_fieldname, ": ", export_description))
+        field_descriptions <- paste(m$field_text, collapse = "\n")
+      } 
+    } else {
       m <- metadata_fields |>
         mutate(field_text = paste0(export_fieldname, ": ", export_description))
       field_descriptions <- paste(m$field_text, collapse = "\n")
-    } else if (level == "1b") {
-      metadata_fields <- acsm_l1b(site, start_dt, end_dt, con)$mdf
-      m <- metadata_fields |>
-        mutate(field_text = paste0(export_fieldname, ": ", export_description))
-      field_descriptions <- paste(m$field_text, collapse = "\n")
-    } else if (level == "2") {
-      # field definitions
-      template <- "acsm_l2_field_descriptions.txt"
-      fields_path <- system.file(template, package="ascentr")
-      field_descriptions <- paste(readLines(fields_path), collapse = "\n")
     }
-
   }
+  
 
   if (level == "2") {
     # Need statement on processing. Not sure how we'll do this in the future
