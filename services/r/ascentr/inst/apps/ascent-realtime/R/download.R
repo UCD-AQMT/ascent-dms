@@ -245,11 +245,11 @@ downloadServer <- function(id) {
     
     acsm_reactive <- reactive({
       
-      results <- acsm_l1a(input$site, input$dates[1], input$dates[2], con)
+      results <- acsm_l1b(input$site, input$dates[1], input$dates[2], con)
       
       if (input$metadata) {
         metadata <- acsm_metadata(input$site, input$dates[1], input$dates[2], con,
-                                  metadata_fields = results$mdf, level = "1a")
+                                  metadata_fields = results$mdf, level = "1b")
         export_zip_shiny(results$df, metadata, fname = filename_noext(), temp_file = temp_file())
       } else {
         export_csv(results$df, temp_file())

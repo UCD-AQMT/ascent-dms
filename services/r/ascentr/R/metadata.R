@@ -98,7 +98,7 @@ common_fields <- function(level) {
                                  "An id that uniquely identifies this measurement in the respective table of the ASCENT database",
                                  "An id that identifies this measurement in the respective table of the local site database",
                                  "A quality control outcome 1-Good, 2-Not evaluated/unknown, 3-Questionable/suspect, 4-Bad/Invalid, 9-Missing",
-                                 "One or more quality control flags",
+                                 "Data quality flag(s) as defined by EBAS (ebas.nilu.no)",
                                  "Comment describing flagging details")
     )
   }
