@@ -49,6 +49,26 @@ site_names <- tbl_sites |>
   arrange(site_number) |>
   collect()
 
+influx_sites <- tibble(site_code = site_list,
+                       influx_site = paste("ae33", site_list, "raw", sep = "_"))
+
+elems <- tbl(con, I("xact.element_params")) |>
+  filter(element != "Nb") |>
+  arrange(atomic_number) |>
+  pull(element)
+grouped_parameters <- list(`ACSM` = list("organics"="org", "sulfate"="so4",
+                                         "nitrate"="no3", "ammonium"="nh4",
+                                         "chloride"="chl"),
+                           `AE33` = list("BC_880"="EBC_6", "BC_370"="EBC_1",
+                                         "BC_470"="EBC_2", "BC_520"="EBC_3",
+                                         "BC_590"="EBC_4", "BC_660"="EBC_5",
+                                         "BC_950"="EBC_7"),
+                           `SMPS` = list("number_concentration"="total_concentration",
+                                         "mean_size"="mean",
+                                         "median_size"="median",
+                                         "geo_mean_size"="geo_mean",
+                                         "geo_std_dev"="geo_std_dev"),
+                           `Xact` = elems)  
 
 # This is for influxdb
 ae33_con <- InfluxDBClient$new(url = "https://eastus-1.azure.cloud2.influxdata.com",
