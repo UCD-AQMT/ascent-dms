@@ -18,11 +18,6 @@
 #' @examples
 basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
 
-  # tbl_sites <- tbl(con, I("common.sites"))
-  # site_name <- tbl_sites |>
-  #   filter(site_code == site) |>
-  #   pull(site_name)
-
   site_info <- tbl(con, I("common.sites")) |>
     filter(site_code == site) |>
     collect()
@@ -50,6 +45,11 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
   site_pi <- paste0(site_info$site_contact, " (", site_info$contact_email, ")")
   contacts <- glue::glue("ASCENT PI: Nga Lee (Sally) Ng (ng@caltech.edu)\n",
                    "Site PI: {site_pi}")
+  
+  # Hack to add Roya as an additional site PI for Joshua Tree
+  if (site == "JoshuaTree") {
+    contacts <- paste0(contacts, " and Roya Bahreini (roya.bahreini@ucr.edu)")
+  }
 
   metadata_text <- glue::glue("ASCENT Site: {site_info$site_name}\n",
                         "Instrument: {instrument_description}\n",
