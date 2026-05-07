@@ -9,8 +9,8 @@ library(units)
 library(thematic)
 library(ggplot2)
 
-# testing
-library(ascentr)
+# required for successful deploy to shinyapps.io
+library(pkgload)
 
 # Minimum date for data viewing
 minimum_date <- "2025-01-01"
