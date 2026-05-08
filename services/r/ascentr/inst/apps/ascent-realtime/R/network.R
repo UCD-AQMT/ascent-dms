@@ -198,9 +198,19 @@ networkServer <- function(id) {
       df <- plot_data() |>
         mutate(site_name = factor(site_name, levels = site_names$site_name))
 
+      shiny::validate(need(nrow(df) > 0, "No data for this time period"))
+      
+      # What instrument is this from
+      instrument <- names(which(sapply(grouped_parameters, \(x) input$parameter %in% x)))
+      
       g <- ggplot(df, aes(x = local_time, y = value)) + 
         geom_line() +
         labs(y = units())
+      
+      # Because Xact has so few measurements in one day
+      if (instrument == "Xact") {
+        g <- g + geom_point()
+      }
       
       if (input$free_y) {
         g <- g +

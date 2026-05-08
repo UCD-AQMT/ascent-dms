@@ -142,14 +142,23 @@ siteServer <- function(id) {
       df <- df |>
         mutate(value = value / 1000)
       
-      ggplot(df, aes(x = sample_datetime, y = value, fill = element)) +
+      g <- ggplot(df, aes(x = sample_datetime, y = value, fill = element)) +
         geom_bar(stat = "identity") +
-        scale_x_datetime(labels = scales::label_date_short(tz = local_tz()),
-                         date_breaks = "2 hours") +
         labs(y = expression("Most abundant elements"~(mu*g/m^3))) +
-#        theme_minimal(base_size = 14) +
         theme(axis.title.x = element_blank())
-    
+
+      # If we only have one hour of data, the x-axis needs to be a little different
+      if (nrow(df) < 10) {
+        g <- g +
+          scale_x_datetime(labels = scales::label_date_short(tz = local_tz()))
+      } else {
+        g <- g +
+          scale_x_datetime(labels = scales::label_date_short(tz = local_tz()),
+                           date_breaks = "2 hours")
+      }
+      
+      g
+      
     })
     
     output$ae33 <- renderPlot({
