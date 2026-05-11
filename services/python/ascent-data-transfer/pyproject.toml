@@ -1,0 +1,14 @@
+[project]
+name = "ascent-data-transfer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pandas>=3.0.3",
+    "pgcopy>=1.6.2",
+    "psycopg[binary]>=3.3.4",
+    "pyinstaller>=6.20.0",
+    "pywin32>=311",
+    "pywin32-ctypes>=0.2.3",
+]
