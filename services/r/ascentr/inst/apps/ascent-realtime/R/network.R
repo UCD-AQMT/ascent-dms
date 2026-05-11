@@ -22,7 +22,8 @@ networkUI <- function(id) {
           plotOutput(ns("map"))
         ),
         card(
-          textOutput(ns("dummy"))
+          max_height = "400px",
+          plotOutput(ns("historical"))
         )
       ),
       card(
@@ -37,7 +38,6 @@ networkUI <- function(id) {
 networkServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
-    output$dummy <- renderText("What should go in this space?")
     
     
     # background map
@@ -78,16 +78,18 @@ networkServer <- function(id) {
       }
     })
     
+    instrument <- reactive({
+      names(which(sapply(grouped_parameters, 
+                         \(x) input$parameter %in% x)))
+    }) 
+    
     plot_data <- reactive({
       
       # Get a wider range of data make sure we have all hours in local time
       min_date <- input$date - 1
       max_date <- input$date + 1
       
-      # What instrument is this from
-      instrument <- names(which(sapply(grouped_parameters, \(x) input$parameter %in% x)))
-      
-      if (instrument == "ACSM") {
+      if (instrument() == "ACSM") {
         
         df <- tbl(con, I("acsm.sample_analysis")) |>
           select(sample_analysis_id=id, start_date, site_number) |>
@@ -103,7 +105,7 @@ networkServer <- function(id) {
         
       }
       
-      if (instrument == "Xact") {
+      if (instrument() == "Xact") {
         
         df <- tbl(con, I("xact.raw_measurements")) |>
           select(-id, -site_record_id, -site_number) |>
@@ -122,7 +124,7 @@ networkServer <- function(id) {
         
       }
       
-      if (instrument == "SMPS") {
+      if (instrument() == "SMPS") {
         
         df <- tbl(con, I("smps.sample_analysis")) |>
           inner_join(select(tbl_sites, site_code, site_number, site_name, timezone), 
@@ -139,7 +141,7 @@ networkServer <- function(id) {
         
       }
       
-      if (instrument == "AE33") {
+      if (instrument() == "AE33") {
         
         flux_query <- glue::glue('from(bucket: "measurements") |> ',
                                  'range(start: {strftime(min_date, format = "%FT%TZ", tz = "UTC")},',
@@ -169,8 +171,7 @@ networkServer <- function(id) {
       
     })
     
-    
-    output$map <- renderPlot({
+    map_data <- reactive({
       
       df <- plot_data() |>
         summarise(value = mean(value, na.rm = TRUE),
@@ -181,16 +182,142 @@ networkServer <- function(id) {
         mutate(x1 = x / xdim,
                y1 = 1 - (y / ydim))
       
+    })
+    
+    historical_month <- reactiveVal()
+    
+    # Monthly means from a historical year
+    historical_data <- reactive({
+      
+      min_date <- as.Date(paste(historical_year, lubridate::month(input$date), "01", sep = "-"))
+      max_date <- lubridate::rollforward(min_date, roll_to_first = TRUE)
+      
+      historical_month(min_date)
+      
+      if (instrument() == "ACSM") {
+        
+        df <- tbl(con, I("acsm.sample_analysis")) |>
+          select(sample_analysis_id=id, start_date, site_number) |>
+          inner_join(select(tbl(con, I("acsm.mass_loadings")),
+                            sample_analysis_id, value=input$parameter),
+                     by = "sample_analysis_id") |>
+          inner_join(select(tbl_sites, site_number, site_code),
+                     by = "site_number") |>
+          filter(start_date >= min_date,
+                 start_date <= max_date) |>
+          summarise(value = mean(value, na.rm = TRUE),
+                    .by = c(site_code)) |>
+          collect() 
+        
+      }
+      
+      if (instrument() == "Xact") {
+        
+        df <- tbl(con, I("xact.raw_measurements")) |>
+          select(-id, -site_record_id, -site_number) |>
+          inner_join(select(tbl(con, I("xact.sample_analysis")),
+                            sample_analysis_id=id, sample_datetime, site_number, sample_type),
+                     by = "sample_analysis_id") |>
+          inner_join(select(tbl_sites, site_number, site_code),
+                     by = "site_number") |>
+          filter(sample_type == 1,
+                 element == !!input$parameter,
+                 sample_datetime >= min_date,
+                 sample_datetime <= max_date) |>
+          summarise(value = mean(value, na.rm = TRUE),
+                    .by = c(site_code)) |>
+          collect() 
+        
+      }
+      
+      if (instrument() == "SMPS") {
+        df <- tbl(con, I("smps.sample_analysis")) |>
+          inner_join(select(tbl_sites, site_code, site_number, site_name, timezone), 
+                     by = "site_number") |>
+          filter(sample_start >= min_date,
+                 sample_start <= max_date) |>
+          select(site_code, site_name, value=!!input$parameter) |>
+          summarise(value = mean(value, na.rm = TRUE),
+                    .by = c(site_code)) |>
+          collect()
+
+      }
+      
+      if (instrument() == "AE33") {
+        
+        flux_query <- glue::glue('from(bucket: "measurements") |> ',
+                                 'range(start: {strftime(min_date, format = "%FT%TZ", tz = "UTC")},',
+                                 'stop: {strftime(max_date, format = "%FT%TZ", tz = "UTC")}) |> ',
+                                 'filter(fn: (r) => r._field == "{input$parameter}") |> ',
+                                 'drop(columns: ["_start", "_stop"]) |> ',
+                                 'aggregateWindow(every: 1mo, fn: mean)')
+        
+        df_list <- ae33_con$query(flux_query)
+        shiny::validate(need(!is.null(df_list), "No data in time period"))
+        
+        df <- df_list |>
+          purrr::list_rbind() |>
+          select(date_utc=time, influx_site=`_measurement`, value=`_value`) |>
+          filter(!is.na(value)) |>
+          inner_join(influx_sites, by = "influx_site") |>
+          inner_join(select(tbl_sites, site_code, site_number, site_name, timezone), 
+                     by = "site_code", copy = TRUE)
+        
+      }
+      
+      df
+      
+    })
+    
+    # to get shared scales between the two maps
+    scale_range <- reactive({
+      
+      d1 <- map_data()
+      d2 <- historical_data()
+      c(min(d1$value, d2$value, na.rm = TRUE), max(d1$value, d2$value, na.rm = TRUE))
+      
+    })
+    
+    
+    output$map <- renderPlot({
+
+      df <- map_data()
+
       ggplot(df, aes(x = x1, y = y1, color = value)) +
         background_image(basemap) +
         geom_point(size = 7) +
-        scale_color_viridis_c() +
+        scale_color_viridis_c(limits = scale_range()) +
         scale_x_continuous(limits = c(0, 1), expand = 0) +
         scale_y_continuous(limits = c(0, 1), expand = 0) +
         labs(color = units(),
              title = paste0(input$parameter, " - 24-hr average")) +
         theme_void()
 
+    })
+    
+    output$historical <- renderPlot({
+      
+      df <- historical_data()
+      
+      df <- df |>
+        left_join(coords, by = c("site_code"="Site")) |>
+        mutate(x1 = x / xdim,
+               y1 = 1 - (y / ydim))
+      
+      month <- historical_month()
+      title_txt <- paste0(input$parameter, " - historical monthly average - ", 
+                          lubridate::month(month, label = TRUE), " ", lubridate::year(month))
+      
+      ggplot(df, aes(x = x1, y = y1, color = value)) +
+        background_image(basemap) +
+        geom_point(size = 7) +
+        scale_color_viridis_c(limits = scale_range()) +
+        scale_x_continuous(limits = c(0, 1), expand = 0) +
+        scale_y_continuous(limits = c(0, 1), expand = 0) +
+        labs(color = units(),
+             title = title_txt) +
+        theme_void()
+      
     })
     
     output$ts <- renderPlot({

@@ -15,6 +15,9 @@ library(pkgload)
 # Minimum date for data viewing
 minimum_date <- "2025-01-01"
 
+# Year for producing historical comparison plots
+historical_year <- 2024
+
 # Set themes for all plots
 # thematic_shiny seems to be breaking ggplot::geom_sf!! Try to make a reprex
 thematic::thematic_shiny(font = "auto")
