@@ -86,8 +86,8 @@ networkServer <- function(id) {
     plot_data <- reactive({
       
       # Get a wider range of data make sure we have all hours in local time
-      min_date <- input$date - 1
-      max_date <- input$date + 1
+      min_date <- input$date
+      max_date <- input$date + 2
       
       if (instrument() == "ACSM") {
         
@@ -106,7 +106,7 @@ networkServer <- function(id) {
       }
       
       if (instrument() == "Xact") {
-        
+      
         df <- tbl(con, I("xact.raw_measurements")) |>
           select(-id, -site_record_id, -site_number) |>
           inner_join(select(tbl(con, I("xact.sample_analysis")),
@@ -167,7 +167,7 @@ networkServer <- function(id) {
       df <- df |>
         mutate(local_time = lubridate::with_tz(date_utc, tzone = timezone)) |>
         filter(local_time >= input$date,
-               local_time < max_date)
+               local_time < input$date + 1)
       
     })
     
@@ -282,6 +282,8 @@ networkServer <- function(id) {
     output$map <- renderPlot({
 
       df <- map_data()
+      
+      title_txt <- paste0(input$parameter, " - 24-hr average - ", input$date)
 
       ggplot(df, aes(x = x1, y = y1, color = value)) +
         background_image(basemap) +
@@ -290,7 +292,7 @@ networkServer <- function(id) {
         scale_x_continuous(limits = c(0, 1), expand = 0) +
         scale_y_continuous(limits = c(0, 1), expand = 0) +
         labs(color = units(),
-             title = paste0(input$parameter, " - 24-hr average")) +
+             title = title_txt) +
         theme_void()
 
     })
@@ -324,15 +326,24 @@ networkServer <- function(id) {
       
       df <- plot_data() |>
         mutate(site_name = factor(site_name, levels = site_names$site_name))
+      
+      # pretend all local_times are UTC so we can plot all in the same local time
+      df <- df |>
+        mutate(local_time = lubridate::force_tz(local_time, "UTC"))
 
       shiny::validate(need(nrow(df) > 0, "No data for this time period"))
       
       # What instrument is this from
       instrument <- names(which(sapply(grouped_parameters, \(x) input$parameter %in% x)))
       
+      x_label = paste("local hour", input$date, sep = " - ")
+      
       g <- ggplot(df, aes(x = local_time, y = value)) + 
         geom_line() +
-        labs(y = units())
+        scale_x_datetime(date_labels = "%H", date_breaks = "1 hour", 
+                         date_minor_breaks = "1 hour") +
+        labs(y = units(),
+             x = x_label)
       
       # Because Xact has so few measurements in one day
       if (instrument == "Xact") {
