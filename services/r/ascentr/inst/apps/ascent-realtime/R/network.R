@@ -5,11 +5,11 @@ networkUI <- function(id) {
   
   page_fillable(
     layout_column_wrap(
-      width = 1/6,
+      width = 1/8,
       selectInput(ns("parameter"), "Parameter", choices = grouped_parameters),
       dateInput(ns("date"), "Date", min = minimum_date, value = Sys.Date()),
-      actionButton(ns("prev"), "< Prev"),
-      actionButton(ns("nextdt"), "Next >"),
+      actionButton(ns("prev"), "< Prev", class = "btn-sm"),
+      actionButton(ns("nextdt"), "Next >", class = "btn-sm"),
       p("Data are preliminary and unvalidated. All data displayed in local time.")
     ),
     layout_column_wrap(
@@ -162,6 +162,8 @@ networkServer <- function(id) {
                      by = "site_code", copy = TRUE)
         
       }
+      
+      shiny::validate(need(nrow(df) > 0, "No data for time period"))
       
       # Trim to local time
       df <- df |>

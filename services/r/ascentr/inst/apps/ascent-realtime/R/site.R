@@ -16,28 +16,28 @@ siteUI <- function(id) {
     layout_column_wrap(
       width = 1/2,
       #min_height = "400px",
-      max_height = "700px",
+      #max_height = "700px",
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("ACSM"),
         plotOutput(ns("acsm"))
         ),
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("Xact"),
         plotOutput(ns("xact"))
         ),
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("Aethalometer"),
         plotOutput(ns("ae33"))
         ),
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("SMPS"),
         plotOutput(ns("smps"))
         )

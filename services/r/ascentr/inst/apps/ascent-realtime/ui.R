@@ -2,7 +2,7 @@
 function(request) {
   
   page_navbar(
-    title = "ASCENT Realtime",
+    title = "ASCENT Preliminary Data",
     id = "tab",
     header = tagList(
       useBusyIndicators(),
