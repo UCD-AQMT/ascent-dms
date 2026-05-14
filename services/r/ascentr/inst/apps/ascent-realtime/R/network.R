@@ -40,12 +40,15 @@ networkServer <- function(id) {
     
     
     
-    # background map
-    basemap <- png::readPNG("./data/basemap2.png")
+    # background maps
+    basemap <- png::readPNG("./data/basemap5.png")
+    
     coords <- read.csv("./data/static_map_coords_800x450.csv")
     xdim <- 800
     ydim <- 450
- 
+
+    
+    
     # Date navigation
     observeEvent(input$prev, {
       dt <- input$date - lubridate::days(1)
@@ -284,7 +287,7 @@ networkServer <- function(id) {
     output$map <- renderPlot({
 
       df <- map_data()
-      
+
       title_txt <- paste0(input$parameter, " - 24-hr average - ", input$date)
 
       ggplot(df, aes(x = x1, y = y1, color = value)) +
@@ -295,7 +298,9 @@ networkServer <- function(id) {
         scale_y_continuous(limits = c(0, 1), expand = 0) +
         labs(color = units(),
              title = title_txt) +
-        theme_void()
+        theme(panel.grid = element_blank(),
+              axis.title = element_blank(),
+              axis.text = element_blank())
 
     })
     
@@ -309,6 +314,7 @@ networkServer <- function(id) {
                y1 = 1 - (y / ydim))
       
       month <- historical_month()
+      
       title_txt <- paste0(input$parameter, " - historical monthly average - ", 
                           lubridate::month(month, label = TRUE), " ", lubridate::year(month))
       
@@ -320,7 +326,9 @@ networkServer <- function(id) {
         scale_y_continuous(limits = c(0, 1), expand = 0) +
         labs(color = units(),
              title = title_txt) +
-        theme_void()
+        theme(panel.grid = element_blank(),
+              axis.title = element_blank(),
+              axis.text = element_blank())
       
     })
     

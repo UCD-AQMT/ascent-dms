@@ -71,13 +71,13 @@ map_ascent_static <- function(con) {
              ylim = c(-6.5e5, -4e5)) +
     theme_void() +
     theme(panel.border = element_rect(color = "gray25", linewidth = 1, fill = NA),
-          panel.background = element_rect(fill = "white"),
+          #panel.background = element_rect(fill = "white"),
           legend.position = "none")
   
   
   p <- cowplot::ggdraw(l48) +
     cowplot::draw_plot(akmap, 0, 0, 0.3, 0.3) +
-    cowplot::draw_plot(socal, 0.05, 0.34, 0.25, 0.25)
+    cowplot::draw_plot(socal, 0.04, 0.34, 0.25, 0.25)
   p
 }
 
