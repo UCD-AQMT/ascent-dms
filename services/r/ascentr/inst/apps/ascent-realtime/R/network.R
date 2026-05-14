@@ -297,7 +297,7 @@ networkServer <- function(id) {
         scale_x_continuous(limits = c(0, 1), expand = 0) +
         scale_y_continuous(limits = c(0, 1), expand = 0) +
         labs(color = units(),
-             title = title_txt) +
+             subtitle = title_txt) +
         theme(panel.grid = element_blank(),
               axis.title = element_blank(),
               axis.text = element_blank())
@@ -325,7 +325,7 @@ networkServer <- function(id) {
         scale_x_continuous(limits = c(0, 1), expand = 0) +
         scale_y_continuous(limits = c(0, 1), expand = 0) +
         labs(color = units(),
-             title = title_txt) +
+             subtitle = title_txt) +
         theme(panel.grid = element_blank(),
               axis.title = element_blank(),
               axis.text = element_blank())
