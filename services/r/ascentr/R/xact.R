@@ -485,7 +485,7 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   # For the rural sites, we have more than enough - cast them to the hour
 
   df <- df |>
-    mutate(sample_time_est_min = volume_L / flow_act_L_min,
+    mutate(sample_time_est_min = if_else(sample_type == "sample", volume_L / flow_act_L_min, NA),
            sample_time_frac = sample_time_est_min / sample_time_min,
            sample_datetime_UTC = lubridate::floor_date(sample_datetime_UTC, "hours"))
   
