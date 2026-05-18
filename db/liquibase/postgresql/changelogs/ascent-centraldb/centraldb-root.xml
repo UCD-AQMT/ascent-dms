@@ -23,4 +23,9 @@
 		<tagDatabase tag="version_2026.0.1" />
 	</changeSet>
 	
+	<!-- Update to xact.env_params table (data only change)-->
+    <include file="data-migrations/2026/20260519_issue-77_update-xact-env-params.xml"/>
+	<changeSet author="sean.raffuse" id="tagDatabase_v2026.0.2" context="data-migration" labels="task/update-xact-env-params-issue-77">
+		<tagDatabase tag="version_2026.0.2" />
+	</changeSet>
 </databaseChangeLog>
