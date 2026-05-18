@@ -2,13 +2,13 @@ site_number: ASCENT site number
 site_code: ASCENT site code
 sample_datetime_UTC: Datetime of sample start (UTC)
 sample_count: Number of observations in this hourly average
-bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature and pressure (ng/m3)
+bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard temperature (0 C) and pressure (101325 Pa) (ng/m3)
 bc1_[n]_STP_ng_m3: Uncompensated BC calculated from spot 1 for channel [n] at standard temperature and pressure (ng/m3)
 bc2_[n]_STP_ng_m3: Uncompensated BC calculated from spot 2 for channel [n] at standard temperature and pressure (ng/m3)
 k_[n]: Compensation parameter for channel [n]
 att1_[n]: Attenuation at sensing spot 1 for channel [n]
 att2_[n]: Attenuation at sensing spot 2 for channel [n]
-bb_percent: Percentage of BC created by biomass burning, determined by Sandradewi model
+bb_percent: Percentage of BC created by biomass burning, determined by Sandradewi model (ES&T, 2008)
 qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
 flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
 comment: Comments that provide more detail about any flags applied to the record

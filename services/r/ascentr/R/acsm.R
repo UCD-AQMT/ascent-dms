@@ -161,25 +161,31 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
   basic <- basic_metadata(site, "ACSM", start_dt, end_dt, level = level, con = con)
 
   # If the metadata fields aren't provided, get them
-  if (is.null(metadata_fields)) {
-    if (level == "1a") {
-      metadata_fields <- acsm_l1a(site, start_dt, end_dt, con)$mdf
+  if (level == "2") {
+    # field definitions
+    template <- "acsm_l2_field_descriptions.txt"
+    fields_path <- system.file(template, package="ascentr")
+    field_descriptions <- paste(readLines(fields_path), collapse = "\n")
+  } else {
+    if (is.null(metadata_fields)) {
+      if (level == "1a") {
+        metadata_fields <- acsm_l1a(site, start_dt, end_dt, con)$mdf
+        m <- metadata_fields |>
+          mutate(field_text = paste0(export_fieldname, ": ", export_description))
+        field_descriptions <- paste(m$field_text, collapse = "\n")
+      } else if (level == "1b") {
+        metadata_fields <- acsm_l1b(site, start_dt, end_dt, con)$mdf
+        m <- metadata_fields |>
+          mutate(field_text = paste0(export_fieldname, ": ", export_description))
+        field_descriptions <- paste(m$field_text, collapse = "\n")
+      } 
+    } else {
       m <- metadata_fields |>
         mutate(field_text = paste0(export_fieldname, ": ", export_description))
       field_descriptions <- paste(m$field_text, collapse = "\n")
-    } else if (level == "1b") {
-      metadata_fields <- acsm_l1b(site, start_dt, end_dt, con)$mdf
-      m <- metadata_fields |>
-        mutate(field_text = paste0(export_fieldname, ": ", export_description))
-      field_descriptions <- paste(m$field_text, collapse = "\n")
-    } else if (level == "2") {
-      # field definitions
-      template <- "acsm_l2_field_descriptions.txt"
-      fields_path <- system.file(template, package="ascentr")
-      field_descriptions <- paste(readLines(fields_path), collapse = "\n")
     }
-
   }
+  
 
   if (level == "2") {
     # Need statement on processing. Not sure how we'll do this in the future
@@ -219,18 +225,84 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
 
 }
 
-
-acsm_autoqc <- function(site, start_dt, end_dt, con) {
-
+#' Title
+#'
+#' @param site 
+#' @param start_dt 
+#' @param end_dt 
+#' @param con 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+acsm_l1b <- function(site, start_dt, end_dt, con) {
+  
   l1a <- acsm_l1a(site, start_dt, end_dt, con)
   df <- l1a$df
+  
+  autoqc <- acsm_autoqc(df)
+  
+  res <- df |>
+    left_join(autoqc, by = c("sample_datetime_end_UTC"="stop_date")) |>
+    mutate(qc_outcome = if_else(is.na(qc_outcome), 1, qc_outcome))
+  
+  l1b_fields <- tibble(param = c("qc_outcome", "flag", "comment"),
+                       export_fieldname = c("qc_outcome", "flag", "comment"),
+                       export_description = c("A quality control outcome 1-Good, 2-Not evaluated/unknown, 3-Questionable/suspect, 4-Bad/Invalid, 9-Missing",
+                                              "Data quality flag(s) as defined by EBAS (ebas.nilu.no)",
+                                              "Comment describing flagging details"))
+  
+  mdf <- l1a$mdf |>
+    bind_rows(l1b_fields)
+  
+  list(df=res, mdf=mdf)
+  
+}
 
+#' Apply auto-qc checks to ACSM L1a data and return a file for external merging with ACSM
+#' HDF data in Igor. This process requires adjusting the time stamps to match.
+#'
+#' @param site
+#' @param start_dt
+#' @param end_dt
+#' @param con
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+acsm_autoqc_file <- function(site, start_dt, end_dt, con) {
+  
+  l1a <- acsm_l1a(site, start_dt, end_dt, con)
+  df <- l1a$df
+  
   # timestamp in the text file we ingest is of by 600 s because it is the start/stop time
   # of the final sample in the full 10 minute measurement so need to correct to match with
   # data we are getting from the hdf
   df <- df |>
     mutate(sample_datetime_UTC = sample_datetime_UTC - 600,
            sample_datetime_end_UTC = sample_datetime_end_UTC - 600)
+  
+  res <- acsm_autoqc(df)
+  
+  # Igor time format is seconds since 1904-01-01 (!?)
+  res <- res |>
+    mutate(igor_time = as.numeric(difftime(stop_date,
+                                           as.Date("1904-01-01", tz = "UTC"),
+                                           units = "secs")))
+  
+}
+
+#' ACSM auto-qc checks
+#'
+#' @param df 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+acsm_autoqc <- function(df) {
   
   # 10. TPS readings bad (do not consider other TPS flags when this is triggered)
   f10 <- df |>
@@ -239,10 +311,10 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-TPS failure")
-
+  
   df_invalid <- f10 |>
     select(sample_analysis_id)
-
+  
   # 1. Heater (vaporizer) temp high
   temp_high <- units::set_units(625, degC)
   f1 <- df |>
@@ -252,7 +324,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-High heater temperature")
-
+  
   # 2. Heater (vaporizer) temp low
   temp_low <- units::set_units(575, degC)
   f2 <- df |>
@@ -262,7 +334,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "660",
            qc_outcome = 3,
            comment = "660-Low heater temperature")
-
+  
   # 3. Heater current low
   current_low <- units::set_units(1, A)
   f3 <- df |>
@@ -272,7 +344,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-Low heater current")
-
+  
   # 4. Heater current high
   current_high <- units::set_units(1.2, A)
   f4 <- df |>
@@ -282,7 +354,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-High heater current")
-
+  
   # 5. Status error
   f5 <- df |>
     filter(status != 0) |>
@@ -290,7 +362,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-Critical operation error")
-
+  
   # 6. Interlock error
   f6 <- df |>
     anti_join(df_invalid, by = "sample_analysis_id") |>
@@ -299,7 +371,7 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-Disruption in vacuum level")
-
+  
   # 7. Low filament emission current
   filament_low <- units::set_units(0, A)
   f7 <- df |>
@@ -309,8 +381,8 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
     mutate(flag = "659",
            qc_outcome = 4,
            comment = "659-Low filament emission current")
-
-
+  
+  
   res <- bind_rows(f1, f2, f3, f4, f6, f7, f10) |>
     summarise(qc_outcome = max(qc_outcome),
               comment = paste(comment, collapse = "  :  "),
@@ -318,14 +390,9 @@ acsm_autoqc <- function(site, start_dt, end_dt, con) {
               .by = sample_datetime_end_UTC) |>
     rename(stop_date=sample_datetime_end_UTC) |>
     arrange(stop_date)
-
-  # Igor time format is seconds since 1904-01-01 (!?)
-  res <- res |>
-    mutate(igor_time = as.numeric(difftime(stop_date,
-                                           as.Date("1904-01-01", tz = "UTC"),
-                                           units = "secs")))
-
+  
 }
+
 
 #' Title
 #'
@@ -517,9 +584,9 @@ acsm_l2_from_files <- function(site, site_file, con) {
     select(site_number, site_code, sample_datetime_UTC, sample_count, 
            organics_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
            ammonium_ug_m3=NH4, chloride_ug_m3=Chl, 
-           organics_uncertainty_ug_m3=Org_err, sulfate_uncertainty_ug_m3=SO4_err,
-           nitrate_uncertainty_ug_m3=NO3_err, ammonium_uncertainty_ug_m3=NH4_err,
-           chloride_uncertainty_ug_m3=Chl_err,
+           organics_precision_ug_m3=Org_err, sulfate_precision_ug_m3=SO4_err,
+           nitrate_precision_ug_m3=NO3_err, ammonium_precision_ug_m3=NH4_err,
+           chloride_precision_ug_m3=Chl_err,
            org_mz29_ug_m3=m29, org_mz43_ug_m3=m44, org_mz44_ug_m3=m44, org_mz55_ug_m3=m55,
            org_mz57_ug_m3=m57, org_mz60_ug_m3=m60, org_mz69_ug_m3=m69,
            org_mz71_ug_m3=m71, org_mz73_ug_m3=m73, no3_mz30_ug_m3=NO3_30,

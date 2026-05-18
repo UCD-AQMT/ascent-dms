@@ -18,11 +18,6 @@
 #' @examples
 basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
 
-  # tbl_sites <- tbl(con, I("common.sites"))
-  # site_name <- tbl_sites |>
-  #   filter(site_code == site) |>
-  #   pull(site_name)
-
   site_info <- tbl(con, I("common.sites")) |>
     filter(site_code == site) |>
     collect()
@@ -50,6 +45,11 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
   site_pi <- paste0(site_info$site_contact, " (", site_info$contact_email, ")")
   contacts <- glue::glue("ASCENT PI: Nga Lee (Sally) Ng (ng@caltech.edu)\n",
                    "Site PI: {site_pi}")
+  
+  # Hack to add Roya as an additional site PI for Joshua Tree
+  if (site == "JoshuaTree") {
+    contacts <- paste0(contacts, " and Roya Bahreini (roya.bahreini@ucr.edu)")
+  }
 
   metadata_text <- glue::glue("ASCENT Site: {site_info$site_name}\n",
                         "Instrument: {instrument_description}\n",
@@ -98,7 +98,7 @@ common_fields <- function(level) {
                                  "An id that uniquely identifies this measurement in the respective table of the ASCENT database",
                                  "An id that identifies this measurement in the respective table of the local site database",
                                  "A quality control outcome 1-Good, 2-Not evaluated/unknown, 3-Questionable/suspect, 4-Bad/Invalid, 9-Missing",
-                                 "One or more quality control flags",
+                                 "Data quality flag(s) as defined by EBAS (ebas.nilu.no)",
                                  "Comment describing flagging details")
     )
   }

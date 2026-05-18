@@ -16,28 +16,28 @@ siteUI <- function(id) {
     layout_column_wrap(
       width = 1/2,
       #min_height = "400px",
-      max_height = "700px",
+      #max_height = "700px",
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("ACSM"),
         plotOutput(ns("acsm"))
         ),
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("Xact"),
         plotOutput(ns("xact"))
         ),
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("Aethalometer"),
         plotOutput(ns("ae33"))
         ),
       card(
         min_height = "200px",
-        max_height = "700px",
+        #max_height = "700px",
         card_header("SMPS"),
         plotOutput(ns("smps"))
         )
@@ -142,14 +142,23 @@ siteServer <- function(id) {
       df <- df |>
         mutate(value = value / 1000)
       
-      ggplot(df, aes(x = sample_datetime, y = value, fill = element)) +
+      g <- ggplot(df, aes(x = sample_datetime, y = value, fill = element)) +
         geom_bar(stat = "identity") +
-        scale_x_datetime(labels = scales::label_date_short(tz = local_tz()),
-                         date_breaks = "2 hours") +
         labs(y = expression("Most abundant elements"~(mu*g/m^3))) +
-#        theme_minimal(base_size = 14) +
         theme(axis.title.x = element_blank())
-    
+
+      # If we only have one hour of data, the x-axis needs to be a little different
+      if (nrow(df) < 10) {
+        g <- g +
+          scale_x_datetime(labels = scales::label_date_short(tz = local_tz()))
+      } else {
+        g <- g +
+          scale_x_datetime(labels = scales::label_date_short(tz = local_tz()),
+                           date_breaks = "2 hours")
+      }
+      
+      g
+      
     })
     
     output$ae33 <- renderPlot({
