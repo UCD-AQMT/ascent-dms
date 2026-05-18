@@ -452,7 +452,7 @@ ae33_status_to_flags <- function(dt, status) {
   df
 }
 
-ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
+ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # AE33 specific list
   available_flags <- tibble(manual_flag = c("111", "686", "683", "659", "644A", "659"),
@@ -462,9 +462,19 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file) {
     distinct()
 
   # Increasing guess_max here to make sure that some tape advances are caught
-  l1b <- readr::read_csv(l1b_file, guess_max = 50000)
-  qc <- readr::read_csv(manual_qc_file, guess_max = 50000)
+  l1b <- readr::read_csv(l1b_file, guess_max = 50000, show_col_types = FALSE)
+  qc <- readr::read_csv(manual_qc_file, guess_max = 50000, show_col_types = FALSE)
 
+  if (nrow(l1b) == 0) {
+    stop("No data in ", l1b_file)
+  }
+  
+  # Limit to after start_datetime if provided
+  if (!is.null(start_datetime)) {
+    l1b <- l1b |>
+      filter(sample_datetime_UTC >= start_datetime)
+  }
+  
   qc <- qc |>
     mutate(flag = as.character(flag),
            sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
