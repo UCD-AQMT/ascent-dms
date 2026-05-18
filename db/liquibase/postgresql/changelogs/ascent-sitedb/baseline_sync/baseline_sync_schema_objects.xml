@@ -1,0 +1,674 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet author="rramey (generated)" id="1776358075471-1">
+        <createTable schemaName="acsm" tableName="sample_analysis">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="sample_analysis_pkey"/>
+            </column>
+            <column name="year" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_doy" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stop_doy" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_date" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stop_date" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-2">
+        <createTable schemaName="acsm" tableName="mass_loadings">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="mass_loadings_pkey"/>
+            </column>
+            <column name="sample_analysis_id" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chl" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nh4" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="no3" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="org" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="so4" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rie_chl" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rie_nh4" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rie_no3" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rie_org" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rie_so4" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="f43" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="f44" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="f57" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="f60" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hoa" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ooa" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ce" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-3">
+        <createTable schemaName="acsm" tableName="diag_calib">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="diag_calib_pkey"/>
+            </column>
+            <column name="sample_analysis_id" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ie_ionspg" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="abref" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ab_total" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ab_bg" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_ccs" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_p0" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_p1" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="n_total" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="n_bkgd" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="baseline" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="threshold" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mzcal_p1" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mzcal_p2" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ratio40div28" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-4">
+        <createTable schemaName="acsm" tableName="tps">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="tps_pkey"/>
+            </column>
+            <column name="sample_analysis_id" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rbp" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rg" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lens" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="detector" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hv_spare" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pulser" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lens2" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="defl" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="defl_flange" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ionex" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lens1" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hb" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ionchamber" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filament_v" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filament_emm" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filament_i" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filament_n" type="numeric">
+                <constraints nullable="false"/>
+            </column>
+            <column name="interlock" type="numeric">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hvp" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hvn" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="turbo_speed" type="numeric">
+                <constraints nullable="false"/>
+            </column>
+            <column name="turbo_power" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fore_pc" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tps_temp" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="press_ioniser" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="press_inlet" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ain_3" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ain_4" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ain_5" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ain_6" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heater_pwm" type="numeric">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heater_i" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heater_v" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="heater_t" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="servo2_pwm" type="numeric">
+                <constraints nullable="false"/>
+            </column>
+            <column name="servo3_pwm" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-5">
+        <createTable schemaName="acsm" tableName="dryer_stats">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="dryer_stats_pkey"/>
+            </column>
+            <column name="datetime" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inlet_p" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="counter_p" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="p_drop" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_rate" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rh_in" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="t_in" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rh_dry" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="t_dry" type="numeric(10, 3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rh_3" type="numeric(10, 3)"/>
+            <column name="t_3" type="numeric(10, 3)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-6">
+        <createTable schemaName="common" tableName="column_mappings">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="column_mappings_pkey"/>
+            </column>
+            <column name="table_schema" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="table_name" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_column_name" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="db_column_name" type="VARCHAR(256)"/>
+            <column name="column_type" type="VARCHAR(20)"/>
+            <column name="column_required" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value_required" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="grouping" type="VARCHAR(20)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-7">
+        <createTable schemaName="common" tableName="sites">
+            <column name="site_number" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="sites_pkey"/>
+            </column>
+            <column name="site_name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="site_code" type="VARCHAR(24)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(1024)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="latitude" type="FLOAT8"/>
+            <column name="longitude" type="FLOAT8"/>
+            <column name="timezone" type="VARCHAR"/>
+            <column name="gmt_offset" type="INTEGER"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-8">
+        <createTable schemaName="smps" tableName="instrument_settings">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="instrument_settings_pkey"/>
+            </column>
+            <column name="name" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value" type="VARCHAR(256)"/>
+            <column name="start_date" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-9">
+        <createTable schemaName="smps" tableName="sample_analysis">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="sample_analysis_pkey"/>
+            </column>
+            <column name="scan_number" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sample_start" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="test_name" type="VARCHAR(256)"/>
+            <column name="detector_status" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="classifier_errors" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="communication_status" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="neutralizer_status" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="detector_inlet_flow" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="detector_counting_flow" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="impactor_flow" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="impactor_d50" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sheath_flow" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sheath_temp" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sheath_pressure" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sheath_relative_humidity" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mean_free_path" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gas_viscosity" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="low_voltage" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="high_voltage" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lower_size" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="upper_size" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="wide_range_scan_mode" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scan_direction" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hv_polarity" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dma_v_ramping_up" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dma_v_ramping_down" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dma_column_transit_time" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dma_exit_to_optical_detector" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dma_at_low_voltage" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dma_at_high_voltage" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="adjustment" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dilution_factor" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aerosol_density" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="median" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mean" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="geo_mean" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mode" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="geo_std_dev" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_concentration" type="FLOAT8">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aerosol_humidity" type="FLOAT8"/>
+            <column name="aerosol_temperature" type="FLOAT8"/>
+            <column name="reserved1" type="VARCHAR(256)"/>
+            <column name="concentration_json" type="JSON"/>
+            <column name="raw_concentration_json" type="JSON"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-10">
+        <createTable schemaName="xact" tableName="instrument_settings">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="instrument_settings_pkey"/>
+            </column>
+            <column name="name" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value" type="VARCHAR(256)"/>
+            <column name="start_date" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-11">
+        <addUniqueConstraint columnNames="datetime" constraintName="dryer_stats_datetime_key" schemaName="acsm" tableName="dryer_stats"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-12">
+        <addUniqueConstraint columnNames="site_code" constraintName="sites_site_code_key" schemaName="common" tableName="sites"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-13">
+        <addUniqueConstraint columnNames="site_number" constraintName="unique_site_number" schemaName="common" tableName="sites"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-14">
+        <createTable schemaName="common" tableName="app_logs">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="xact_logs_pkey"/>
+            </column>
+            <column name="log_time" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="log_level" type="VARCHAR"/>
+            <column name="log_message" type="VARCHAR"/>
+            <column name="module" type="VARCHAR(30)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-15">
+        <createTable schemaName="common" tableName="data_tables">
+            <column name="table_name" type="VARCHAR(50)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="data_tables_pkey"/>
+            </column>
+            <column name="instrument" type="VARCHAR(25)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-16">
+        <createTable schemaName="common" tableName="settings">
+            <column name="name" type="VARCHAR(256)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="settings_pkey"/>
+            </column>
+            <column name="value" type="VARCHAR(256)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-17">
+        <createTable schemaName="common" tableName="synchronize">
+            <column name="table_name" type="VARCHAR(50)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="synchronize_pkey"/>
+            </column>
+            <column name="record_id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="synchronize_pkey"/>
+            </column>
+            <column name="update_type" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-18">
+        <createTable schemaName="xact" tableName="element_params">
+            <column name="element" type="VARCHAR(5)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="element_params_pkey"/>
+            </column>
+            <column name="element_name" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="atomic_number" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-19">
+        <createTable schemaName="xact" tableName="env_params">
+            <column name="param" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit" type="VARCHAR(10)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-20">
+        <createTable schemaName="xact" tableName="raw_measurements">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="raw_measurements_pkey"/>
+            </column>
+            <column name="sample_analysis_id" type="INTEGER"/>
+            <column name="element" type="VARCHAR(50)"/>
+            <column name="value" type="FLOAT4"/>
+            <column name="uncertainty" type="FLOAT4"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-21">
+        <createTable schemaName="xact" tableName="sample_analysis">
+            <column autoIncrement="true" name="id" type="INTEGER">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="sample_analysis_pkey"/>
+            </column>
+            <column name="sample_datetime" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_imported" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pump_start_time" type="TIMESTAMP WITHOUT TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="at" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sample" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bp" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tape" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_25" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_act" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="flow_std" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="volume" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tube" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enclosure" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filament" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sdd" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dpp" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rh" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="wind" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="wind_dir" type="FLOAT4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sample_time" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="alarm" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sample_type" type="SMALLINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-22">
+        <addForeignKeyConstraint baseColumnNames="sample_analysis_id" baseTableName="diag_calib" baseTableSchemaName="acsm" constraintName="diag_calib_sample_analysis_id_fkey" deferrable="false" initiallyDeferred="false" onDelete="RESTRICT" onUpdate="NO ACTION" referencedColumnNames="id" referencedTableName="sample_analysis" referencedTableSchemaName="acsm" validate="true"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-23">
+        <addForeignKeyConstraint baseColumnNames="sample_analysis_id" baseTableName="mass_loadings" baseTableSchemaName="acsm" constraintName="mass_loadings_sample_analysis_id_fkey" deferrable="false" initiallyDeferred="false" onDelete="RESTRICT" onUpdate="NO ACTION" referencedColumnNames="id" referencedTableName="sample_analysis" referencedTableSchemaName="acsm" validate="true"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-24">
+        <addForeignKeyConstraint baseColumnNames="sample_analysis_id" baseTableName="tps" baseTableSchemaName="acsm" constraintName="tps_sample_analysis_id_fkey" deferrable="false" initiallyDeferred="false" onDelete="RESTRICT" onUpdate="NO ACTION" referencedColumnNames="id" referencedTableName="sample_analysis" referencedTableSchemaName="acsm" validate="true"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-25">
+        <addForeignKeyConstraint baseColumnNames="table_name" baseTableName="synchronize" baseTableSchemaName="common" constraintName="synchronize_table_name_fkey" deferrable="false" initiallyDeferred="false" onDelete="NO ACTION" onUpdate="NO ACTION" referencedColumnNames="table_name" referencedTableName="data_tables" referencedTableSchemaName="common" validate="true"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-26">
+        <addForeignKeyConstraint baseColumnNames="sample_analysis_id" baseTableName="raw_measurements" baseTableSchemaName="xact" constraintName="fk_sample_analysis_id" deferrable="false" initiallyDeferred="false" onDelete="NO ACTION" onUpdate="NO ACTION" referencedColumnNames="id" referencedTableName="sample_analysis" referencedTableSchemaName="xact" validate="true"/>
+    </changeSet>
+    <changeSet author="rramey (generated)" id="1776358075471-27">
+        <addForeignKeyConstraint baseColumnNames="element" baseTableName="raw_measurements" baseTableSchemaName="xact" constraintName="fk_xact_element_params" deferrable="false" initiallyDeferred="false" onDelete="NO ACTION" onUpdate="NO ACTION" referencedColumnNames="element" referencedTableName="element_params" referencedTableSchemaName="xact" validate="true"/>
+    </changeSet>
+</databaseChangeLog>
