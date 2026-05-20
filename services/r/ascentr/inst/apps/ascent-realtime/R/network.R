@@ -167,13 +167,19 @@ networkServer <- function(id) {
       }
       
       shiny::validate(need(nrow(df) > 0, "No data for time period"))
-      
-      # Trim to local time
-      df <- df |>
-        mutate(local_time = lubridate::with_tz(date_utc, tzone = timezone)) |>
-        filter(local_time >= input$date,
-               local_time < input$date + 1)
-      
+    
+      # Trim to local time - have to split into data frames by tz because date vector has
+      # a single timezone attribute for the whole vector. split, apply timezone, then
+      # force to pretend UTC
+      df_list <- split(df, ~timezone)
+      df <- purrr::map2(names(df_list), df_list, 
+                        \(x, y) mutate(y, 
+                                       local_time = lubridate::with_tz(date_utc, tzone = x),
+                                       local_utc = lubridate::force_tz(local_time, "UTC"))) |>
+        purrr::list_rbind() |>
+        filter(local_utc >= input$date,
+               local_utc < input$date + 1)
+
     })
     
     map_data <- reactive({
@@ -337,10 +343,6 @@ networkServer <- function(id) {
       df <- plot_data() |>
         mutate(site_name = factor(site_name, levels = site_names$site_name))
       
-      # pretend all local_times are UTC so we can plot all in the same local time
-      df <- df |>
-        mutate(local_time = lubridate::force_tz(local_time, "UTC"))
-
       shiny::validate(need(nrow(df) > 0, "No data for this time period"))
       
       # What instrument is this from
@@ -348,7 +350,8 @@ networkServer <- function(id) {
       
       x_label = paste("local hour", input$date, sep = " - ")
       
-      g <- ggplot(df, aes(x = local_time, y = value)) + 
+      # pretend all local_times are UTC so we can plot all in the same local time
+      g <- ggplot(df, aes(x = local_utc, y = value)) + 
         geom_line() +
         scale_x_datetime(date_labels = "%H", date_breaks = "1 hour", 
                          date_minor_breaks = "1 hour") +
