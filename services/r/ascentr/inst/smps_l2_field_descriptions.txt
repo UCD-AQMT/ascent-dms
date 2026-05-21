@@ -16,4 +16,3 @@ geo_std_dev: Geometric standard deviation of number concentration particle size
 number_concentration_stp_1_cm3: Total hourly mean number concentration at standard conditions (#/cm^3)
 volume_concentration_stp_um3_cm3: Total hourly mean volume concentration at standard conditions (μm^3/cm^3)
 concentration_json: Mean hourly concentration (dN/dlogDp) by size bin midpoint in JSON format at sample conditions (#/cm^3)
-raw_concentration_json: Raw mean hourly uncorrected concentration (dN/dlogDp) by size bin in JSON format at sample conditions (#/cm^3)

@@ -125,13 +125,11 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
     filter(qc_outcome < 4) |> # within those hours, only process valid scans
     group_by(sample_hour_utc) |>
-    summarise(mean_scan = calc_mean_scan(concentration_json),
-              mean_raw_scan = calc_mean_scan(raw_concentration_json)) |>
+    summarise(mean_scan = calc_mean_scan(concentration_json)) |>
     ungroup()
 
   # Put columns in numerical order and replace NA w/ zero, then calculate stats
   hour_stats <- hour_scans |>
-    select(-mean_raw_scan) |>
     tidyr::unnest(cols = mean_scan) |>
     tidyr::pivot_longer(-sample_hour_utc) |>
     mutate(name = as.numeric(name)) |>
@@ -172,7 +170,6 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   df_valid <- df_valid |>
     rowwise() |>
     mutate(concentration_json = write_atomic_json(mean_scan),
-           raw_concentration_json = write_atomic_json(mean_raw_scan),
            .keep = "unused") |>
     ungroup()
 

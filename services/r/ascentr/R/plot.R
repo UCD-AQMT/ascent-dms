@@ -1,83 +1,85 @@
 # # Plotting functions
 # 
 
-#' A little bespoke map for plotting values at all of the ascent sites
+#' A little bespoke map for plotting values at all of the ascent sites. To use this,
+#' export at desired pixel dimensions, then use a tool like MS Paint to determine the
+#' pixel locations of the sites. These can be translated to coordinates in ggplot.
 #'
-#' @param dfs a simple features data frame with data to plot for each site as "value"
-#' @param states a sf of state boundaries
-#' @param point_size size of plot point (default is 4)
+#'
+#' Title
+#'
+#' @param con
 #'
 #' @returns
 #' @export
 #'
 #' @examples
-map_ascent <- function(dfs, states = NULL, point_size = 4) {
+map_ascent_static <- function(con) {
   
-  # base layer
-  if (is.null(states)) {
-    states_path <- system.file("/data/gis/cb_2018_us_state_5m.shp", package="ascentr")
-    states <- sf::st_read(states_path)
-  } 
+  point_size <- 0.5
+  border_color <- "gray40"
+  fill_color <- "gray80"
+  point_color <- "gray50"
   
-  plot_limits <- c(min(dfs$value), max(dfs$value))
-  
+  states_path <- system.file("/data/gis/cb_2018_us_state_5m.shp", package="ascentr")
+  states <- sf::st_read(states_path)
+
   # Remove freak states plus all the territories
   lower48 <- states |>
     filter(!NAME %in% c("Alaska", "Hawaii"),
            GEOID <= 56)
   
-  sites48 <- dfs |>
+  sites <- tbl(con, I("common.sites")) |>
+    filter(site_number < 99) |>
+    select(site_code, latitude, longitude) |>
+    collect() |>
+    sf::st_as_sf(coords = c("longitude", "latitude"),
+                 crs = 4326)
+  
+  sites48 <- sites |>
     filter(site_code != "DeltaJunction")
   
   l48 <- ggplot() +
-    geom_sf(data = lower48) +
-    geom_sf(data = sites48, aes(color = value), size = point_size) +
-    scale_color_viridis_c(limits = plot_limits) +
+    geom_sf(data = lower48, fill = fill_color, color = border_color) +
+    geom_sf(data = sites48, color = point_color, size = point_size) +
     coord_sf(crs = "+proj=laea +y_0=0 +lon_0=-98 +lat_0=40 +ellps=WGS84 +no_defs") +
     theme_void()
-
+  
   ak <- states |>
     filter(NAME == "Alaska")
-  sites_ak <- dfs |>
+  sites_ak <- sites |>
     filter(site_code == "DeltaJunction")
-  
-  
+
   akmap <- ggplot() +
-    geom_sf(data = ak) +
-    geom_sf(data = sites_ak, aes(color = value), size = point_size) +
-    scale_color_viridis_c(limits = plot_limits) +
+    geom_sf(data = ak, fill = fill_color, color = border_color) +
+    geom_sf(data = sites_ak, color = point_color, size = point_size) +
     coord_sf(crs = "+proj=laea +y_0=0 +lon_0=-140 +lat_0=65 +ellps=WGS84 +no_defs") +
     theme_void() +
     theme(legend.position = "none")
   
   # inset for southern california
-  socal_sites <- dfs |>
-    filter(site_code %in% c("LosAngeles", "Rubidoux", "JoshuaTree")) |>
-    sf::st_transform(crs = "+proj=laea +y_0=0 +lon_0=-98 +lat_0=40 +ellps=WGS84 +no_defs")
-  
+  socal_sites <- sites |>
+  filter(site_code %in% c("LosAngeles", "Rubidoux", "JoshuaTree")) |>
+  sf::st_transform(crs = "+proj=laea +y_0=0 +lon_0=-98 +lat_0=40 +ellps=WGS84 +no_defs")
+
   
   socal <- ggplot() +
-    geom_sf(data = lower48, fill = "gray80") +
-    geom_sf(data = socal_sites, aes(color = value), size = point_size) +
-    scale_color_viridis_c(limits = plot_limits) +
+    geom_sf(data = lower48, fill = fill_color, color = border_color) +
+    geom_sf(data = socal_sites, color = point_color, size = point_size) +
     coord_sf(crs = "+proj=laea +y_0=0 +lon_0=-98 +lat_0=40 +ellps=WGS84 +no_defs",
              xlim = c(-1.9e6, -1.5e6),
              ylim = c(-6.5e5, -4e5)) +
     theme_void() +
-    theme(panel.border = element_rect(color = "black", linewidth = 2, fill = NA),
-          panel.background = element_rect(fill = "white"),
+    theme(panel.border = element_rect(color = "gray25", linewidth = 1, fill = NA),
+          #panel.background = element_rect(fill = "white"),
           legend.position = "none")
   
   
   p <- cowplot::ggdraw(l48) +
     cowplot::draw_plot(akmap, 0, 0, 0.3, 0.3) +
-    cowplot::draw_plot(socal, 0.05, 0.34, 0.2, 0.2)
+    cowplot::draw_plot(socal, 0.04, 0.34, 0.25, 0.25)
   p
-  
-  
 }
-
-
 
 
 # # Got this from the internet to crib. Doesn't work out of the box

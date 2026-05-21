@@ -19,6 +19,7 @@ downloadUI <- function(id) {
       selectInput(ns("level"), "Data level", choices = "1"),
       checkboxInput(ns("metadata"), "Include metadata file?", value = TRUE),
       checkboxInput(ns("agree"), "Accept data policy?", value = FALSE),
+      textOutput(ns("expected")),
       uiOutput(ns("mybutton")),
       width = "300px"
     ),
@@ -30,17 +31,40 @@ downloadUI <- function(id) {
 downloadServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
+    # Maximum allowed records for download depend on instrument
+    ae33_max <- 15000
+    acsm_max <- 10000
+    xact_max <- 2000
+    smps_max <- 5000
+    
+    
     # Dynamic UI ---------
+    
+    # Don't allow download unless number of expected records is >0 and < max and agreement
+    # is signed
+    allow_download <- reactive({
+      
+      allowed_samples <- switch(input$instrument,
+                                "AE33" = ae33_max,
+                                "ACSM" = acsm_max,
+                                "Xact" = xact_max,
+                                "SMPS" = smps_max)
+      
+      isTruthy(input$agree) && 
+        expected_samples() > 0 &&
+        expected_samples() < allowed_samples
+
+    })
     
     output$mybutton <- renderUI({
       
       ns <- session$ns
-      if (isTruthy(input$agree)) {
+      if (allow_download()) {
         downloadButton(ns("download"), "Download", icon = icon("download"))
       } else {
         actionButton(ns("dummybutton"), "Download", icon = icon("download"))
       }
-      
+
     })
     
     observeEvent(input$instrument, {
@@ -53,18 +77,29 @@ downloadServer <- function(id) {
       
     })
     
-    
+    # TODO: Make this more general and add conditions for too much data that depend on instrument
     observeEvent(input$dummybutton, {
       showModal(modalDialog(
         title = "Message",
-        "Please read and accept the data policy to download data"
+        if (!isTruthy(input$agree)) {
+          "Please read and accept the data policy to download data"
+        } else if (expected_samples() == 0) {
+          "No data for this instrument/date"
+        } else {
+          allowed <- switch(input$instrument,
+                            "AE33" = ae33_max,
+                            "ACSM" = acsm_max,
+                            "Xact" = xact_max,
+                            "SMPS" = smps_max)
+          glue::glue("Please limit {input$instrument} downloads to {allowed} samples by reducing the time window.")
+        }
+        
       ))
     })
     
     # Data reactives -------
     
     export_data <- reactive({
-      
       if (input$instrument == "SMPS") {
         d <- smps_data_reactive()
       }
@@ -74,7 +109,9 @@ downloadServer <- function(id) {
       if (input$instrument == "AE33") {
         d <- ae33_data()
       }
-      
+      if (input$instrument == "ACSM") {
+        d <- acsm_data()
+      }
     })
     
     
@@ -93,44 +130,24 @@ downloadServer <- function(id) {
       results <- xact_l1a_df(input$site, input$dates[1], input$dates[2], con)
       
       if (input$metadata) {
-        meta <- xact_l1_metadata(input$site, input$dates[1], input$dates[2], con = con,
-                                           metadata_fields = results$mdf)
-        temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
-        dir.create(temp_dir)
-        txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
-        writeLines(meta, txt_file)
-        csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
-        readr::write_csv(results$df, csv_file, na = "")
-        zip::zip(
-          zipfile = temp_file(),
-          files = c(txt_file, csv_file),
-          mode = "cherry-pick"
-        )
+        meta <- xact_metadata(input$site, input$dates[1], input$dates[2], level = "1a",
+                              con = con, metadata_fields = results$mdf)
+        export_zip_shiny(results$df, meta, fname = filename_noext(), temp_file = temp_file())
       } else {
-        readr::write_csv(results$df, temp_file(), na = "")
+        export_csv(results$df, temp_file())
       }
     })
     
     xact_l1b_reactive <- reactive({
       
       results <- xact_l1b(input$site, input$dates[1], input$dates[2], con)
-    
+
       if (input$metadata) {
-        meta <- xact_l1_metadata(input$site, input$dates[1], input$dates[2],
+        meta <- xact_metadata(input$site, input$dates[1], input$dates[2],
                                  level = "1b", con = con)
-        temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
-        dir.create(temp_dir)
-        txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
-        writeLines(meta, txt_file)
-        csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
-        readr::write_csv(results, csv_file, na = "")
-        zip::zip(
-          zipfile = temp_file(),
-          files = c(txt_file, csv_file),
-          mode = "cherry-pick"
-        )
+        export_zip_shiny(results, meta, fname = filename_noext(), temp_file = temp_file())
       } else {
-        readr::write_csv(results, temp_file(), na = "")
+        export_csv(results, temp_file())
       }
       
     })
@@ -184,44 +201,14 @@ downloadServer <- function(id) {
       
     })
     
-    # Deprecated
-    # smps_l1a <- reactive({
-    #   df <- smps_l1a_df(input$site, input$dates[1], input$dates[2], con)
-    #   if (input$metadata) {
-    #     meta <- smps_l1_metadata(input$site, input$dates[1], input$dates[2], level = "1a", con)  
-    #     temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
-    #     dir.create(temp_dir)
-    #     txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
-    #     writeLines(meta, txt_file)
-    #     csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
-    #     readr::write_csv(df, csv_file, na = "")
-    #     zip::zip(
-    #       zipfile = temp_file(), 
-    #       files = c(txt_file, csv_file),
-    #       mode = "cherry-pick"
-    #     )
-    #   } else {
-    #     readr::write_csv(df, temp_file(), na = "")
-    #   }
-    # })
-    
+
     smps_l1 <- reactive({
       df <- smps_l1b_df(input$site, input$dates[1], input$dates[2], con)
       if (input$metadata) {
         meta <- smps_metadata(input$site, input$dates[1], input$dates[2], level = "1b", con)  
-        temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
-        dir.create(temp_dir)
-        txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
-        writeLines(meta, txt_file)
-        csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
-        readr::write_csv(df, csv_file, na = "")
-        zip::zip(
-          zipfile = temp_file(), 
-          files = c(txt_file, csv_file),
-          mode = "cherry-pick"
-        )
+        export_zip_shiny(df, meta, fname = filename_noext(), temp_file = temp_file())
       } else {
-        readr::write_csv(df, temp_file(), na = "")
+        export_csv(df, temp_file())
       }
     })
     
@@ -234,63 +221,40 @@ downloadServer <- function(id) {
       
     })
     
-    ae33_l0_reactive <- reactive({
-      
-      #TODO
-      
-    })
-    
-    # Deprecated
-    # ae33_l1a_reactive <- reactive({
-    #   
-    #   results <- ae33_l1a(input$site, input$dates[1], input$dates[2], ae33_con)
-    #   
-    #   if (input$metadata) {
-    #     
-    #     metadata <- ae33_l1_metadata(input$site, input$dates[1], input$dates[2], 
-    #                                  level = "1a", con)
-    #     temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
-    #     dir.create(temp_dir)
-    #     txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
-    #     writeLines(metadata, txt_file)
-    #     csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
-    #     readr::write_csv(results, csv_file, na = "")
-    #     zip::zip(
-    #       zipfile = temp_file(), 
-    #       files = c(txt_file, csv_file),
-    #       mode = "cherry-pick"
-    #     )
-    #   } else {
-    #     readr::write_csv(results, temp_file(), na = "")  
-    #   }
-    #   
-    #   
-    # })
-    
+
     ae33_l1_reactive <- reactive({
       
       results <- ae33_l1b(input$site, input$dates[1], input$dates[2], ae33_con)
       
       if (input$metadata) {
         
-        metadata <- ae33_metadata(input$site, input$dates[1], input$dates[2], 
+        metadata <- ae33_metadata(input$site, input$dates[1], input$dates[2],
                                      level = "1b", con)
-        temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
-        dir.create(temp_dir)
-        txt_file <- file.path(temp_dir, paste0(filename_noext(), ".txt"))
-        writeLines(metadata, txt_file)
-        csv_file <- file.path(temp_dir, paste0(filename_noext(), ".csv"))
-        readr::write_csv(results, csv_file, na = "")
-        zip::zip(
-          zipfile = temp_file(), 
-          files = c(txt_file, csv_file),
-          mode = "cherry-pick"
-        )
+        export_zip_shiny(results, metadata, fname = filename_noext(), temp_file = temp_file())
       } else {
-        readr::write_csv(results, temp_file(), na = "")  
+        export_csv(results, temp_file())
       }
+
+    })
+    
+    #### ACSM -----
+    
+    acsm_data <- reactive({
+      ds <- acsm_reactive()
+    })
+    
+    acsm_reactive <- reactive({
       
+      results <- acsm_l1b(input$site, input$dates[1], input$dates[2], con)
       
+      if (input$metadata) {
+        metadata <- acsm_metadata(input$site, input$dates[1], input$dates[2], con,
+                                  metadata_fields = results$mdf, level = "1b")
+        export_zip_shiny(results$df, metadata, fname = filename_noext(), temp_file = temp_file())
+      } else {
+        export_csv(results$df, temp_file())
+      }
+
     })
     
     # Need to fix this
@@ -300,6 +264,17 @@ downloadServer <- function(id) {
       } else {
         "text/csv"
       }
+    })
+    
+    ### Estimate the number of records to return - keep button disabled if zero or too high
+    expected_samples <- reactiveVal(0)
+    
+    output$expected <- renderText({
+      
+      expected <- availability(input$site, input$dates[1], input$dates[2], input$instrument)
+      expected_samples(expected)
+      glue::glue("Approx. sample count: {expected}")
+      
     })
     
     # Download handler ------
@@ -343,5 +318,78 @@ downloadServer <- function(id) {
     })
     
   })
+}
+
+availability <- function(site, date_start, date_end, instrument) {
+ 
+  if (instrument == "Xact") {
+    
+    last_date <- date_end + 1
+    
+    expected <- tbl(con, I("xact.sample_analysis")) |>
+      select(site_number, sample_datetime, sample_type) |>
+      inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+      filter(sample_datetime >= date_start,
+             sample_datetime <= last_date,
+             site_code == site) |>
+      summarise(Samples = n()) |>
+      pull(Samples)
+    
+  }
+  
+  if (instrument == "SMPS") {
+    
+    last_date <- date_end + 1
+    
+    expected <- tbl(con, I("smps.sample_analysis")) |>
+      select(site_number, sample_start) |>
+      inner_join(select(tbl_sites, site_code, site_number), by = "site_number") |>
+      filter(sample_start >= date_start,
+             sample_start <= last_date,
+             site_code == site) |>
+      summarise(Samples = n()) |>
+      pull(Samples)
+      
+  }
+  
+  if (instrument == "AE33") {
+
+    flux_query <- glue::glue('from(bucket: "measurements") |> ', 
+                             'range(start: {date_start}T00:00:00Z,',
+                             'stop: {date_end}T23:59:59Z) |> ', 
+                             'filter(fn: (r) => r._field == "EBC_1") |>',
+                             'aggregateWindow(every: 1d, fn: count, timeSrc: "_start") |>',
+                             'drop(columns: ["_start", "_stop"])')
+    ret <- ae33_con$query(flux_query)
+    if (is.null(ret)) {
+      expected <- 0
+    } else {
+      expected <- ret |>
+        purrr::list_rbind() |>
+        mutate(site_code = stringr::str_sub(`_measurement`, start = 6, end = -5),
+               Instrument = "AE33",
+               Samples = as.numeric(`_value`)) |>
+        filter(site_code == site) |>
+        summarise(Samples = sum(Samples)) |>
+        pull(Samples)
+    }
+  }
+  
+  if (instrument == "ACSM") {
+    
+    last_day <- date_end + 1
+    expected <- tbl(con, I("acsm.sample_analysis")) |>
+      select(site_number, start_date) |>
+      inner_join(select(tbl_sites, site_code, site_number), by = "site_number") |>
+      filter(start_date >= date_start,
+             start_date < last_day,
+             site_code == site) |>
+      summarise(Samples = n()) |>
+      pull(Samples)
+
+  }
+ 
+  return(expected)
+  
 }
 
