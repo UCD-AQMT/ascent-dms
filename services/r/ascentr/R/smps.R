@@ -144,7 +144,19 @@ smps_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   fields <- paste(readLines(fields_path), collapse = "\n")
   
   # metadata from instrument settings
-  settings <- smps_settings(site, start_dt, end_dt, con) |>
+  settings <- smps_settings(site, start_dt, end_dt, con)
+  
+  # Only include metadata relevant to the date range
+  # Need only the last record prior to the date range and all records within the range
+  before <- settings |>
+    filter(start_date < start_dt) |>
+    arrange(desc(start_date)) |>
+    slice(1, .by = name)
+  during <- settings |>
+    filter(start_date >= start_dt,
+           start_date < end_dt)
+  settings <- bind_rows(before, during) |>
+    arrange(name, start_date) |>
     mutate(line = paste0(name, ": ", value, "    ", start_date))
   setting_desc <- paste(settings$line, collapse = "\n")
   
