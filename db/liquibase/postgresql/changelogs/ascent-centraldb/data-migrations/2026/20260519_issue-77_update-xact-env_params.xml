@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Update description for sample_time in xact.env_params -->
+    <changeSet id="1" author="sean.raffuse">
+        <update schemaName="xact" tableName="env_params">
+            <column name="description" value="Sample duration instrument setting"/>
+            <where>param='sample_time'</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>
