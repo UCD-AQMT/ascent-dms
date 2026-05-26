@@ -40,10 +40,10 @@ mode_nm: Mode of number concentration particle size (nm)
 geo_std_dev: Geometric standard deviation of number concentration particle size
 total_concentration_1_cm3: Total number concentration of scan at sample conditions (#/cm^3)
 volume_concentration_um3_cm3: Total volume concentration of scan at sample conditions (μm^3/cm^3)
-stp_factor: Multiplication conversion factor to standard temperature (0°C) and pressure (1 atm)
-number_concentration_stp_1_cm3: Total number concentration of scan at standard conditions (#/cm^3)
-volume_concentration_stp_um3_cm3: Total volume concentration of scan at standard conditions (μm^3/cm^3)
+stp_factor: Multiplication conversion factor to standard temperature (0°C) and pressure (101325 Pa) from temperature and pressure measurements of the sheath flow
+number_concentration_stp_1_cm3: Total number concentration of scan at standard conditions  defined by temperature and pressure of the sheath flow (#/cm^3)
+volume_concentration_stp_um3_cm3: Total volume concentration of scan at standard conditions  defined by temperature and pressure of the sheath flow (μm^3/cm^3)
 concentration_json: Concentration (dN/dlogDp) by size bin midpoint in JSON format at sample conditions (#/cm^3)
-raw_concentration_json: Raw uncorrected concentration (dN/dlogDp) by size bin in JSON format at sample conditions (#/cm^3)
+raw_concentration_json: Uncorrected concentration (dN/dlogDp) by size bin in JSON format at sample conditions (#/cm^3)
 sample_analysis_id: An id that uniquely identifies this measurement in the respective table of the ASCENT database
 site_record_id: An id that identifies this measurement in the respective table of the local site database
