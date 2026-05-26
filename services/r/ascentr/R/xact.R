@@ -145,7 +145,7 @@ xact_l1a_df <- function(site, start_dt, end_dt, con) {
                                        "Element atomic symbol",
                                        "Element concentration at ambient conditions (ng/m3)",
                                        "Instrument concentration uncertainty calculated based on the most updated recommendation from manufacturer at ambient conditions (ng/m3)",
-                                       "Multiplication conversion factor to standard temperature (0 degrees C) and pressure (1 atm)",
+                                       "Multiplication conversion factor to standard temperature (0 degrees C) and pressure (101325 Pa) as measured by Xact",
                                        "Element concentration at standard temperature and pressure (ng/m3)",
                                        "Instrumental concentration uncertainty calculated based on the most updated recommendation from manufacturer at standard temperature and pressure (ng/m3)",
                                        "Pump start datetime (UTC)"))
@@ -220,13 +220,22 @@ xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
     field_descriptions <- paste(m$field_text, collapse = "\n")
   }
 
+  details <- paste("Under typical operation, the measurements at timestamps of 00:00 do",
+                   "not include sampling from 00:00 to 00:30 due to internal instrument",
+                   "checks and calibrations.\n",
+                   "Different energy levels have been used. This change leads to higher",
+                   "MDL for several elements. For information, contact PI.\n")
+  
   out <- glue::glue("{basic}\n",
-             "Xact Software Versions\n",
-             "Version, start date\n",
-             "{v_text}\n",
-             "\n",
-             "Field Descriptions\n",
-             "{field_descriptions}")
+                    "Data Processiong Details\n",
+                    "{details}",
+                    "\n",
+                   "Xact Software Versions\n",
+                   "Version, start date\n",
+                   "{v_text}\n",
+                   "\n",
+                   "Field Descriptions\n",
+                   "{field_descriptions}")
 
   if (level == "1b") {
     out <- glue::glue("{out}\n",
