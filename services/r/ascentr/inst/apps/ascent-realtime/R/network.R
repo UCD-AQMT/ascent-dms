@@ -27,7 +27,7 @@ networkUI <- function(id) {
         )
       ),
       card(
-        checkboxInput(ns("free_y"), "Independant y-scales", value = FALSE),
+        checkboxInput(ns("free_y"), "Independent y-scales", value = FALSE),
         plotOutput(ns("ts")),
         full_screen = TRUE
       )
