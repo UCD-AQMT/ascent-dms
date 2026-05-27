@@ -464,7 +464,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   # Increasing guess_max here to make sure that some tape advances are caught
   l1b <- readr::read_csv(l1b_file, guess_max = 50000, show_col_types = FALSE)
-  qc <- readr::read_csv(manual_qc_file, guess_max = 50000, show_col_types = FALSE)
+  qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
 
   if (nrow(l1b) == 0) {
     stop("No data in ", l1b_file)

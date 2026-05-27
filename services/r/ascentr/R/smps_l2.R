@@ -21,7 +21,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     distinct()
 
   l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
-  qc <- readr::read_csv(manual_qc_file, show_col_types = FALSE, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
 
   qc <- qc |>
     mutate(flag = as.character(flag),
