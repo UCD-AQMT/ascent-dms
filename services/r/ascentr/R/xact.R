@@ -227,7 +227,7 @@ xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
                    "MDL for several elements. For information, contact PI.\n")
   
   out <- glue::glue("{basic}\n",
-                    "Data Processiong Details\n",
+                    "Data Processing Details\n",
                     "{details}",
                     "\n",
                    "Xact Software Versions\n",
