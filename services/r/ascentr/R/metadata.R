@@ -51,6 +51,9 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
     contacts <- paste0(contacts, " and Roya Bahreini (roya.bahreini@ucr.edu)")
   }
 
+  # Get the software version
+  software_version <- paste(packageVersion('ascentr'), sep= '.')
+  
   metadata_text <- glue::glue("ASCENT Site: {site_info$site_name}\n",
                         "Instrument: {instrument_description}\n",
                         "Data Level: {level}\n",
@@ -68,6 +71,9 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
                         "Coordinates: ({site_info$longitude}, {site_info$latitude})\n",
                         "Elevation: {site_info$elevation} (m above mean sea level)\n",
                         "Time Zone: {site_info$timezone} (UTC {site_info$gmt_offset})\n",
+                        "\n",
+                        "ASCENT Data Processing Version\n",
+                        "{software_version}\n",
                         "\n")
 
 }
