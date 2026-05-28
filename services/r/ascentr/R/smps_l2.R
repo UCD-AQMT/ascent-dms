@@ -91,6 +91,10 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
     prob <- cumsum(w)/sum(w)
     ps <- which(abs(prob - .5) == min(abs(prob - .5)))
+    if (length(ps) == 0) {
+      return(NaN)
+    }
+    
     if (length(ps) > 1) {
       return(mean(x[ps]))      
     } 
@@ -103,6 +107,16 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     count <- sum(n)
     all_values <- inner_term * n
     exp(sqrt(sum(all_values) / count))
+  }
+  
+  calc_mode <- function(name, value) {
+    
+    # If all values are 0, return NaN
+    if (max(value) == 0) {
+      return(NaN)
+    } else {
+      return(name[which.max(value)])  
+    }
   }
 
   # SMPS sampling is every 2.5 minutes - 24 samples per hour
@@ -140,7 +154,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
               mean_nm = weighted.mean(name, value),
               geo_mean_nm = weighted.geomean(name, value),
               median_nm = weighted.median(name, value),
-              mode_nm = name[which.max(value)],
+              mode_nm = calc_mode(name, value),
               geo_std_dev = calc_geosd(name, value, geo_mean_nm),
               .by = sample_hour_utc)
 
