@@ -63,7 +63,7 @@ acsmUI <- function(id) {
     layout_column_wrap(
       width = 1/2,
       card(
-        withSpinner(plotlyOutput(ns("fractions")), fill = TRUE),
+        plotlyOutput(ns("fractions"), fill = TRUE),
         full_screen = TRUE
       ),
       layout_column_wrap(

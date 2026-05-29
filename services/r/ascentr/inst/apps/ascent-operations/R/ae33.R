@@ -37,7 +37,7 @@ ae33UI <- function(id) {
       width = 1/2,
       gap = "8px",
       card(
-        withSpinner(plotlyOutput(ns("ebc")), fill = TRUE),
+        plotlyOutput(ns("ebc"), fill = TRUE),
         full_screen = TRUE
       ),
       card(

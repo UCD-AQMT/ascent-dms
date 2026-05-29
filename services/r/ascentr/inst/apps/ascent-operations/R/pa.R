@@ -34,7 +34,7 @@ paUI <- function(id) {
         sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = options,
                                       multiple = TRUE, 
                                       selected = c("pm1_0_atm", "pm2_5_atm", "pm10_0_atm"))),
-        withSpinner(plotlyOutput(ns("plot1")), fill = TRUE)
+        plotlyOutput(ns("plot1"), fill = TRUE)
       ),
       full_screen = TRUE
     ),
