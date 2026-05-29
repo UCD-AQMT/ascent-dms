@@ -204,7 +204,7 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
     stp <- paste("Data converted to ASCENT STP (0 C and 101325 Pa) assuming hydrostatic pressure (scale height of 7.4 km) and sampling temperature of 25 C.\n",
                  "STP conversion factor for site = ", round(acsm_stp(site, con), 3))
     
-    precision <- paste("Reported precisions for each species are the propogated",
+    precision <- paste("Reported precisions for each species are the propagated",
                        "uncertainties pf Poisson's counting statistics of the",
                        "corresponding open and closed spectra, as described in",
                        "Ng et al. (AST, 2011) and Ulbrich et al. (ACP, 2009).")
@@ -587,16 +587,16 @@ acsm_l2_from_files <- function(site, site_file, con) {
   # Rearrange and rename for final export
   result <- result |>
     select(site_number, site_code, sample_datetime_UTC, sample_count, 
-           organics_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
-           ammonium_ug_m3=NH4, chloride_ug_m3=Chl, 
-           organics_precision_ug_m3=Org_err, sulfate_precision_ug_m3=SO4_err,
-           nitrate_precision_ug_m3=NO3_err, ammonium_precision_ug_m3=NH4_err,
-           chloride_precision_ug_m3=Chl_err,
-           org_mz29_ug_m3=m29, org_mz43_ug_m3=m44, org_mz44_ug_m3=m44, org_mz55_ug_m3=m55,
-           org_mz57_ug_m3=m57, org_mz60_ug_m3=m60, org_mz69_ug_m3=m69,
-           org_mz71_ug_m3=m71, org_mz73_ug_m3=m73, no3_mz30_ug_m3=NO3_30,
-           no3_mz46_ug_m3=NO3_46, hoa_ug_m3=HOA, ooa_ug_m3=OOA,
-           qc_outcome, flag, comment)
+           organics_ug_STP_m3=Org, sulfate_STP_ug_m3=SO4, nitrate_STP_ug_m3=NO3,
+           ammonium_STP_ug_m3=NH4, chloride_STP_ug_m3=Chl, 
+           organics_precision_STP_ug_m3=Org_err, sulfate_precision_STP_ug_m3=SO4_err,
+           nitrate_precision_STP_ug_m3=NO3_err, ammonium_precision_STP_ug_m3=NH4_err,
+           chloride_precision_STP_ug_m3=Chl_err,
+           org_mz29_STP_ug_m3=m29, org_mz43_STP_ug_m3=m44, org_mz44_STP_ug_m3=m44,
+           org_mz55_STP_ug_m3=m55, org_mz57_STP_ug_m3=m57, org_mz60_STP_ug_m3=m60,
+           org_mz69_STP_ug_m3=m69, org_mz71_STP_ug_m3=m71, org_mz73_STP_ug_m3=m73,
+           no3_mz30_STP_ug_m3=NO3_30, no3_mz46_STP_ug_m3=NO3_46, hoa_STP_ug_m3=HOA,
+           ooa_STP_ug_m3=OOA, qc_outcome, flag, comment)
   
 }
 
@@ -630,7 +630,7 @@ acsm_stp2 <- function(site, con) {
 # H = scale height = RT/Mg ~ 7.4 km
 acsm_stp <- function(site, con) {
   
-    # Assumed scale height of 7.4 km
+    # Assumed scale height of 7.4 km per Seinfeld & Pandis
     H <- 7400
     Z <- tbl(con, I("common.sites")) |>
       filter(site_code == site) |>
