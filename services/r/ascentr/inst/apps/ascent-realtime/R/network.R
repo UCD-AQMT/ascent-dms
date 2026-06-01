@@ -345,6 +345,20 @@ networkServer <- function(id) {
       
       shiny::validate(need(nrow(df) > 0, "No data for this time period"))
       
+      # Always plot all sites, so add empty records for missing sites
+      existing_sites <- unique(df$site_name)
+      missing_sites <- tbl_sites |>
+        filter(!site_name %in% existing_sites,
+               site_number < 99) |>
+        pull(site_name)
+      
+      df_missing <- tibble(site_name = missing_sites,
+                           value = NA,
+                           local_utc = min(df$local_utc))
+        
+      df <- bind_rows(df, df_missing)
+      
+      
       # What instrument is this from
       instrument <- names(which(sapply(grouped_parameters, \(x) input$parameter %in% x)))
       
