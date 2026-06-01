@@ -1,7 +1,7 @@
 Package: ascentr
 Type: Package
 Title: Tools for interacting with the ASCENT database
-Version: 0.1.18
+Version: 0.1.19
 Authors@R: c(
     person(
       "Sean", "Raffuse",
@@ -28,3 +28,6 @@ Imports:
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

@@ -205,7 +205,7 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
                  "STP conversion factor for site = ", round(acsm_stp(site, con), 3))
     
     precision <- paste("Reported precisions for each species are the propagated",
-                       "uncertainties pf Poisson's counting statistics of the",
+                       "uncertainties of Poisson's counting statistics of the",
                        "corresponding open and closed spectra, as described in",
                        "Ng et al. (AST, 2011) and Ulbrich et al. (ACP, 2009).")
     
