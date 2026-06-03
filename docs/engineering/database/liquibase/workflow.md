@@ -78,7 +78,7 @@
                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                 xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-            <changeSet id="1" author="rudi.demarco" labels="task/baseline-changelog-sync-7" context="project-initialization">
+            <changeSet id="1" author="rudi.demarco" labels="issue-7, baseline-changelog-sync">
                 <comment>create schema dependencies</comment>
                 <sql>
                     CREATE SCHEMA IF NOT EXISTS acsm
@@ -113,7 +113,11 @@
             <tagDatabase tag="2026.0" />
         </changeSet>
         ```
-    - **Note**: This is still a work in progress. These are general guidelines with room for some flexibility as needed. The key is to stay consistent within a standard set of rules. Please continue to reference the official Liquibase documentation for information on what is all available for working with database migrations and changelogs.
+    - **Note**: This is still a work in progress. These are general guidelines with room for some flexibility as needed. The key is to stay consistent within a standard set of rules. Please continue to reference the **official Liquibase documentation** for information on what is all available for working with database migrations and changelogs.
+    - **Things to take into consideration:**
+        - Do not continue to use the ```context``` attribute. Liquibase intends for this attribute to be used for specifying an environment (e.g. ```context="test"```, ```context="prod"```). We don't have this in our workflow as of right now, but we shouldn't use that attribute in case we decide to in the future.
+        - The ```labels``` attribute is generally used for providing GitHub issue and issue description information.
+        - Use the ```<comment>``` tag for providing additional information about the changeset (e.g. ```<comment>Adding a shipping_address column to the sites table for equipment package tracking</comment>```)
 4. Validate changelog.
     - Always validate before committing.
     ```bash
@@ -178,3 +182,7 @@
 * [ ] Liquibase update tested locally
 * [ ] SQL output reviewed
 * [ ] Documentation updated if necessary
+
+
+---
+[Back to Index](README.md)

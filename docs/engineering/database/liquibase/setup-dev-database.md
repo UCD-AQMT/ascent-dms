@@ -98,3 +98,7 @@ Each developer will have an individual development database that they use to bui
     - If everything is configured correctly, then the script should complete execution successfully and you will have a fully provisioned individual developer database on your local system.
 
     - ***IMPORTANT NOTE:*** You should only do steps 8. and 9. for your local development target database (not the main shared database). The shared main development target should already be setup. If it needs to be re-provisioned, contact a tech lead for this process.
+
+    
+---
+[Back to Index](README.md)

@@ -45,7 +45,7 @@ ascent-centraldb/
 | stored-logic       | Views, functions, procedures       |
 | centraldb-root.xml | Master changelog                   |
 | centraldb-root.xml | Master changelog                   |
-| pre-post_deploy.xml| Pre/Post changelogs (run alwyas)   |
+| pre-post_deploy.xml| Pre/Post changelogs (run always)   |
 
 ## Site Database
 
@@ -149,36 +149,8 @@ db/liquibase/templates/liquibase.properties.template
 ```
 
 ---
+### Next, review [Developer Database Setup Guide](setup-dev-database.md) for detailed instructions on configuring your database development envirionments.
 
-# Validation
-
-Validate changelogs:
-
-```bash
-liquibase validate --defaults-file=liquibase.properties (e.g. name of your liquibase.properties file)
-```
 
 ---
-
-# Preview SQL
-
-Generate SQL without execution:
-
-```bash
-liquibase updateSQL --defaults-file=liquibase.properties
-```
-
----
-
-# Apply Migrations
-
-Apply changes:
-
-```bash
-liquibase update --defaults-file=liquibase.properties
-```
-
-Liquibase automatically manages:
-
-* DATABASECHANGELOG
-* DATABASECHANGELOGLOCK
+[Back to Index](README.md)
