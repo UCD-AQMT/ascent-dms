@@ -64,7 +64,7 @@ networkServer <- function(id) {
       
       p <- input$parameter
       if (p == "total_concentration") {
-        u <- expression("#"/cm^2)
+        u <- expression("#"/cm^3)
       } else if (p %in% c("mean", "median", "geo_mean")) {
         u <- "nm"
       } else if (p == "geo_std_dev") {

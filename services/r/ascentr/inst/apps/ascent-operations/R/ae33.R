@@ -235,6 +235,11 @@ ae33Server <- function(id, site) {
       pad = 0
     )
     
+    # Shared color scheme for plots by channel
+    channel_colors <- c(`1`="#610061", `2`="#00a9ff", `3`="#36ff00",
+                           `4`="#ffdf00", `5`="#ff0000", `6`="#610000", `7`="#000000")
+    
+    
     output$ebc <- renderPlotly({
     
       df <- get_recent() 
@@ -245,9 +250,13 @@ ae33Server <- function(id, site) {
         mutate(time = as.POSIXct(time, tz = "UTC")) |>
         tidyr::pivot_longer(EBC_1:EBC_7, names_to = "channel", values_to = "value")
       
+      plot_colors <- channel_colors
+      names(plot_colors) <- paste0("EBC_", names(plot_colors))
+    
       g <- ggplot(df, aes(x = time, y = value, color = channel)) +
         geom_line() +
         scale_x_datetime(labels = scales::label_date()) +
+        scale_color_manual(values = plot_colors) +
         labs(y = paste("Concentration", ugm3())) +
         theme(axis.title.x = element_blank())
       
@@ -267,9 +276,13 @@ ae33Server <- function(id, site) {
         mutate(time = as.POSIXct(time, tz = "UTC")) |>
         tidyr::pivot_longer(att1_1:att1_7, names_to = "channel", values_to = "value")
       
+      plot_colors <- channel_colors
+      names(plot_colors) <- paste0("att1_", names(plot_colors))
+      
       g <- ggplot(df, aes(x = time, y = value, color = channel)) +
         geom_line() +
         scale_x_datetime(labels = scales::label_date()) +
+        scale_color_manual(values = plot_colors) +
         labs(y = "Attenuation") +
         theme(axis.title.x = element_blank())
       ggplotly(g, dynamicTicks = TRUE) |>
@@ -296,27 +309,6 @@ ae33Server <- function(id, site) {
 
     })    
     
-    # output$flow_plot <- renderPlotly({
-    #   df <- get_recent() 
-    #   validate(need(nrow(df > 0), "No data in time period"))
-    #   
-    #   df <- df |>
-    #     select(time, flow1, flow2, flowC) |>
-    #     mutate(time = as.POSIXct(time, tz = "UTC")) |>
-    #     tidyr::pivot_longer(flow1:flowC, names_to = "flow", values_to = "value")
-    #   
-    #   g <- ggplot(df, aes(x = time, y = value, color = flow)) +
-    #     geom_line() +
-    #     scale_x_datetime(labels = scales::label_date()) +
-    #     labs(y = "L/min") +
-    #     theme(axis.title.x = element_blank())
-    #   ggplotly(g, dynamicTicks = TRUE) |>
-    #     layout(margin = plot_margins,
-    #            legend = list(tracegroupgap = 0))
-    #   
-    #   
-    # })
-    
     output$compensation <- renderPlotly({
       df <- get_recent() 
       validate(need(nrow(df > 0), "No data in time period"))
@@ -326,9 +318,13 @@ ae33Server <- function(id, site) {
         mutate(time = as.POSIXct(time, tz = "UTC")) |>
         tidyr::pivot_longer(k_1:k_7, names_to = "channel", values_to = "value")
       
+      plot_colors <- channel_colors
+      names(plot_colors) <- paste0("k_", names(plot_colors))
+      
       g <- ggplot(df, aes(x = time, y = value, color = channel)) +
         geom_line() +
         scale_x_datetime(labels = scales::label_date()) +
+        scale_color_manual(values = plot_colors) +
         labs(y = "Compensation") +
         theme(axis.title.x = element_blank())
       ggplotly(g, dynamicTicks = TRUE) |>
