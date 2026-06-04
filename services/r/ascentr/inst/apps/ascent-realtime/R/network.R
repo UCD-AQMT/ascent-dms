@@ -187,7 +187,7 @@ networkServer <- function(id) {
       df <- plot_data() |>
         summarise(value = mean(value, na.rm = TRUE),
                   .by = site_code)
-      
+    
       df <- df |>
         left_join(coords, by = c("site_code"="Site")) |>
         mutate(x1 = x / xdim,
@@ -356,9 +356,10 @@ networkServer <- function(id) {
                            value = NA,
                            local_utc = min(df$local_utc))
         
-      df <- bind_rows(df, df_missing)
-      
-      
+      # Convert to factor to put in site number order
+      df <- bind_rows(df, df_missing) |>
+        mutate(site_name = factor(site_name, levels = levels(existing_sites)))
+  
       # What instrument is this from
       instrument <- names(which(sapply(grouped_parameters, \(x) input$parameter %in% x)))
       
