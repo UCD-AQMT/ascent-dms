@@ -227,28 +227,27 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   # Get the flags and associated data for the invalid time periods, which will be filled with nulls
   flags_hourly_invalid <- df |>
-    filter(sample_hour_utc %in% invalid_hours$sample_hour_utc) |>
-    select(site_number, site_code, sample_hour_utc, stp_factor, qc_outcome, flag, comment) |>
-    summarise(site_number = first(site_number),
-              site_code = first(site_code),
-              stp_factor = mean(stp_factor, na.rm = TRUE),
-              qc_outcome = max(qc_outcome),
-              flag = recompose_flags(flag),
-              comment = recompose_flags(comment),
-              .by = sample_hour_utc)
+    filter(sample_hour_utc %in% invalid_hours$sample_hour_utc)
+  
   if (nrow(flags_hourly_invalid) > 0) {
     flags_hourly_invalid <- flags_hourly_invalid |>
+      select(site_number, site_code, sample_hour_utc, stp_factor, qc_outcome, flag, comment) |>
+      summarise(site_number = first(site_number),
+                site_code = first(site_code),
+                stp_factor = mean(stp_factor, na.rm = TRUE),
+                qc_outcome = max(qc_outcome),
+                flag = recompose_flags(flag),
+                comment = recompose_flags(comment),
+                .by = sample_hour_utc) |>
       mutate(flag = if_else(qc_outcome < 4, "391", flag),
              comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
              qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
     
-  }
-
-  if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
       arrange(sample_hour_utc) |>
       rename(sample_datetime_UTC=sample_hour_utc) |>
       relocate(sample_datetime_UTC, .after = site_code)
+    
   } else {
     result <- df_valid |>
       arrange(sample_hour_utc) |>

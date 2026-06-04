@@ -490,6 +490,11 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
+  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
+  df <- df |>
+    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
+           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
+  
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
     coalesce_flags() |>
@@ -505,10 +510,21 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
               .by = c(sample_hour_UTC, valid)) |>
     tidyr::pivot_wider(names_from = valid, values_from = count)
   
-  valid_hours <- hourly_counts |>
-    filter(valid >= samples_required)
-  invalid_hours <- setdiff(hourly_counts, valid_hours)
-
+  if (!"valid" %in% names(hourly_counts)) {
+    warning("No valid data in time period!")
+    valid_hours <- hourly_counts |>
+      mutate(valid = 0) |>
+      slice(0)
+    invalid_hours <- hourly_counts
+  
+  } else {
+    
+    valid_hours <- hourly_counts |>
+      filter(valid >= samples_required)
+    invalid_hours <- setdiff(hourly_counts, valid_hours)    
+    
+  }
+  
   # Process hourly results for valid samples
   data_hourly_valid <- df |>
     filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |> # only valid hours
@@ -546,7 +562,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
            bb_percent = if_else(bb_percent > 100, 100,
                                 if_else(bb_percent < 0, 0, bb_percent))) |>
     select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
-  
+
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
     filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |>
@@ -554,7 +570,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
     summarise(site_number = first(site_number),
               site_code = first(site_code),
-              qc_outcome = max(qc_outcome),
+              qc_outcome = empty_max(qc_outcome),
               flag = recompose_flags(flag),
               comment =recompose_flags(comment),
               .by = sample_hour_UTC)
@@ -573,28 +589,27 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   # with nulls
   # Some may be invalid because not enough samples but no bad qc_outcome. If so, downgrade
   flags_hourly_invalid <- df |>
-    filter(sample_hour_UTC %in% invalid_hours$sample_hour_UTC) |>
-    select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
-    summarise(site_number = first(site_number),
-              site_code = first(site_code),
-              qc_outcome = max(qc_outcome),
-              flag = recompose_flags(flag),
-              comment = recompose_flags(comment),
-              .by = sample_hour_UTC) |>
-    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid),
-              by = "sample_hour_UTC")
-  
+    filter(sample_hour_UTC %in% invalid_hours$sample_hour_UTC)
+
   if (nrow(flags_hourly_invalid) > 0) {
     flags_hourly_invalid <- flags_hourly_invalid |>
+      select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
+      summarise(site_number = first(site_number),
+                site_code = first(site_code),
+                qc_outcome = max(qc_outcome),
+                flag = recompose_flags(flag),
+                comment = recompose_flags(comment),
+                .by = sample_hour_UTC) |>
+      left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid),
+                by = "sample_hour_UTC") |>
       mutate(flag = if_else(qc_outcome < 4, "391", flag),
              comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
              qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
-  }
-
-  if (nrow(flags_hourly_invalid) > 0) {
+    
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
       arrange(sample_hour_UTC) |>
       rename(sample_datetime_UTC=sample_hour_UTC)  
+    
   } else {
     result <- df_valid |>
       arrange(sample_hour_UTC) |>
@@ -616,3 +631,13 @@ ae33_MAC <- tibble(channel = 1:7,
                    wavelength = c(370, 470, 520, 590, 660, 880, 950),
                    MAC = c(18.47, 14.54, 13.14, 11.58, 10.35, 7.77, 7.19))
 
+# calculate max but don't error if length = 0
+empty_max <- function(x) {
+  if (length(x) == 0) {
+    return(NA)
+  }
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  return(max(x, na.rm = TRUE))
+}
