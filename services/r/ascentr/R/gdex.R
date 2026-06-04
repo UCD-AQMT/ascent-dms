@@ -74,13 +74,30 @@ gdex_upload <- function(local_name, gdex_name, api_key = gdex_get_api_key()) {
 
 }
 
-# These should be made complete if they are what we will be using in practice
-gdex_ls <- function(path, api_key = gdex_get_api_key()) {
-  httr2::request("https://api.gdex.ucar.edu/upload/?list=test/Xact") |>
+gdex_delete <- function(gdex_name, api_key = gdex_get_api_key()) {
+  
+  httr2::request("https://api.gdex.ucar.edu/unlink/") |>
+    httr2::req_headers(
+      `api-key` = api_key,
+      `content-type` = "multipart/form-data"
+    ) |>
+    httr2::req_body_multipart(
+      path = gdex_name
+    ) |>
+    httr2::req_perform() |>
+    httr2::resp_body_string()
+  
+}
+
+# Get a list if files or folders in the GDEX archive
+gdex_ls <- function(path = ".", api_key = gdex_get_api_key()) {
+  resp <- httr2::request("https://api.gdex.ucar.edu/upload/") |>
     httr2::req_headers(`api-key` = api_key) |>
     httr2::req_url_query(list = path) |>
     httr2::req_perform() |>
     httr2::resp_body_string()
+  cat(resp)
+  resp
 }
 
 gdex_get_api_key <- function() {
