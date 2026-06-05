@@ -21,7 +21,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     distinct()
 
   l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
-  qc <- readr::read_csv(manual_qc_file, show_col_types = FALSE, guess_max = 50000)
+  qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
 
   qc <- qc |>
     mutate(flag = as.character(flag),
@@ -91,6 +91,10 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
     prob <- cumsum(w)/sum(w)
     ps <- which(abs(prob - .5) == min(abs(prob - .5)))
+    if (length(ps) == 0) {
+      return(NaN)
+    }
+    
     if (length(ps) > 1) {
       return(mean(x[ps]))      
     } 
@@ -104,6 +108,16 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     all_values <- inner_term * n
     exp(sqrt(sum(all_values) / count))
   }
+  
+  calc_mode <- function(name, value) {
+    
+    # If all values are 0, return NaN
+    if (max(value) == 0) {
+      return(NaN)
+    } else {
+      return(name[which.max(value)])  
+    }
+  }
 
   # SMPS sampling is every 2.5 minutes - 24 samples per hour
   # Require 12 samples for a valid hourly measurement
@@ -115,34 +129,60 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     tidyr::pivot_wider(names_from = valid, values_from = count)
   
   hourly_record_count <- nrow(hourly_counts)
-  
-  valid_hours <- hourly_counts |>
-    filter(valid >= samples_required)
-  invalid_hours <- setdiff(hourly_counts, valid_hours)
- 
-  # Process scan statistics by hour for valid samples
-  hour_scans <- df |>
-    filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
-    filter(qc_outcome < 4) |> # within those hours, only process valid scans
-    group_by(sample_hour_utc) |>
-    summarise(mean_scan = calc_mean_scan(concentration_json)) |>
-    ungroup()
 
-  # Put columns in numerical order and replace NA w/ zero, then calculate stats
-  hour_stats <- hour_scans |>
-    tidyr::unnest(cols = mean_scan) |>
-    tidyr::pivot_longer(-sample_hour_utc) |>
-    mutate(name = as.numeric(name)) |>
-    arrange(name) |>
-    tidyr::replace_na(list(value = 0)) |>
-    summarise(total_concentration_1_cm3 = calc_n_conc(name, value),
-              volume_concentration_um3_cm3 = calc_v_conc(name, value),
-              mean_nm = weighted.mean(name, value),
-              geo_mean_nm = weighted.geomean(name, value),
-              median_nm = weighted.median(name, value),
-              mode_nm = name[which.max(value)],
-              geo_std_dev = calc_geosd(name, value, geo_mean_nm),
-              .by = sample_hour_utc)
+  if (!"valid" %in% names(hourly_counts)) {
+    warning("No valid data in time period!")
+    valid_hours <- hourly_counts |>
+      mutate(valid = 0) |>
+      slice(0)
+    invalid_hours <- hourly_counts
+    
+    hour_scans <- df |>
+      filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
+      filter(qc_outcome < 4) |> # within those hours, only process valid scans
+      group_by(sample_hour_utc) |>
+      summarise(mean_scan = calc_mean_scan(concentration_json)) |>
+      ungroup()
+    
+    hour_stats <- tibble(sample_hour_utc = lubridate::POSIXct(0),
+                         total_concentration_1_cm3 = numeric(0),
+                         volume_concentration_um3_cm3 = numeric(0),
+                         mean_nm = numeric(0),
+                         geo_mean_nm = numeric(0),
+                         median_nm = numeric(0),
+                         mode_nm = numeric(0),
+                         geo_std_dev = numeric(0))
+    
+  } else {
+    valid_hours <- hourly_counts |>
+      filter(valid >= samples_required)
+    invalid_hours <- setdiff(hourly_counts, valid_hours)
+    
+    # Process scan statistics by hour for valid samples
+    hour_scans <- df |>
+      filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
+      filter(qc_outcome < 4) |> # within those hours, only process valid scans
+      group_by(sample_hour_utc) |>
+      summarise(mean_scan = calc_mean_scan(concentration_json)) |>
+      ungroup()
+    
+    # Put columns in numerical order and replace NA w/ zero, then calculate stats
+    hour_stats <- hour_scans |>
+      tidyr::unnest(cols = mean_scan) |>
+      tidyr::pivot_longer(-sample_hour_utc) |>
+      mutate(name = as.numeric(name)) |>
+      arrange(name) |>
+      tidyr::replace_na(list(value = 0)) |>
+      summarise(total_concentration_1_cm3 = calc_n_conc(name, value),
+                volume_concentration_um3_cm3 = calc_v_conc(name, value),
+                mean_nm = weighted.mean(name, value),
+                geo_mean_nm = weighted.geomean(name, value),
+                median_nm = weighted.median(name, value),
+                mode_nm = calc_mode(name, value),
+                geo_std_dev = calc_geosd(name, value, geo_mean_nm),
+                .by = sample_hour_utc)
+    
+  }
 
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
@@ -163,7 +203,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     left_join(hour_stats, by = "sample_hour_utc") |>
     mutate(number_concentration_stp_1_cm3 = total_concentration_1_cm3 * stp_factor,
            volume_concentration_stp_um3_cm3 = volume_concentration_um3_cm3 * stp_factor) |>
-    left_join(hour_scans, by = "sample_hour_utc") 
+    left_join(hour_scans, by = "sample_hour_utc") |>
+    mutate(flag = as.character(flag),
+           comment = as.character(comment))
 
   # Need to convert to lists to convince yyjsonr that these are not arrays   
   # Add scans
@@ -185,28 +227,27 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   # Get the flags and associated data for the invalid time periods, which will be filled with nulls
   flags_hourly_invalid <- df |>
-    filter(sample_hour_utc %in% invalid_hours$sample_hour_utc) |>
-    select(site_number, site_code, sample_hour_utc, stp_factor, qc_outcome, flag, comment) |>
-    summarise(site_number = first(site_number),
-              site_code = first(site_code),
-              stp_factor = mean(stp_factor, na.rm = TRUE),
-              qc_outcome = max(qc_outcome),
-              flag = recompose_flags(flag),
-              comment = recompose_flags(comment),
-              .by = sample_hour_utc)
+    filter(sample_hour_utc %in% invalid_hours$sample_hour_utc)
+  
   if (nrow(flags_hourly_invalid) > 0) {
     flags_hourly_invalid <- flags_hourly_invalid |>
+      select(site_number, site_code, sample_hour_utc, stp_factor, qc_outcome, flag, comment) |>
+      summarise(site_number = first(site_number),
+                site_code = first(site_code),
+                stp_factor = mean(stp_factor, na.rm = TRUE),
+                qc_outcome = max(qc_outcome),
+                flag = recompose_flags(flag),
+                comment = recompose_flags(comment),
+                .by = sample_hour_utc) |>
       mutate(flag = if_else(qc_outcome < 4, "391", flag),
              comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
              qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
     
-  }
-
-  if (nrow(flags_hourly_invalid) > 0) {
     result <- bind_rows(df_valid, flags_hourly_invalid) |>
       arrange(sample_hour_utc) |>
       rename(sample_datetime_UTC=sample_hour_utc) |>
       relocate(sample_datetime_UTC, .after = site_code)
+    
   } else {
     result <- df_valid |>
       arrange(sample_hour_utc) |>

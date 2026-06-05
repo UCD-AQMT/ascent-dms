@@ -201,13 +201,18 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
     ie <- statements$Statement.for.IE
     ce <- statements$Statement.for.CE
   
-    stp <- paste("Data converted to ASCENT STP assuming hydrostatic pressure and sampling temperature of 25 C.\n",
+    stp <- paste("Data converted to ASCENT STP (0 C and 101325 Pa) assuming hydrostatic pressure (scale height of 7.4 km) and sampling temperature of 25 C.\n",
                  "STP conversion factor for site = ", round(acsm_stp(site, con), 3))
+    
+    precision <- paste("Reported precisions for each species are the propagated",
+                       "uncertainties of Poisson's counting statistics of the",
+                       "corresponding open and closed spectra, as described in",
+                       "Ng et al. (AST, 2011) and Ulbrich et al. (ACP, 2009).")
     
     out <- glue::glue("{basic}\n",
                         "\n",
                         "Data Processing Details\n",
-                        "{clean_paste(c(stp, ie, ce), collapse = '\n')}",
+                        "{clean_paste(c(stp, precision, ie, ce), collapse = '\n')}",
                         "\n\n",
                         "Field Descriptions\n",
                         "{field_descriptions}",
@@ -417,7 +422,7 @@ acsm_l2_from_files <- function(site, site_file, con) {
     rename(flag=manual_flag, qc_outcome=manual_qc_outcome)
   
   # file produced by site using Igor code
-  site_df <- readr::read_csv(site_file)
+  site_df <- readr::read_csv(site_file, show_col_types = FALSE)
 
   # timestamp in database is off by 600 s because it is the start/stop time
   # it will not match with this
@@ -444,7 +449,7 @@ acsm_l2_from_files <- function(site, site_file, con) {
     mutate(site_code = site,
            site_number = site_number,
            flag = as.character(flag))
-  
+ 
   ## Need to convert values to ASCENT STP (1 atm, 0C) assuming hydrostatic pressure from
   ## site altitude and trailer temp of 25C
   stp_fact <- acsm_stp(site, con)
@@ -582,16 +587,16 @@ acsm_l2_from_files <- function(site, site_file, con) {
   # Rearrange and rename for final export
   result <- result |>
     select(site_number, site_code, sample_datetime_UTC, sample_count, 
-           organics_ug_m3=Org, sulfate_ug_m3=SO4, nitrate_ug_m3=NO3,
-           ammonium_ug_m3=NH4, chloride_ug_m3=Chl, 
-           organics_precision_ug_m3=Org_err, sulfate_precision_ug_m3=SO4_err,
-           nitrate_precision_ug_m3=NO3_err, ammonium_precision_ug_m3=NH4_err,
-           chloride_precision_ug_m3=Chl_err,
-           org_mz29_ug_m3=m29, org_mz43_ug_m3=m44, org_mz44_ug_m3=m44, org_mz55_ug_m3=m55,
-           org_mz57_ug_m3=m57, org_mz60_ug_m3=m60, org_mz69_ug_m3=m69,
-           org_mz71_ug_m3=m71, org_mz73_ug_m3=m73, no3_mz30_ug_m3=NO3_30,
-           no3_mz46_ug_m3=NO3_46, hoa_ug_m3=HOA, ooa_ug_m3=OOA,
-           qc_outcome, flag, comment)
+           organics_ug_STP_m3=Org, sulfate_STP_ug_m3=SO4, nitrate_STP_ug_m3=NO3,
+           ammonium_STP_ug_m3=NH4, chloride_STP_ug_m3=Chl, 
+           organics_precision_STP_ug_m3=Org_err, sulfate_precision_STP_ug_m3=SO4_err,
+           nitrate_precision_STP_ug_m3=NO3_err, ammonium_precision_STP_ug_m3=NH4_err,
+           chloride_precision_STP_ug_m3=Chl_err,
+           org_mz29_STP_ug_m3=m29, org_mz43_STP_ug_m3=m44, org_mz44_STP_ug_m3=m44,
+           org_mz55_STP_ug_m3=m55, org_mz57_STP_ug_m3=m57, org_mz60_STP_ug_m3=m60,
+           org_mz69_STP_ug_m3=m69, org_mz71_STP_ug_m3=m71, org_mz73_STP_ug_m3=m73,
+           no3_mz30_STP_ug_m3=NO3_30, no3_mz46_STP_ug_m3=NO3_46, hoa_STP_ug_m3=HOA,
+           ooa_STP_ug_m3=OOA, qc_outcome, flag, comment)
   
 }
 
@@ -599,22 +604,50 @@ acsm_l2_from_files <- function(site, site_file, con) {
 ## site altitude and trailer temp of 25C
 # This cannot currently be done further upstream because of the external reprocessing
 # Relationship between pressure and altitude from https://en.wikipedia.org/wiki/Atmospheric_pressure
-acsm_stp <- function(site, con) {
-  
+
+# THis is the barometric pressure equation I was using before - deprecated
+acsm_stp2 <- function(site, con) {
+
   elev <- tbl(con, I("common.sites")) |>
     filter(site_code == site) |>
     pull(elevation)
-  
+
   exponent <- -(9.80665 * 0.02896968) / (8.31446 * 0.00976)
   # Pressure in Pa
   p_sample <- 101325 * (1 + (0.00976 * elev) / 288.15)^exponent
   t_sample <- 298.15 + 25 # sample temp K
-  
+
   p_stp <- 101325
   t_stp <- 298.15
+
+  stp_fact <- (p_stp * t_sample) / (p_sample * t_stp)
+
+}
+
+# This is the hydrostatic pressure equation
+# P = P0 exp(-Z/H)
+# Z = altitude of site
+# H = scale height = RT/Mg ~ 7.4 km
+acsm_stp <- function(site, con) {
   
-  stp_fact <- (p_stp * t_sample) / (p_sample * t_stp) 
-  
+    # Assumed scale height of 7.4 km per Seinfeld & Pandis
+    H <- 7400
+    Z <- tbl(con, I("common.sites")) |>
+      filter(site_code == site) |>
+      pull(elevation)
+    
+    # Standard pressure in Pa
+    P_STP <- 101325
+    P_sample <- P_STP * exp(-Z/H)  
+
+    # ASCENT STP is 0 degress C
+    T_STP <- 298.15
+    
+    # We assume a trailer temperature of 25 degrees C
+    T_sample <- 298.15 + 25
+    
+    stp_factor <- (P_STP * T_sample) / (P_sample * T_STP)
+    
 }
 
 # 

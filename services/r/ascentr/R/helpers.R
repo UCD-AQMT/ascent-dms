@@ -96,8 +96,7 @@ coalesce_flags <- function(df) {
     mutate(final_flag = if_else(is.na(manual_flag), flag,
                               if_else(is.na(flag), manual_flag,
                                       paste(manual_flag, flag, sep = ":"))),
-           final_qc_outcome = if_else(is.na(manual_qc_outcome), qc_outcome,
-                                      pmax(qc_outcome, manual_qc_outcome)),
+           final_qc_outcome = pmax(qc_outcome, manual_qc_outcome, na.rm = TRUE),
            final_comment = if_else(is.na(manual_comment), comment,
                                    if_else(is.na(comment), manual_comment,
                                            paste(manual_comment, comment, sep = " : ")))) |>

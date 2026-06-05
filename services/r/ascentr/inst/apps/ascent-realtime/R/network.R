@@ -27,7 +27,7 @@ networkUI <- function(id) {
         )
       ),
       card(
-        checkboxInput(ns("free_y"), "Independant y-scales", value = FALSE),
+        checkboxInput(ns("free_y"), "Independent y-scales", value = FALSE),
         plotOutput(ns("ts")),
         full_screen = TRUE
       )
@@ -64,7 +64,7 @@ networkServer <- function(id) {
       
       p <- input$parameter
       if (p == "total_concentration") {
-        u <- expression("#"/cm^2)
+        u <- expression("#"/cm^3)
       } else if (p %in% c("mean", "median", "geo_mean")) {
         u <- "nm"
       } else if (p == "geo_std_dev") {
@@ -187,7 +187,7 @@ networkServer <- function(id) {
       df <- plot_data() |>
         summarise(value = mean(value, na.rm = TRUE),
                   .by = site_code)
-      
+    
       df <- df |>
         left_join(coords, by = c("site_code"="Site")) |>
         mutate(x1 = x / xdim,
@@ -345,6 +345,21 @@ networkServer <- function(id) {
       
       shiny::validate(need(nrow(df) > 0, "No data for this time period"))
       
+      # Always plot all sites, so add empty records for missing sites
+      existing_sites <- unique(df$site_name)
+      missing_sites <- tbl_sites |>
+        filter(!site_name %in% existing_sites,
+               site_number < 99) |>
+        pull(site_name)
+      
+      df_missing <- tibble(site_name = missing_sites,
+                           value = NA,
+                           local_utc = min(df$local_utc))
+        
+      # Convert to factor to put in site number order
+      df <- bind_rows(df, df_missing) |>
+        mutate(site_name = factor(site_name, levels = levels(existing_sites)))
+  
       # What instrument is this from
       instrument <- names(which(sapply(grouped_parameters, \(x) input$parameter %in% x)))
       

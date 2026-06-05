@@ -9,10 +9,13 @@ downloadUI <- function(id) {
     arrange(atomic_number) |>
     pull(element)
   
+  sites_menu <- site_names$site_code
+  names(sites_menu) <- site_names$site_name
+  
   # Time range, instrument, (site), level, metadata
   layout_sidebar(
     sidebar = sidebar(
-      selectInput(ns("site"), "Site", choices = site_list),
+      selectInput(ns("site"), "Site", choices = sites_menu),
       dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
                      min = minimum_date, max = today),
       selectInput(ns("instrument"), "Instrument", choices = c("Xact", "SMPS", "AE33", "ACSM")),

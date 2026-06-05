@@ -4,8 +4,7 @@ networkUI <- function(id) {
   ns <- NS(id)
   
   page_fillable(
-    DT::dataTableOutput(ns("tbl")) |>
-      withSpinner(),
+    DT::dataTableOutput(ns("tbl")),
     p("click on a cell for details"),
     p("Offline: data over 24 hrs old"),
     p("Lagging: data over 1 hr old (non-Xact); over 4 hrs old (Xact urban); over 12 hrs old (Xact rural)")

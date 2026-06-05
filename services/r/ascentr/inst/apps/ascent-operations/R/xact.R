@@ -74,7 +74,7 @@ xactUI <- function(id) {
         layout_sidebar(
           sidebar = sidebar(selectInput(ns("element"), "Element", choices = elems,
                                         selected = "S")),
-          withSpinner(plotlyOutput(ns("ts")), fill = TRUE),
+          plotlyOutput(ns("ts"), fill = TRUE),
           height = "250px",
           padding = c(0,5,0,5)
         ),

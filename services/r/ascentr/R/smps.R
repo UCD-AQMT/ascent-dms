@@ -160,7 +160,14 @@ smps_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
     mutate(line = paste0(name, ": ", value, "    ", start_date))
   setting_desc <- paste(settings$line, collapse = "\n")
   
+  te <- paste("Data are reported without consideration of transmission efficiency (TE)",
+              "in the sampling inlet. An estimate of TE has been calculated and is",
+              "available upon request from the site PI.")
+  
   glue::glue("{basic}\n",
+             "\n",
+             "Data Processing Details\n",
+             "{te}\n",
              "\n",
              "Field Descriptions\n",
              "{fields}\n",

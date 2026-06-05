@@ -40,7 +40,7 @@ smpsUI <- function(id) {
     layout_column_wrap(
       width = 1/2,
       card(
-        withSpinner(plotlyOutput(ns("scan")), fill = TRUE),
+        plotlyOutput(ns("scan"), fill = TRUE),
         full_screen = TRUE
       ),
       layout_column_wrap(
