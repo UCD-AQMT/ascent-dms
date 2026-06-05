@@ -49,7 +49,7 @@ ae33UI <- function(id) {
       width = 1/2,
       gap = "8px",
       card(
-        selectInput(ns("plot_y"), label = "Label", choices = ae33_fields, multiple = TRUE,
+        selectInput(ns("plot_y"), label = "Label", choices = ae33_choices, multiple = TRUE,
                     selected = "tpcnt"),
         plotlyOutput(ns("ts_plot")),
         full_screen = TRUE
@@ -125,6 +125,25 @@ ae33Server <- function(id, site) {
       df <- purrr::map(df_list, clean_fields) |>
         purrr::reduce(\(x, y) inner_join(x, y, by = "time"))
       
+      
+    })
+    
+    # t_3 and rh_3 from dryerstats are the temp and rh probe connected to AE33
+    get_recent_rh_t <- reactive({
+      
+      # want the time range to match the data from the influx db
+      r <- get_recent()
+      min_dt <- min(as.POSIXct(r$time, tz = "UTC"))
+      max_dt <- max(as.POSIXct(r$time, tz = "UTC"))
+      df <- tbl(con, I("acsm.dryer_stats")) |>
+        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+        select(datetime, site_code, t_3, rh_3) |>
+        filter(site_code == !!site(),
+               datetime >= min_dt,
+               datetime <= max_dt) |>
+        collect()
+
+      df
       
     })
     
@@ -295,12 +314,31 @@ ae33Server <- function(id, site) {
       
       df <- get_recent()
       validate(need(nrow(df > 0), "No data in time period"))
+      
+      # RH and T from dryerstats
+      if (any(input$plot_y %in% c("rh_3", "t_3"))) {
+        ds <- get_recent_rh_t() |>
+          select(time=datetime, any_of(input$plot_y)) |>
+          tidyr::pivot_longer(any_of(input$plot_y), names_to = "param", values_to = "value")
+      } else {
+        ds <- NULL
+      }
 
-      df <- df |>
-        select(time, any_of(input$plot_y)) |>
-        mutate(time = as.POSIXct(time, tz = "UTC")) |>
-        mutate(across(bit64::is.integer64, bit64::as.integer.integer64)) |>
-        tidyr::pivot_longer(any_of(input$plot_y), names_to = "param", values_to = "value")
+      if (any(input$plot_y %in% ae33_fields)) {
+        df <- df |>
+          select(time, any_of(input$plot_y)) |>
+          mutate(time = as.POSIXct(time, tz = "UTC")) |>
+          mutate(across(bit64::is.integer64, bit64::as.integer.integer64)) |>
+          tidyr::pivot_longer(any_of(input$plot_y), names_to = "param", values_to = "value")
+      } else {
+        df <- NULL
+      }
+      
+      validate(need(!is.null(df) | !is.null(ds), "No data for selected"))
+
+      df <- bind_rows(df, ds)
+      
+      validate(need(nrow(df) > 0, "No data for time period/parameter"))
 
       g <- ggplot(df, aes(x = time, y = value, color = param)) + geom_line() +
           scale_x_datetime(labels = scales::label_date()) +
