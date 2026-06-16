@@ -584,6 +584,14 @@ acsm_l2_from_files <- function(site, site_file, con) {
       rename(sample_datetime_UTC=sample_hour_UTC) 
   }
   
+  # As of June 2026, all fragment ions have to have RIE applied to them as a correction
+  # This will possibly be done upstream in future igor processing
+  org_rie <- 1.4
+  no3_rie <- 1.05
+  result <- result |>
+    mutate(across(c(m29, m43, m44, m55, m57, m60, m69, m71, m73), ~ .x / org_rie),
+           across(c(NO3_30, NO3_46), ~ .x / no3_rie))
+
   # Rearrange and rename for final export
   result <- result |>
     select(site_number, site_code, sample_datetime_UTC, sample_count, 

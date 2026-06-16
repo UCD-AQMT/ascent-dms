@@ -22,8 +22,10 @@ acsmUI <- function(id) {
     collect()
   options <- colnames(df)
   
+  # Dryerstats: Don't include rh_3 an t_3. Those are connected to the AE33!
   df <- ds |>
     filter(1==0) |>
+    select(-rh_3, -t_3) |>
     collect()
   opts_dryer <- colnames(df)
   
@@ -150,17 +152,19 @@ acsmServer <- function(id, site) {
     get_ds <- reactive({
       
       # want the time range to match the data from the other tables
+      # remove rh_3 and t_3 because they are associated with ae33
       r <- get_range()
       min_dt <- min(r$start_date)
       max_dt <- max(r$start_date)
       df <- ds |>
         inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+        select(-t_3, -rh_3) |>
         filter(site_code == !!site(),
                datetime >= min_dt,
                datetime <= max_dt) |>
         collect()
       validate(need(nrow(df) > 0, "No data for site"))
-      
+
       df
       
       

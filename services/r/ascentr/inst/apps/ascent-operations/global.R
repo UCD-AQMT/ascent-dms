@@ -97,6 +97,9 @@ ae33_fields <- c("BB", "EBC1_1",
                  "sens1_5", "sens1_6", "sens1_7", "sens2_1", "sens2_2", "sens2_3", 
                  "sens2_4", "sens2_5", "sens2_6", "sens2_7", "tpcnt")
 
+# In addition to whats in influx, we also have the temp and rh from dryerstats!
+ae33_choices <- c(ae33_fields, "t_3", "rh_3")
+
 # Convert the AE33 STinst field from decimal to bits and return the statuses. These are
 # described in the AE33 user's manual ver 1.59, page 53
 parse_ae33_flags <- function(x) {
