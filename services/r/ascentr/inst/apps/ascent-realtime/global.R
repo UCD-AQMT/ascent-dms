@@ -13,7 +13,7 @@ library(ggplot2)
 library(pkgload)
 
 # Minimum date for data viewing
-minimum_date <- "2025-01-01"
+minimum_date <- "2024-01-01"
 
 # Year for producing historical comparison plots
 historical_year <- 2024
@@ -78,10 +78,26 @@ ae33_con <- InfluxDBClient$new(url = "https://eastus-1.azure.cloud2.influxdata.c
                                   token = args$influx_read_token,
                                   org = "ascent")
 
-
+# Consider moving these into ascentr to make universal
 acsm_colors <- c("chl"="violet", "nh4"="goldenrod1", "no3"="dodgerblue",
                  "org"="lightgreen", "so4"="tomato", "Xact (minus S)"="darkgray",
                  "BC"="black")
+
+wavelength_colors <- c(`370`="#610061", `470`="#00a9ff", `520`="#36ff00",
+                       `590`="#ffdf00", `660`="#ff0000", `880`="#610000", `950`="#000000")
+
+element_colors_fixed <- c("S"="tomato", "Cl"="violet", "K"="lightgreen", "Al"="#666666",
+                    "Ca"="#cccccc", "Fe"="darkred", "Ti"="dodgerblue", "Zn"="gold",
+                    "Si"="darkgreen", "Br"="darkblue", "Pd"="#610061")
+
+# Get some nice random colors for the elements that we didn't specify
+get_element_colors <- function() {
+  other_elements <- setdiff(elems, names(element_colors_fixed))
+  other_colors <- randomcoloR::randomColor(length(other_elements))
+  names(other_colors) <- other_elements
+  c(element_colors_fixed, other_colors)
+}
+element_colors <- get_element_colors()
 
 
 # Shutdown Chores
