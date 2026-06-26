@@ -1,3 +1,11 @@
+ascentr v0.1.21 (Release Date: 2026-06-26)
+==========================================
+
+- Updated ACSM L2 metadata text
+- Improved error handling in L2 manual QC files
+- Tweaked some gdex utilties
+
+
 ascentr v0.1.20 (Release Date: 2026-06-15)
 ==========================================
 
