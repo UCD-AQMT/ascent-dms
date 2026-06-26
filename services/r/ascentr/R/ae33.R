@@ -206,6 +206,21 @@ ae33_l0 <- function(site, start_dt, end_dt, con) {
 
 }
 
+ae33_trace <- function(site, start_dt, end_dt, parameter = "EBC_6", resolution = 1, client) {
+  
+  flux_query <- glue::glue('from(bucket: "measurements") |> ',
+                           'range(start: {start_dt}T00:00:00Z,',
+                           'stop: {end_dt}T23:59:59Z) |> ',
+                           'filter(fn: (r) => r._measurement == "ae33_{site}_raw"', 
+                           'and r._field == "{parameter}") |> ',
+                           'aggregateWindow(every: {resolution}m, fn: mean) |> ',
+                           'sort(columns: ["_time"])')
+  df <- client$query(flux_query)
+  df <- df[[1]] |>
+    select(sample_datetime = time, parameter=`_field`, value=`_value`) |>
+    filter(!is.na(value))
+
+}
 
 ae33_raw <- function(site, start_dt, end_dt, client) {
 
@@ -464,12 +479,17 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   # Increasing guess_max here to make sure that some tape advances are caught
   l1b <- readr::read_csv(l1b_file, guess_max = 50000, show_col_types = FALSE)
-  qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
-
   if (nrow(l1b) == 0) {
     stop("No data in ", l1b_file)
   }
   
+  qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
+  prb <- vroom::problems(qc)
+  if (nrow(prb) > 0) {
+    # Handle errors
+    stop("Error reading qc file: ", manual_qc_file)
+  }
+
   # Limit to after start_datetime if provided
   if (!is.null(start_datetime)) {
     l1b <- l1b |>
