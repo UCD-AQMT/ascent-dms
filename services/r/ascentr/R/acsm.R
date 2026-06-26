@@ -189,7 +189,7 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
 
   if (level == "2") {
     # Need statement on processing. Not sure how we'll do this in the future
-    statements_path <- system.file("ACSM IE_CE Statement Summary for Metadata file.csv",
+    statements_path <- system.file("ACSM IE_CDCE statements.csv",
                                    package = "ascentr")
     statements <- read.csv(statements_path)
     site_num <- tbl(con, I("common.sites")) |>
@@ -197,9 +197,9 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
       pull(site_number)
     statements <- statements |>
       filter(site_number == site_num)
-    
-    ie <- statements$Statement.for.IE
-    ce <- statements$Statement.for.CE
+  
+    ie <- statements$Revised.Statement.for.IE..RIE
+    ce <- statements$Revised.Statement.for.CE
   
     stp <- paste("Data converted to ASCENT STP (0 C and 101325 Pa) assuming hydrostatic pressure (scale height of 7.4 km) and sampling temperature of 25 C.\n",
                  "STP conversion factor for site = ", round(acsm_stp(site, con), 3))
@@ -409,7 +409,7 @@ acsm_autoqc <- function(df) {
 #' @export
 #'
 #' @examples
-acsm_l2_from_files <- function(site, site_file, con) {
+acsm_l2_from_files <- function(site, site_files, con) {
   
   # ACMS specific list
   # 460A here is "interference in sulfate suspected from high organic signal, contact PI"
@@ -420,10 +420,21 @@ acsm_l2_from_files <- function(site, site_file, con) {
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct() |>
     rename(flag=manual_flag, qc_outcome=manual_qc_outcome)
+ 
+  # files produced by site using Igor code
+  safe_read <- function(f) {
+    df <- readr::read_csv(f, col_types = "nccddddddddddddddddddddddddddddddddd")
+    prb <- vroom::problems(df)
+    if (nrow(prb) > 0) {
+      # Handle errors
+      stop("Error reading file: ", f)
+    }
+    return(df)
+  }
   
-  # file produced by site using Igor code
-  site_df <- readr::read_csv(site_file, show_col_types = FALSE)
-
+  site_df <- purrr::map(site_files, safe_read) |>
+    purrr::list_rbind()
+  
   # timestamp in database is off by 600 s because it is the start/stop time
   # it will not match with this
   
@@ -463,7 +474,7 @@ acsm_l2_from_files <- function(site, site_file, con) {
   df_flagged <- filter(df, !is.na(flag))
   df_unflagged <- setdiff(df, df_flagged)
   all_flags <- stringr::str_split(df_flagged$flag, pattern = ":")
-  
+
   # Are there any unexpected flag values?
   flags <- unique(unlist(all_flags))
   bad_flags <- any(!flags %in% available_flags$flag)
@@ -608,29 +619,13 @@ acsm_l2_from_files <- function(site, site_file, con) {
   
 }
 
+
+
+
+
 ## Need to convert values to ASCENT STP (1 atm, 0C) assuming hydrostatic pressure from
 ## site altitude and trailer temp of 25C
 # This cannot currently be done further upstream because of the external reprocessing
-# Relationship between pressure and altitude from https://en.wikipedia.org/wiki/Atmospheric_pressure
-
-# THis is the barometric pressure equation I was using before - deprecated
-acsm_stp2 <- function(site, con) {
-
-  elev <- tbl(con, I("common.sites")) |>
-    filter(site_code == site) |>
-    pull(elevation)
-
-  exponent <- -(9.80665 * 0.02896968) / (8.31446 * 0.00976)
-  # Pressure in Pa
-  p_sample <- 101325 * (1 + (0.00976 * elev) / 288.15)^exponent
-  t_sample <- 298.15 + 25 # sample temp K
-
-  p_stp <- 101325
-  t_stp <- 298.15
-
-  stp_fact <- (p_stp * t_sample) / (p_sample * t_stp)
-
-}
 
 # This is the hydrostatic pressure equation
 # P = P0 exp(-Z/H)
@@ -657,182 +652,5 @@ acsm_stp <- function(site, con) {
     stp_factor <- (P_STP * T_sample) / (P_sample * T_STP)
     
 }
-
-# 
-# #### Not ready yet
-# acsm_l1b <- function(site, start_dt, end_dt, con) {
-# 
-#   # load acsm data
-#   dfa <- acsm_l1a_df(site, start_dt, end_dt, con) |>
-#     rename(sample_datetime_UTC=start_date,
-#            sample_datetime_end_UTC=stop_date) |>
-#     select(-year, -start_doy, -stop_doy)
-# 
-#   # load dryerstats
-#   dfd <- dryerstats_df(site, start_dt, end_dt, con) |>
-#     select(-site_code, -site_number) |>
-#     rename(sample_analysis_id_ds=id, site_record_id_ds=site_record_id, datetime_ds=datetime)
-# 
-#   # join on time
-#   df_sample_analysis <- dfa |>
-#     select(sample_analysis_id, sample_datetime_UTC)
-# 
-#   # Collapse dryerstats data by sample_analysis_id - using median in case of outliers
-#   ds_med <- dfd |>
-#     left_join(df_sample_analysis, by = join_by(closest(datetime_ds > sample_datetime_UTC))) |>
-#     summarise(across(inlet_p:t_3, ~median(.x, na.rm = TRUE)),
-#               dryerstats_n = n(),
-#               .by = sample_analysis_id) |>
-#     filter(!is.na(sample_analysis_id))
-# 
-#   df <- dfa |>
-#     left_join(ds_med, by = "sample_analysis_id")
-# 
-#   # Apply flagging per https://docs.google.com/spreadsheets/d/1WMkRYh-2f-9awSBperRdCdSD4U0mv_AADarpIGQOMF4
-#   # These may be written to database
-# 
-#   # 1. If interlock or status are not 0
-#   f1 <- df |>
-#     filter(interlock != 0 | status != 0) |>
-#     select(sample_analysis_id) |>
-#     mutate(flag = 659,
-#            qc_outcome = 4,
-#            comment = "659-Status or interlock error")
-# 
-#   # 2. Dryer RH_out greater than Dryer RH_in
-#   # Inactive until dryer stats can be trusted
-#   # f2 <- df |>
-#   #   filter(rh_dry > rh_in) |>
-#   #   select(sample_analysis_id) |>
-#   #   mutate(flag = 699,
-#   #          qc_outcome = 4,
-#   #          comment = "Dryer RH out greater than dryer RH in")
-# 
-#   # # 3. RH dry not below 40% - flag 640
-#   # f3 <- df |>
-#   #   filter(rh_dry >= 40) |>
-#   #   select(sample_analysis_id) |>
-#   #   mutate(flag = 699,
-#   #          qc_outcome = 4,
-#   #          comment = "RH Dry not below 40%")
-# 
-#   # 4. Inlet pressure Not within 4.0-4.8 mbar
-# 
-#   ## TODO: These ranges should depend on orifice size, which is not the same at all sites
-#   f4 <- df |>
-#     filter(press_inlet < 4 | press_inlet > 4.8) |>
-#     select(sample_analysis_id) |>
-#     mutate(flag = 659,
-#            qc_outcome = 4,
-#            comment = "659-Inlet pressure not within specifications")
-# 
-#   # 5. AB not within 30% of reference - AB correction potentially invalid.
-#   f5 <- df |>
-#     filter(ab_total < (0.7 * abref) | ab_total > (1.3 * abref)) |>
-#     select(sample_analysis_id) |>
-#     mutate(flag = 659,
-#            qc_outcome = 4,
-#            comment = "659-Default airbeam not within 30% of reference. Correction potentially invalid")
-# 
-#   # 6. Heater Temp Not within 575-625 C
-#   f6 <- df |>
-#     filter(heater_t < 575 | heater_t > 625) |>
-#     select(sample_analysis_id) |>
-#     mutate(flag = 659,
-#            qc_outcome = 4,
-#            comment = "659-Heater temperature not within 575 - 625 C")
-# 
-#   # 7. Non-positive filament emission
-#   f7 <- df |>
-#     filter(filament_emm <= 0) |>
-#     select(sample_analysis_id) |>
-#     mutate(flag = 659,
-#            qc_outcome = 4,
-#            comment = "659-Filament out")
-# 
-#   # Combine all flags
-#   # f2 and f3 currently inactive
-#   flags <- bind_rows(f1, f4, f5, f6, f7) |>
-#     summarise(qc_outcome = max(qc_outcome),
-#               comment = paste(comment, collapse = "  :  "),
-#               flag = paste(sort(unique(flag)), collapse = ":"),
-#               .by = sample_analysis_id)
-# 
-#   df <- df |>
-#     left_join(flags, by = "sample_analysis_id") |>
-#     mutate(qc_outcome = if_else(is.na(qc_outcome), 1, qc_outcome))
-# 
-# 
-# 
-#   # Now prepare output
-# 
-#   # Need to add some custom units if they don't already exist
-#   try_units <- purrr::possibly(units::set_units)
-#   unit_check <- try_units(1, ions)
-#   if (is.null(unit_check)) {
-#     units::install_unit("ions", def = "unitless")
-#   }
-# 
-#   # Make sure degrees and percents aren't converted to symbols
-#   units::units_options(auto_convert_names_to_symbols = FALSE)
-# 
-#   params <- tbl(con, I("acsm.params")) |>
-#     collect()
-# 
-#   # Make df unit aware and convert to the desired units
-#   df_fields <- tibble(param = colnames(df)) |>
-#     left_join(params, by = "param")
-#   dfu <- purrr::map(colnames(df), \(x) attach_units(x, df, df_fields)) |>
-#     purrr::list_cbind()
-# 
-#   # Pressures to Pa
-#   dfu <- dfu |>
-#     mutate(across(c(press_ioniser, press_inlet, inlet_p, counter_p, p_drop),
-#                   ~units::set_units(.x, Pa)))
-# 
-#   # Add units to field names
-#   unit_suffix <- purrr::map(dfu, get_unit_suffix)
-#   unit_parens <- purrr::map(dfu, get_unit_paren)
-#   new_colnames <- paste0(colnames(dfu), unit_suffix)
-# 
-#   # A few of these already have units in the name, which is awkward. Fix these here.
-#   replace_me <- which(new_colnames %in% c("flow_ccs_cm3_s", "ie_ionspg_ions_pg",
-#                                           "fore_pc_percent", "heater_v_V",
-#                                           "filament_v_V"))
-#   new_colnames <- replace(new_colnames, replace_me, c("flow_cm3_s", "ie_ions_pg",
-#                                                       "fore_percent", "heater_V",
-#                                                       "filament_V"))
-#   colnames(dfu) <- new_colnames
-# 
-#   # Convert to reasonable significant digits
-#   dfu2 <- dfu |>
-#     mutate(across(where(is.numeric) & !c(sample_analysis_id, site_record_id),
-#                   \(x) signif(x, digits = 6)))
-# 
-#   # Create field descriptions for metadata
-#   common <- common_fields("1b") |>
-#     mutate(common_export_description = if_else(is.na(unit), description,
-#                                                paste0(description, " (", unit, ")"))) |>
-#     select(param, common_export_description)
-#   acsm_extra <- tibble(param = c("sample_datetime_end_UTC", "dryerstats_n"),
-#                        common_export_description = c("End time of sample (UTC)",
-#                                                      "Number of DryerStats records"))
-#   common <- bind_rows(common, acsm_extra)
-# 
-#   output_fields <- tibble(param = colnames(dfu)) |>
-#     left_join(params, by = "param")
-# 
-#   metadata_fields <- df_fields |>
-#     left_join(common, by = "param") |>
-#     mutate(export_fieldname = new_colnames,
-#            export_description = if_else(is.na(description), common_export_description,
-#                                         paste0(description, unit_parens))) |>
-#     select(param, export_fieldname, export_description)
-# 
-# 
-#   return(list(df=dfu, mdf=metadata_fields))
-# 
-# 
-# }
 
 

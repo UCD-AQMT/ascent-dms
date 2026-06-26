@@ -1,6 +1,35 @@
 
 # Some functions for exporting delivery files, ensuring proper formatting
 
+export_acsm_l2_monthly <- function(site, start_date, end_date, site_files, out_folder, con) {
+  
+  # First process all of the data into a single data frame, then split by month for export
+  df <- acsm_l2_from_files(site, site_files, con)
+  start_dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "month")
+  end_dates <- lubridate::rollforward(start_dates, roll_to_first = TRUE)
+  end_string <- lubridate::rollforward(start_dates)
+
+  one_month <- function(start_date, end_date, end_string) {
+    
+    df <- filter(df, sample_datetime_UTC >= start_date,
+                 sample_datetime_UTC < end_date)
+    if (nrow(df) == 0) {
+      message("No data for this month: ", start_date)
+      return()
+    }
+    m <- acsm_metadata(site, start_date, end_string, con, level = "2")
+    fname <- glue::glue("ASCENT_ACSM_{site}_{start_date}-{end_string}_L2")
+    export_zip(df, m, out_folder, fname)
+  }
+  
+  params <- tibble(start_date = start_dates,
+                   end_date = end_dates,
+                   end_string = end_string)
+  purrr::pwalk(params, one_month)
+  
+}
+
+
 #' Title
 #'
 #' @param site 
@@ -74,6 +103,7 @@ export_csv <- function(df, outfile) {
 
 export_zip <- function(df, meta, folder, fname) {
 
+  Sys.sleep(1)
   temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
   dir.create(temp_dir)
   txt_file <- file.path(temp_dir, paste0(fname, ".txt"))
