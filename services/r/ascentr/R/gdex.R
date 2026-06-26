@@ -90,14 +90,37 @@ gdex_delete <- function(gdex_name, api_key = gdex_get_api_key()) {
 }
 
 # Get a list if files or folders in the GDEX archive
-gdex_ls <- function(path = ".", api_key = gdex_get_api_key()) {
+gdex_ls <- function(path = ".", echo = TRUE, api_key = gdex_get_api_key()) {
   resp <- httr2::request("https://api.gdex.ucar.edu/upload/") |>
     httr2::req_headers(`api-key` = api_key) |>
     httr2::req_url_query(list = path) |>
     httr2::req_perform() |>
     httr2::resp_body_string()
-  cat(resp)
+  if (echo) {
+    cat(resp)  
+  }
   resp
+}
+
+# Create a list of full path filenames for a gdex path (nonrecursive)
+gdex_ls_path <- function(path = ".", api_key = gdex_get_api_key()) {
+  
+  entries <- unlist(strsplit(gdex_ls(path = path, echo = FALSE, api_key), "\n"))
+  
+  # Folders end in forward slash, files do not
+  files <- entries[!grepl("/", entries)]
+  
+  if (length(files) == 0) {
+    warning("No files in path: ", path)
+    return(NULL)
+  } else {
+    # remove the size and date info and isolate the file names - the last part after all spaces
+    s <- strsplit(files, " ")
+    l <- length(s[[1]])
+    f <- purrr::map_chr(s, \(x) paste0(path, "/", x[l]))
+    
+  }
+  
 }
 
 gdex_get_api_key <- function() {
