@@ -139,6 +139,7 @@ siteServer <- function(id) {
       g <- ggplot(df, aes(x = sample_datetime, y = value, fill = element)) +
         geom_bar(stat = "identity") +
         labs(y = expression("Most abundant elements"~(mu*g/m^3))) +
+        scale_fill_manual(values = element_colors) +
         theme(axis.title.x = element_blank())
 
       # If we only have one hour of data, the x-axis needs to be a little different
@@ -173,9 +174,6 @@ siteServer <- function(id) {
                                'drop(columns: ["_start", "_stop"]) |> ',
                                'aggregateWindow(every: 15m, fn: mean)')
       
-      wavelength_colors <- c(`370`="#610061", `470`="#00a9ff", `520`="#36ff00",
-                             `590`="#ffdf00", `660`="#ff0000", `880`="#610000", `950`="#000000")
-          
       df_list <- ae33_con$query(flux_query)
       shiny::validate(need(!is.null(df_list), "No data in time period"))
 
@@ -229,7 +227,9 @@ siteServer <- function(id) {
         bind_cols(as.data.frame(dNdlogDp)) |>
         tidyr::pivot_longer(!datetime, names_to = "midpoint", values_to = "value") |>
         mutate(midpoint = as.numeric(midpoint)) |>
-        filter(value > 0)
+        filter(value > 0,
+               midpoint >= 13,
+               midpoint <= 600)
 
       g <- ggplot(df, aes(x = datetime, y = midpoint, fill = value, color = value)) + 
         geom_tile() +
@@ -241,9 +241,7 @@ siteServer <- function(id) {
         scale_color_viridis_c(option = "H", limits = c(0, 50000), oob = scales::squish) +
         labs(y = "mobility diameter (nm)",
              fill = "dN/dlogDp") +
-        theme(#legend.position = "top",
-              #legend.direction = "horizontal",
-              legend.key.height = unit(10, "mm"),
+        theme(legend.key.height = unit(10, "mm"),
               axis.title.x = element_blank()) 
       g
     })

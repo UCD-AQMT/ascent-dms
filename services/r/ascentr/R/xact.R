@@ -401,8 +401,15 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
   
+  
   # Enforce manual qc file field formats
   qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
+  prb <- vroom::problems(qc)
+  if (nrow(prb) > 0) {
+    # Handle errors
+    stop("Error reading qc file: ", manual_qc_file)
+  }
+  
 
   qc <- qc |>
     mutate(flag = as.character(flag),

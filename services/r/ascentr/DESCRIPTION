@@ -1,7 +1,7 @@
 Package: ascentr
 Type: Package
 Title: Tools for interacting with the ASCENT database
-Version: 0.1.20
+Version: 0.1.21
 Authors@R: c(
     person(
       "Sean", "Raffuse",

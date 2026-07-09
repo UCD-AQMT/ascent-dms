@@ -156,31 +156,54 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   } else {
     valid_hours <- hourly_counts |>
       filter(valid >= samples_required)
-    invalid_hours <- setdiff(hourly_counts, valid_hours)
     
-    # Process scan statistics by hour for valid samples
-    hour_scans <- df |>
-      filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
-      filter(qc_outcome < 4) |> # within those hours, only process valid scans
-      group_by(sample_hour_utc) |>
-      summarise(mean_scan = calc_mean_scan(concentration_json)) |>
-      ungroup()
-    
-    # Put columns in numerical order and replace NA w/ zero, then calculate stats
-    hour_stats <- hour_scans |>
-      tidyr::unnest(cols = mean_scan) |>
-      tidyr::pivot_longer(-sample_hour_utc) |>
-      mutate(name = as.numeric(name)) |>
-      arrange(name) |>
-      tidyr::replace_na(list(value = 0)) |>
-      summarise(total_concentration_1_cm3 = calc_n_conc(name, value),
-                volume_concentration_um3_cm3 = calc_v_conc(name, value),
-                mean_nm = weighted.mean(name, value),
-                geo_mean_nm = weighted.geomean(name, value),
-                median_nm = weighted.median(name, value),
-                mode_nm = calc_mode(name, value),
-                geo_std_dev = calc_geosd(name, value, geo_mean_nm),
-                .by = sample_hour_utc)
+    if (nrow(valid_hours) == 0) {
+      warning("No hours with enough valid data")
+      invalid_hours <- setdiff(hourly_counts, valid_hours)
+      
+      hour_scans <- df |>
+        filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
+        filter(qc_outcome < 4) |> # within those hours, only process valid scans
+        group_by(sample_hour_utc) |>
+        summarise(mean_scan = calc_mean_scan(concentration_json)) |>
+        ungroup()
+      
+      hour_stats <- tibble(sample_hour_utc = lubridate::POSIXct(0),
+                           total_concentration_1_cm3 = numeric(0),
+                           volume_concentration_um3_cm3 = numeric(0),
+                           mean_nm = numeric(0),
+                           geo_mean_nm = numeric(0),
+                           median_nm = numeric(0),
+                           mode_nm = numeric(0),
+                           geo_std_dev = numeric(0))
+      
+    } else {
+      invalid_hours <- setdiff(hourly_counts, valid_hours)
+      
+      # Process scan statistics by hour for valid samples
+      hour_scans <- df |>
+        filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
+        filter(qc_outcome < 4) |> # within those hours, only process valid scans
+        group_by(sample_hour_utc) |>
+        summarise(mean_scan = calc_mean_scan(concentration_json)) |>
+        ungroup()
+      
+      # Put columns in numerical order and replace NA w/ zero, then calculate stats
+      hour_stats <- hour_scans |>
+        tidyr::unnest(cols = mean_scan) |>
+        tidyr::pivot_longer(-sample_hour_utc) |>
+        mutate(name = as.numeric(name)) |>
+        arrange(name) |>
+        tidyr::replace_na(list(value = 0)) |>
+        summarise(total_concentration_1_cm3 = calc_n_conc(name, value),
+                  volume_concentration_um3_cm3 = calc_v_conc(name, value),
+                  mean_nm = weighted.mean(name, value),
+                  geo_mean_nm = weighted.geomean(name, value),
+                  median_nm = weighted.median(name, value),
+                  mode_nm = calc_mode(name, value),
+                  geo_std_dev = calc_geosd(name, value, geo_mean_nm),
+                  .by = sample_hour_utc)  
+    }
     
   }
 
