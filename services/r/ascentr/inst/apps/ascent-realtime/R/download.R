@@ -19,13 +19,17 @@ downloadUI <- function(id) {
       dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
                      min = minimum_date, max = today),
       selectInput(ns("instrument"), "Instrument", choices = c("Xact", "SMPS", "AE33", "ACSM")),
-      selectInput(ns("level"), "Data level", choices = "1"),
       checkboxInput(ns("metadata"), "Include metadata file?", value = TRUE),
-      checkboxInput(ns("agree"), "Accept data policy?", value = FALSE),
       textOutput(ns("expected")),
+      checkboxInput(ns("agree"), "Accept data policy?", value = FALSE),
+      # dynamic export button that kicks off file export
       uiOutput(ns("mybutton")),
+      # hidden button for file download
+      downloadButton(ns("download"), "Download", 
+                     style = "position: absolute; left: -9999px; top: -9999px;"),
       width = "300px"
     ),
+    htmlOutput(ns("download_note")),
     card(verbatimTextOutput(ns("meta_text"))
     )
   )
@@ -40,6 +44,23 @@ downloadServer <- function(id) {
     xact_max <- 2000
     smps_max <- 5000
     
+    output$download_note <- renderUI({
+      
+      url <- a("Geoscience Data Exchange", 
+               href = "https://gdex.ucar.edu/gsearch/dataset-search/?q=ASCENT",
+               target = "_blank")
+      p("This page is for downloading small portions of the most recent preliminary data. It may take a few minutes to prepare your data. For fast access to the full archive, please visit the NCAR", url, "(GDEX).")
+      
+    })
+      
+    # Metadata text to display on the main panel
+    output$meta_text <- renderPrint({
+      
+      m <- basic_metadata(input$site, input$instrument, input$dates[1], 
+                          input$dates[2], level = "1", con)
+      m
+      
+    })
     
     # Dynamic UI ---------
     
@@ -63,24 +84,14 @@ downloadServer <- function(id) {
       
       ns <- session$ns
       if (allow_download()) {
-        downloadButton(ns("download"), "Download", icon = icon("download"))
+        bslib::input_task_button(ns("export"), "Export", icon = icon("file-export"))
       } else {
-        actionButton(ns("dummybutton"), "Download", icon = icon("download"))
+        actionButton(ns("dummybutton"), "Export", icon = icon("file-export"))
       }
 
     })
     
-    observeEvent(input$instrument, {
-      
-      levels <- switch(input$instrument,
-                       "Xact" = c("1"),
-                       "SMPS" = c("1"),
-                       "AE33" = c("1"))
-      updateSelectInput(session, "level", choices = levels)
-      
-    })
-    
-    # TODO: Make this more general and add conditions for too much data that depend on instrument
+
     observeEvent(input$dummybutton, {
       showModal(modalDialog(
         title = "Message",
@@ -100,175 +111,6 @@ downloadServer <- function(id) {
       ))
     })
     
-    # Data reactives -------
-    
-    export_data <- reactive({
-      if (input$instrument == "SMPS") {
-        d <- smps_data_reactive()
-      }
-      if (input$instrument == "Xact") {
-        d <- xact_data()
-      }
-      if (input$instrument == "AE33") {
-        d <- ae33_data()
-      }
-      if (input$instrument == "ACSM") {
-        d <- acsm_data()
-      }
-    })
-    
-    
-    ## Xact -----
-    xact_data <- reactive({
-      
-      ds <- switch(input$level,
-                   "1" = xact_l1b_reactive(),
-                   "1a" = xact_l1a())
-      
-    })
-    
-    # Temporary situation. Once auto-qc is finalized, there will be no l1a and l1b, just l1  
-    xact_l1a <- reactive({
-      
-      results <- xact_l1a_df(input$site, input$dates[1], input$dates[2], con)
-      
-      if (input$metadata) {
-        meta <- xact_metadata(input$site, input$dates[1], input$dates[2], level = "1a",
-                              con = con, metadata_fields = results$mdf)
-        export_zip_shiny(results$df, meta, fname = filename_noext(), temp_file = temp_file())
-      } else {
-        export_csv(results$df, temp_file())
-      }
-    })
-    
-    xact_l1b_reactive <- reactive({
-      
-      results <- xact_l1b(input$site, input$dates[1], input$dates[2], con)
-
-      if (input$metadata) {
-        meta <- xact_metadata(input$site, input$dates[1], input$dates[2],
-                                 level = "1b", con = con)
-        export_zip_shiny(results, meta, fname = filename_noext(), temp_file = temp_file())
-      } else {
-        export_csv(results, temp_file())
-      }
-      
-    })
-    
-    ## SMPS ------
-    smps_data_reactive <- reactive({
-      
-      ds <- switch(input$level,
-                   "0" = smps_l0(),
-                   "1" = smps_l1())
-      
-    })
-    
-    # Build the AIM csv file from the database output
-    ## Not currently working
-    smps_l0 <- reactive({
-      
-      datasets <- smps_datasets(input$site, input$dates[1], input$dates[2], con)
-      params <- datasets |>
-        # Find the time range that overlaps between the metadata and the requested dates
-        mutate(dataset_end = if_else(is.na(dataset_end), Sys.time(), dataset_end),
-               start_time = pmax(as.POSIXct(input$dates[1], tz = "UTC"), dataset_start),
-               end_time = pmin(as.POSIXct(input$dates[2], tz = "UTC"), dataset_end)) |>
-        select(ds_value=value, start_time, end_time)
-      
-      # Iterate over the datasets
-      aim_file_data <- function(ds_value, start_time, end_time, site, cols, con, n) {
-        # get data and metadata
-        meta <- smps_settings(site, start_time, end_time, con)
-        df <- smps_data(site, start_time, end_time, con)
-        # build aim file
-        shiny::incProgress(1/n, message = paste("Constructing", n, 
-                                                "AIM files for download.", 
-                                                "Thank you for your patience."))
-        file <- build_aim_file(meta, df, ds_value, cols)
-        
-      }
-      cols <- smps_columns(con)
-      withProgress(message = "Constructing AIM files", value = 0, {
-        n <- nrow(params)
-        dat <- purrr::pmap(params, aim_file_data, site = input$site, cols = cols, con = con, n = n)
-        filenames <- file.path(tempdir(), paste0(filename_noext(), "_", 
-                                                 seq(1, length(dat)), ".csv"))
-        purrr::walk2(dat, filenames, \(x, y) readr::write_lines(x, y, na = ""))
-      })
-      zip::zip(
-        zipfile = temp_file(),
-        files = filenames,
-        mode = "cherry-pick"
-      )
-      
-    })
-    
-
-    smps_l1 <- reactive({
-      df <- smps_l1b_df(input$site, input$dates[1], input$dates[2], con)
-      if (input$metadata) {
-        meta <- smps_metadata(input$site, input$dates[1], input$dates[2], level = "1b", con)  
-        export_zip_shiny(df, meta, fname = filename_noext(), temp_file = temp_file())
-      } else {
-        export_csv(df, temp_file())
-      }
-    })
-    
-    ## AE33 --------
-    ae33_data <- reactive({
-      
-      ds <- switch(input$level,
-                   "0" = ae33_l0_reactive(),
-                   "1" = ae33_l1_reactive())
-      
-    })
-    
-
-    ae33_l1_reactive <- reactive({
-      
-      results <- ae33_l1b(input$site, input$dates[1], input$dates[2], ae33_con)
-      
-      if (input$metadata) {
-        
-        metadata <- ae33_metadata(input$site, input$dates[1], input$dates[2],
-                                     level = "1b", con)
-        export_zip_shiny(results, metadata, fname = filename_noext(), temp_file = temp_file())
-      } else {
-        export_csv(results, temp_file())
-      }
-
-    })
-    
-    #### ACSM -----
-    
-    acsm_data <- reactive({
-      ds <- acsm_reactive()
-    })
-    
-    acsm_reactive <- reactive({
-      
-      results <- acsm_l1b(input$site, input$dates[1], input$dates[2], con)
-      
-      if (input$metadata) {
-        metadata <- acsm_metadata(input$site, input$dates[1], input$dates[2], con,
-                                  metadata_fields = results$mdf, level = "1b")
-        export_zip_shiny(results$df, metadata, fname = filename_noext(), temp_file = temp_file())
-      } else {
-        export_csv(results$df, temp_file())
-      }
-
-    })
-    
-    # Need to fix this
-    content_type <- reactive({
-      if (input$metadata) {
-        "application/zip"
-      } else {
-        "text/csv"
-      }
-    })
-    
     ### Estimate the number of records to return - keep button disabled if zero or too high
     expected_samples <- reactiveVal(0)
     
@@ -280,49 +122,118 @@ downloadServer <- function(id) {
       
     })
     
+    #### Extended Task handler
+    export_task <- ExtendedTask$new(function(file) {
+
+      # Need to capture values for reactives to pass to futures
+      instrument <- isolate(input$instrument)
+      site <- isolate(input$site)
+      start <- isolate(input$dates[1])
+      end <- isolate(input$dates[2])
+      metadata <- isolate(input$metadata)      
+      fname <- isolate(filename_noext())
+
+      l1b_fn <- switch(instrument,
+                       "Xact" = ascentr::xact_l1b,
+                       "SMPS" = ascentr::smps_l1b_df,
+                       "ACSM" = ascentr::acsm_l1b,
+                       "AE33" = ascentr::ae33_l1b)
+      meta_fn <- switch(instrument,
+                        "Xact" = ascentr::xact_metadata,
+                        "SMPS" = ascentr::smps_metadata,
+                        "ACSM" = ascentr::acsm_metadata,
+                        "AE33" = ascentr::ae33_metadata)
+
+      promises::future_promise({
+        
+        con <- get_db_connection("dataconnection")
+        
+        if (instrument == "AE33") {
+          influx_con <- get_flux_client("dataconnection")
+          results <- l1b_fn(site, start, end, influx_con)
+        } else {
+          results <- l1b_fn(site, start, end, con)  
+        }
+        
+        
+        if (metadata) {
+          if (instrument == "ACSM") {
+            meta <- meta_fn(site, start, end, con, metadata_fields = results$mdf, level = "1b")
+            results <- results$df
+          } else {
+            meta <- meta_fn(site, start, end, con, level = "1b")
+          }
+          f <- ascentr:::export_zip_shiny(results, meta, fname = fname, temp_file = file)
+        } else {
+          f <- ascentr:::export_csv(results, file)
+        }
+        DBI::dbDisconnect(con)
+        f
+
+      }, seed = NULL)
+      
+    }) |> bslib::bind_task_button("export")
+    
+    # Set up a reusable file for this session's download data.
+    download_content_path <- tempfile("download_content")
+    
+    # Once the Export button is pressed, invoke a long running task to process
+    observeEvent(input$export, export_task$invoke(download_content_path))
+    
+    # Show download button only when file is ready.
+    observe({
+      if (export_task$status() == "success") {
+        showNotification("Your download is ready.")
+        shinyjs::click("download")
+      }
+    })
+    
+    
+    
     # Download handler ------
-    filename_noext <- reactiveVal()
-    temp_file <- reactiveVal()
+    
+    # Provide the filename without extension, since we won't know the structure
+    filename_noext <- reactive({
+      glue::glue("ASCENT_{input$site}_{input$instrument}_",
+                 "{input$dates[1]}_{input$dates[2]}_level-1")
+    })
+
+    # Need to fix this
+    content_type <- reactive({
+      if (input$metadata) {
+        "application/zip"
+      } else {
+        "text/csv"
+      }
+    })
     
     output$download <- downloadHandler(
       filename = function() {
-        # Provide the filename without extension, since we won't know the structure
-        base_filename <- glue::glue("ASCENT_{input$site}_{input$instrument}_",
-                                    "{input$dates[1]}_{input$dates[2]}_level-{input$level}")
+        
+        base_filename <- filename_noext()
         if (input$metadata) {
           f <- paste0(base_filename, ".zip")
         } else {
-          if (input$instrument == "SMPS" & input$level == "0") {
-            f <- paste0(base_filename, ".zip")
-          } else {
-            f <- paste0(base_filename, ".csv")  
-          }
+          f <- paste0(base_filename, ".csv")  
         }
-        # Make accessible to reactives
-        filename_noext(base_filename)
+        
         return(f)
         
       },
       content = function(filename) {
         
-        # Get the temporary file managed by Shiny so we can access it outside this func
-        temp_file(filename)
-        export_data()
+        # Get the temporary file managed by Shiny and returned in export_task$result() and
+        # give it our desired name
+        file.rename(export_task$result(), filename)
         
       },
       contentType = content_type()
     )
     
-    output$meta_text <- renderPrint({
-
-      m <- basic_metadata(input$site, input$instrument, input$dates[1], 
-                          input$dates[2], input$level, con)
-      m
-    })
-    
   })
 }
 
+# A function for estimating the number of samples in a request
 availability <- function(site, date_start, date_end, instrument) {
  
   if (instrument == "Xact") {

@@ -6,6 +6,7 @@ function(request) {
     id = "tab",
     header = tagList(
       useBusyIndicators(),
+      shinyjs::useShinyjs(),
       tags$head(tags$style(HTML(".bslib-value-box .value-box-value {font-size: 1.2rem;}")),
                 tags$style(HTML(".bslib-value-box .value-box-showcase {padding: 0rem; font-size: 1rem;}")),
                 tags$style(HTML("* {font-size: 0.9rem;}")),
