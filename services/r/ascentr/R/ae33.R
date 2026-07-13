@@ -54,6 +54,26 @@ ae33_l1a <- function(site, start_dt, end_dt, con) {
            site_code = site$site_code,
            sample_analysis_id = NA,
            site_record_id = NA)
+  
+  # In some cases, if the instrument is not running properly, some fields will be missing
+  # from the output.
+  if (!"att1_1" %in% names(df)) {
+    df <- df |>
+      mutate(att1_1 = NA,
+             att1_2 = NA,
+             att1_3 = NA,
+             att1_4 = NA,
+             att1_5 = NA,
+             att1_6 = NA,
+             att1_7 = NA,
+             att2_1 = NA,
+             att2_2 = NA,
+             att2_3 = NA,
+             att2_4 = NA,
+             att2_5 = NA,
+             att2_6 = NA,
+             att2_7 = NA)
+  }
 
   # arrange and name all fields -  Ignore unsupported EBAS flags
   df <- df |>
