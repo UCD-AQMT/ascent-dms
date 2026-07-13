@@ -18,7 +18,7 @@ export_acsm_l2_monthly <- function(site, start_date, end_date, site_files, out_f
       return()
     }
     m <- acsm_metadata(site, start_date, end_string, con, level = "2")
-    fname <- glue::glue("ASCENT_ACSM_{site}_{start_date}-{end_string}_L2")
+    fname <- glue::glue("ASCENT_ACSM_{site}_{start_date}_{end_string}_L2")
     export_zip(df, m, out_folder, fname)
   }
   
@@ -44,7 +44,7 @@ export_acsm_l2_monthly <- function(site, start_date, end_date, site_files, out_f
 #'
 #' @examples
 monthly_l1b <- function(site, month_date, instrument, folder, con, influx_con = NULL) {
-  
+
   end_date <- lubridate::rollforward(as.Date(month_date))
   
   fname <- paste("ASCENT", instrument, site, strftime(month_date, format = "%Y%m%d"),
@@ -98,6 +98,7 @@ export_csv <- function(df, outfile) {
   # Convert all POSIX to formatted strings
   df <- format_dates(df)
   write.csv(df, outfile, na = "", row.names = FALSE)
+  invisible(outfile)
   
 }
 
