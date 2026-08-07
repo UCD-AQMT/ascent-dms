@@ -23,6 +23,12 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
   qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
 
+  prb <- vroom::problems(qc)
+  if (nrow(prb) > 0) {
+    # Handle errors
+    stop("Error reading qc file: ", manual_qc_file)
+  }
+  
   qc <- qc |>
     mutate(flag = as.character(flag),
            sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
@@ -60,7 +66,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     }
     purrr::map(x, \(x) as_tibble(yyjsonr::read_json_str(x))) |>
       purrr::list_rbind() |>
-      summarise(across(everything(), mean))
+      summarise(across(everything(), mean, na.rm = TRUE))
   }
 
   calc_n_conc <- function(midpoints, vals) {
@@ -136,7 +142,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
       mutate(valid = 0) |>
       slice(0)
     invalid_hours <- hourly_counts
-    
+  
     hour_scans <- df |>
       filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours
       filter(qc_outcome < 4) |> # within those hours, only process valid scans
@@ -179,7 +185,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
       
     } else {
       invalid_hours <- setdiff(hourly_counts, valid_hours)
-      
+    
       # Process scan statistics by hour for valid samples
       hour_scans <- df |>
         filter(sample_hour_utc %in% valid_hours$sample_hour_utc) |> # only process valid hours

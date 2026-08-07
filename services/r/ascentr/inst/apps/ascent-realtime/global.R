@@ -9,6 +9,11 @@ library(units)
 library(thematic)
 library(ggplot2)
 
+library(future)
+library(promises)
+future::plan(multisession)
+library(ascentr)
+
 # required for successful deploy to shinyapps.io
 library(pkgload)
 

@@ -1,3 +1,16 @@
+ascentr v0.1.23 (Release Date: 2026-07-01)
+==========================================
+
+- Handle AE33 L1 data with nothing valid collected 
+- Fixed bug in ACSM L1 generation not getting last day of month
+- Fixed typo in ACSM L2 output field name
+- Fix NAs added in concentration_json when bins change mid-file
+
+Shinyapps
+
+- Support asynchronous downloads in ascent-realtime
+
+
 ascentr v0.1.21 (Release Date: 2026-06-26)
 ==========================================
 

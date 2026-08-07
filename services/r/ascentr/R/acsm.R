@@ -17,6 +17,9 @@ acsm_l1a_df <- function(site, start_dt, end_dt, con) {
   mass_loadings <- tbl(con, I("acsm.mass_loadings"))
   tps <- tbl(con, I("acsm.tps"))
   sites <- tbl(con, I("common.sites"))
+  
+  # make sure to get the hours from the last day
+  end_dt <- as.Date(end_dt) + 1
 
   df <- acsm_sa |>
     inner_join(select(sites, site_number, site_code),
@@ -606,7 +609,7 @@ acsm_l2_from_files <- function(site, site_files, con) {
   # Rearrange and rename for final export
   result <- result |>
     select(site_number, site_code, sample_datetime_UTC, sample_count, 
-           organics_ug_STP_m3=Org, sulfate_STP_ug_m3=SO4, nitrate_STP_ug_m3=NO3,
+           organics_STP_ug_m3=Org, sulfate_STP_ug_m3=SO4, nitrate_STP_ug_m3=NO3,
            ammonium_STP_ug_m3=NH4, chloride_STP_ug_m3=Chl, 
            organics_precision_STP_ug_m3=Org_err, sulfate_precision_STP_ug_m3=SO4_err,
            nitrate_precision_STP_ug_m3=NO3_err, ammonium_precision_STP_ug_m3=NH4_err,

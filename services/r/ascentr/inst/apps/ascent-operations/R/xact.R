@@ -327,7 +327,7 @@ xactServer <- function(id, site) {
       s <- get_last()
       validate(need(nrow(s) > 0, "No data for site"))
       
-      if (s$filament > 3.2) {
+      if (s$filament > 3.28) {
         title <- "Filament voltage high"
         th <- "warning"
       } else {

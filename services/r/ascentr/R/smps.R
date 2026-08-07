@@ -241,5 +241,7 @@ write_atomic_json <- function(x) {
     return(NA)
   }
   y <- as.list(x)
+  # Remove any NA that could come from different scan range
+  y <- y[which(!is.na(y))]
   yyjsonr::write_json_str(y, auto_unbox = TRUE, digits = 4)
 }
