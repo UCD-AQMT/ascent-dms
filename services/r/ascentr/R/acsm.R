@@ -156,8 +156,8 @@ acsm_l1a <- function(site, start_dt, end_dt, con) {
 #' @examples
 acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, level) {
 
-  if (!level %in% c("1a", "1b", "2")) {
-    stop("level must be one of '1a', '1b', or '2'")
+  if (!level %in% c("1a", "1b", "2", "2N")) {
+    stop("level must be one of '1a', '1b', '2', or '2N'")
   }
 
   # basic metadata
@@ -169,6 +169,12 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
     template <- "acsm_l2_field_descriptions.txt"
     fields_path <- system.file(template, package="ascentr")
     field_descriptions <- paste(readLines(fields_path), collapse = "\n")
+  } else if (level == "2N") {
+    # field definitions
+    template <- "acsm_l2N_field_descriptions.txt"
+    fields_path <- system.file(template, package="ascentr")
+    field_descriptions <- paste(readLines(fields_path), collapse = "\n")
+    
   } else {
     if (is.null(metadata_fields)) {
       if (level == "1a") {
@@ -190,7 +196,7 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
   }
   
 
-  if (level == "2") {
+  if (level %in% c("2", "2N")) {
     # Need statement on processing. Not sure how we'll do this in the future
     statements_path <- system.file("ACSM IE_CDCE statements.csv",
                                    package = "ascentr")
@@ -412,73 +418,71 @@ acsm_autoqc <- function(df) {
 #' @export
 #'
 #' @examples
-acsm_l2_from_files <- function(site, site_files, con) {
-  
-  # ACMS specific list
-  # 460A here is "interference in sulfate suspected from high organic signal, contact PI"
-  # I'm making that a suspect outcome
+# Internal helper: read ACSM Igor files, apply site metadata, STP conversion,
+# flag resolution, and RIE correction. Returns a native-resolution data frame
+# ready for either hourly averaging or direct export.
+acsm_l2_prepare_ <- function(site, site_files, con) {
+
+  # ACSM-specific flags
+  # 460A: "interference in sulfate suspected from high organic signal, contact PI" -> suspect
   available_flags <- tibble(manual_flag = c("111", "686", "659", "664", "460A"),
                             manual_qc_outcome = c(1, 9, 4, 4, 3))
-  
+
   available_flags <- bind_rows(available_flags, common_manual_flags) |>
     distinct() |>
-    rename(flag=manual_flag, qc_outcome=manual_qc_outcome)
- 
-  # files produced by site using Igor code
+    rename(flag = manual_flag, qc_outcome = manual_qc_outcome)
+
+  # Read files produced by sites using Igor code
   safe_read <- function(f) {
     df <- readr::read_csv(f, col_types = "nccddddddddddddddddddddddddddddddddd")
     prb <- vroom::problems(df)
     if (nrow(prb) > 0) {
-      # Handle errors
       stop("Error reading file: ", f)
     }
     return(df)
   }
-  
-  site_df <- purrr::map(site_files, safe_read) |>
+
+  df <- purrr::map(site_files, safe_read) |>
     purrr::list_rbind()
-  
-  # timestamp in database is off by 600 s because it is the start/stop time
-  # it will not match with this
-  
+
   # Igor time format is seconds since 1904-01-01 (!?)
-  df <- site_df |>
-    mutate(sample_datetime_UTC = as.POSIXct(timeW, origin = "1904-01-01"))
-  
+  # Important to specify UTC when converting from numeric
+  df <- df |>
+    mutate(sample_datetime_UTC = as.POSIXct(timeW, origin = "1904-01-01", tz = "UTC"))
+
   # Get site number and elevation from db
-  site_df <- tbl(con, I("common.sites")) |>
+  site_info <- tbl(con, I("common.sites")) |>
     filter(site_code == site) |>
     select(site_number, elevation) |>
     collect()
-  
-  site_number <- site_df$site_number
-  elev <- site_df$elevation
-  
+
+  site_number <- site_info$site_number
+
   if (length(site_number) != 1) {
     stop(site, " is not a valid site_code")
   }
-  
+
   # Add common fields
   df <- df |>
     mutate(site_code = site,
            site_number = site_number,
            flag = as.character(flag))
- 
-  ## Need to convert values to ASCENT STP (1 atm, 0C) assuming hydrostatic pressure from
-  ## site altitude and trailer temp of 25C
+
+  # Convert to ASCENT STP (0 C, 101325 Pa) assuming hydrostatic pressure from
+  # site altitude and trailer temp of 25 C
   stp_fact <- acsm_stp(site, con)
-  
+
   df <- df |>
     mutate(stp_factor = stp_fact,
            across(Org:OOA, ~.x * stp_fact))
-  
-  # The output includes composite flags, and some of them are overrides. For example,
-  # 659:111 would mean a scan flagged as bad was changed to valid.
+
+  # The output includes composite flags, and some are overrides. For example,
+  # 659:111 means a scan flagged bad was changed to valid.
   df_flagged <- filter(df, !is.na(flag))
   df_unflagged <- setdiff(df, df_flagged)
   all_flags <- stringr::str_split(df_flagged$flag, pattern = ":")
 
-  # Are there any unexpected flag values?
+  # Check for unexpected flag values
   flags <- unique(unlist(all_flags))
   bad_flags <- any(!flags %in% available_flags$flag)
   if (bad_flags) {
@@ -486,10 +490,8 @@ acsm_l2_from_files <- function(site, site_files, con) {
     msg <- paste(bad, collapse = ", ")
     stop("Unexpected flag value(s): ", msg)
   }
-  
-  # Flags are good, but need to take them apart - for each record with a flag, compute a
-  # final qc_outcome and flag list. Generally, qc_outcome is max, but 111 overrides in
-  # this case and removes all other flags.
+
+  # Resolve composite flags: qc_outcome is max, but 111 overrides all others.
   resolve_acsm_flags <- function(x) {
     if (length(x) == 1) {
       flag <- x
@@ -505,124 +507,150 @@ acsm_l2_from_files <- function(site, site_files, con) {
     }
     data.frame(flag, qc_outcome)
   }
-  
+
   flags_outcomes <- purrr::map(all_flags, resolve_acsm_flags) |>
     purrr::list_rbind()
-  
+
   df_flagged <- df_flagged |>
     mutate(flag = flags_outcomes$flag,
            qc_outcome = flags_outcomes$qc_outcome)
   df_unflagged <- df_unflagged |>
     mutate(qc_outcome = 1)
+
   df <- bind_rows(df_flagged, df_unflagged) |>
     arrange(sample_datetime_UTC)
-  
-  # Now have the native resolution data in the necessary form and can average to hourly
+
+  # As of June 2026, all fragment ions have RIE applied as a correction.
+  # This will possibly be done upstream in future Igor processing.
+  org_rie <- 1.4
+  no3_rie <- 1.05
+  df <- df |>
+    mutate(across(c(m29, m43, m44, m55, m57, m60, m69, m71, m73), ~ .x / org_rie),
+           across(c(NO3_30, NO3_46), ~ .x / no3_rie))
+
+  df
+}
+
+# Column renaming shared by both export functions
+.acsm_l2_rename <- c(
+  organics_STP_ug_m3        = "Org",
+  sulfate_STP_ug_m3         = "SO4",
+  nitrate_STP_ug_m3         = "NO3",
+  ammonium_STP_ug_m3        = "NH4",
+  chloride_STP_ug_m3        = "Chl",
+  organics_precision_STP_ug_m3 = "Org_err",
+  sulfate_precision_STP_ug_m3  = "SO4_err",
+  nitrate_precision_STP_ug_m3  = "NO3_err",
+  ammonium_precision_STP_ug_m3 = "NH4_err",
+  chloride_precision_STP_ug_m3 = "Chl_err",
+  org_mz29_STP_ug_m3  = "m29",
+  org_mz43_STP_ug_m3  = "m43",
+  org_mz44_STP_ug_m3  = "m44",
+  org_mz55_STP_ug_m3  = "m55",
+  org_mz57_STP_ug_m3  = "m57",
+  org_mz60_STP_ug_m3  = "m60",
+  org_mz69_STP_ug_m3  = "m69",
+  org_mz71_STP_ug_m3  = "m71",
+  org_mz73_STP_ug_m3  = "m73",
+  no3_mz30_STP_ug_m3  = "NO3_30",
+  no3_mz46_STP_ug_m3  = "NO3_46",
+  hoa_STP_ug_m3       = "HOA",
+  ooa_STP_ug_m3       = "OOA"
+)
+
+acsm_l2_from_files <- function(site, site_files, con) {
+
+  df <- acsm_l2_prepare_(site, site_files, con)
+
+  # Average to hourly. ACSM samples every 10 minutes (6 per hour);
+  # require at least 3 valid samples for a reportable hourly value.
   df <- df |>
     mutate(sample_hour_UTC = lubridate::floor_date(sample_datetime_UTC, "1 hour"))
-  
-  # ACSM sampling is every 10 minutes - 6 samples per hour
-  # Require 3 samples for a valid hourly measurement
+
   samples_required <- 3
   hourly_counts <- df |>
     mutate(valid = if_else(qc_outcome < 4, "valid", "invalid")) |>
     summarise(count = n(),
               .by = c(sample_hour_UTC, valid)) |>
     tidyr::pivot_wider(names_from = valid, values_from = count)
-  
-  valid_hours <- hourly_counts |>
-    filter(valid >= samples_required)
+
+  valid_hours   <- hourly_counts |> filter(valid >= samples_required)
   invalid_hours <- setdiff(hourly_counts, valid_hours)
-  
-  # Process hourly results for valid samples
+
+  # Summarise valid hours
   data_hourly_valid <- df |>
-    filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |> # only valid hours
-    filter(qc_outcome < 4) |> # within those hours only process valid observations
+    filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |>
+    filter(qc_outcome < 4) |>
     summarise(across(c(Org, SO4, NH4, NO3, Chl), ~mean(.x, na.rm = TRUE)),
               across(starts_with("m"), ~mean(.x, na.rm = TRUE)),
               across(c(NO3_30, NO3_46, HOA, OOA), ~mean(.x, na.rm = TRUE)),
               across(ends_with("err"), ~sqrt(sum(.x^2))),
               .by = sample_hour_UTC)
-  
-  # rejoin with flags and other info
+
   flags_hourly_valid <- df |>
     filter(sample_hour_UTC %in% valid_hours$sample_hour_UTC) |>
     filter(qc_outcome < 4) |>
     select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
     summarise(site_number = first(site_number),
-              site_code = first(site_code),
-              qc_outcome = max(qc_outcome),
-              flag = recompose_flags(flag),
-              comment =recompose_flags(comment),
+              site_code   = first(site_code),
+              qc_outcome  = max(qc_outcome),
+              flag        = recompose_flags(flag),
+              comment     = recompose_flags(comment),
               .by = sample_hour_UTC)
-  
+
   df_valid <- flags_hourly_valid |>
-    left_join(select(valid_hours, sample_hour_UTC, sample_count=valid), 
+    left_join(select(valid_hours, sample_hour_UTC, sample_count = valid),
               by = "sample_hour_UTC") |>
     left_join(data_hourly_valid, by = "sample_hour_UTC")
-  
+
   if (nrow(df_valid) == 0) {
-    warning("No valid hours for ", site_file, "\nreturning null.")
+    warning("No valid hours for ", site, "\nreturning null.")
     return(NULL)
-  } 
-  
-  # Get the flags and associated data for the invalid time periods, which will be filled
-  # with nulls
-  # Some may be invalid because not enough samples but no bad qc_outcome. If so, downgrade
+  }
+
+  # Invalid hours: hours with too few samples or all-bad QC get flagged 391
   flags_hourly_invalid <- df |>
     filter(sample_hour_UTC %in% invalid_hours$sample_hour_UTC) |>
     select(site_number, site_code, sample_hour_UTC, qc_outcome, flag, comment) |>
     summarise(site_number = first(site_number),
-              site_code = first(site_code),
-              qc_outcome = max(qc_outcome),
-              flag = recompose_flags(flag),
-              comment = recompose_flags(comment),
+              site_code   = first(site_code),
+              qc_outcome  = max(qc_outcome),
+              flag        = recompose_flags(flag),
+              comment     = recompose_flags(comment),
               .by = sample_hour_UTC) |>
-    left_join(select(invalid_hours, sample_hour_UTC, sample_count=valid),
+    left_join(select(invalid_hours, sample_hour_UTC, sample_count = valid),
               by = "sample_hour_UTC")
-  
+
   if (nrow(flags_hourly_invalid) > 0) {
     flags_hourly_invalid <- flags_hourly_invalid |>
-      mutate(flag = if_else(qc_outcome < 4, "391", flag),
-             comment = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
+      mutate(flag       = if_else(qc_outcome < 4, "391", flag),
+             comment    = if_else(qc_outcome < 4, "391-Data completeness less than 50%", comment),
              qc_outcome = if_else(qc_outcome < 4, 9, qc_outcome))
   }
-  
-  if (nrow(flags_hourly_invalid) > 0) {
-    result <- bind_rows(df_valid, flags_hourly_invalid) |>
-      arrange(sample_hour_UTC) |>
-      rename(sample_datetime_UTC=sample_hour_UTC)  
-  } else {
-    result <- df_valid |>
-      arrange(sample_hour_UTC) |>
-      rename(sample_datetime_UTC=sample_hour_UTC) 
-  }
-  
-  # As of June 2026, all fragment ions have to have RIE applied to them as a correction
-  # This will possibly be done upstream in future igor processing
-  org_rie <- 1.4
-  no3_rie <- 1.05
-  result <- result |>
-    mutate(across(c(m29, m43, m44, m55, m57, m60, m69, m71, m73), ~ .x / org_rie),
-           across(c(NO3_30, NO3_46), ~ .x / no3_rie))
+
+  result <- bind_rows(df_valid, flags_hourly_invalid) |>
+    arrange(sample_hour_UTC) |>
+    rename(sample_datetime_UTC = sample_hour_UTC)
 
   # Rearrange and rename for final export
-  result <- result |>
-    select(site_number, site_code, sample_datetime_UTC, sample_count, 
-           organics_STP_ug_m3=Org, sulfate_STP_ug_m3=SO4, nitrate_STP_ug_m3=NO3,
-           ammonium_STP_ug_m3=NH4, chloride_STP_ug_m3=Chl, 
-           organics_precision_STP_ug_m3=Org_err, sulfate_precision_STP_ug_m3=SO4_err,
-           nitrate_precision_STP_ug_m3=NO3_err, ammonium_precision_STP_ug_m3=NH4_err,
-           chloride_precision_STP_ug_m3=Chl_err,
-           org_mz29_STP_ug_m3=m29, org_mz43_STP_ug_m3=m44, org_mz44_STP_ug_m3=m44,
-           org_mz55_STP_ug_m3=m55, org_mz57_STP_ug_m3=m57, org_mz60_STP_ug_m3=m60,
-           org_mz69_STP_ug_m3=m69, org_mz71_STP_ug_m3=m71, org_mz73_STP_ug_m3=m73,
-           no3_mz30_STP_ug_m3=NO3_30, no3_mz46_STP_ug_m3=NO3_46, hoa_STP_ug_m3=HOA,
-           ooa_STP_ug_m3=OOA, qc_outcome, flag, comment)
-  
+  result |>
+    select(site_number, site_code, sample_datetime_UTC, sample_count,
+           all_of(.acsm_l2_rename),
+           qc_outcome, flag, comment)
 }
 
+acsm_l2_native_from_files <- function(site, site_files, con) {
 
+  result <- acsm_l2_prepare_(site, site_files, con)
+
+  # Rearrange and rename for final export
+  result |>
+    select(site_number, site_code, sample_datetime_UTC,
+           all_of(.acsm_l2_rename),
+           RIE_Org, RIE_SO4, RIE_NH4, RIE_NO3, RIE_Chl,
+           AB_total, ABref, flowref, IE_ionspg, CE_applied,
+           qc_outcome, flag, comment)
+}
 
 
 

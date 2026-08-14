@@ -37,7 +37,8 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
                   "1" = "Level 1. Preliminary, unvalidated data in native time resolution as acquired in real time with automated quality control checks applied.",
                   "1a" = "Level 1a. Preliminary, unvalidated data in native time resolution as acquired in real time.",
                   "1b" = "Level 1b. Preliminary, unvalidated data in native time resolution as acquired in real time with automated quality control checks applied.",
-                  "2" = "Level 2. Delivered, validated data in hourly resolution and standard atmospheric conditions.")
+                  "2" = "Level 2. Delivered, validated data in hourly resolution and standard atmospheric conditions.",
+                  "2N" = "Level 2. Delivered, validated data in native instrument resolution and standard atmospheric conditions.")
 
   policy_path <- system.file("data_policy.txt", package="ascentr")
   data_policy <- paste(readLines(policy_path), collapse = "\n")
