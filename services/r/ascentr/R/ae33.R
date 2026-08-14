@@ -527,14 +527,10 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     left_join(qc, by = join_by(between(sample_datetime_UTC,
                                        sample_datetime_UTC_start,
                                        sample_datetime_UTC_end))) |>
-    left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
-  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
-  df <- df |>
-    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
-           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
-  
+  df <- resolve_composite_flags(df, available_flags)
+
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
     coalesce_flags() |>
