@@ -1,3 +1,16 @@
+ascentr v0.1.25 (Release Date: 2026-08-21)
+==========================================
+
+- Fixed time zone error in ACSM L2 output
+- Fixed issue in SMPS manual QC when time range of multiple flags overlap
+
+
+ascentr v0.1.24 (Release Date: NA)
+==========================================
+
+- Fixed another typo in ACSM L2 output (m43 was not correct)
+
+
 ascentr v0.1.23 (Release Date: 2026-07-01)
 ==========================================
 

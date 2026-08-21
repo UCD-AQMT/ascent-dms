@@ -102,7 +102,7 @@ gdex_ls <- function(path = ".", echo = TRUE, api_key = gdex_get_api_key()) {
   resp
 }
 
-# Create a list of full path filenames for a gdex path (nonrecursive)
+# Create a list of full path filenames for a gdex path (nonrecursive) good for finding files to delete
 gdex_ls_path <- function(path = ".", api_key = gdex_get_api_key()) {
   
   entries <- unlist(strsplit(gdex_ls(path = path, echo = FALSE, api_key), "\n"))
