@@ -40,19 +40,33 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     left_join(qc, by = join_by(between(sample_datetime_utc,
                                        sample_datetime_UTC_start,
                                        sample_datetime_UTC_end))) |>
-    left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
+
+  if (nrow(df) != nrow(l1b)) {
+    cat("Flag join produced incorrect number of rows - resolving\n")
+    resolve_df <- df |>
+      select(sample_analysis_id, manual_flag, manual_comment) |>
+      summarise(manual_flag = clean_paste(manual_flag, collapse = ":"),
+                manual_comment = clean_paste(manual_comment, collapse = " : "),
+                .by = sample_analysis_id)
+    if (nrow(resolve_df) != nrow(l1b)) {
+      stop("Manual flag join not resolved!")
+    }
+
+    df <- l1b |>
+      left_join(resolve_df, by = "sample_analysis_id") |>
+      mutate(flag = as.character(flag))
+    
+    
+  }
 
   # Limit to after start_datetime if provided
   if (!is.null(start_datetime)) {
     df <- df |>
       filter(sample_datetime_utc >= start_datetime)
   }
-  
-  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
-  df <- df |>
-    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
-           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
+
+  df <- resolve_composite_flags(df, available_flags)
 
   # Coalesce flags and comments and calculate the base hour
   df <- df |>
@@ -66,7 +80,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     }
     purrr::map(x, \(x) as_tibble(yyjsonr::read_json_str(x))) |>
       purrr::list_rbind() |>
-      summarise(across(everything(), mean, na.rm = TRUE))
+      summarise(across(everything(), \(x) mean(x, na.rm = TRUE)))
   }
 
   calc_n_conc <- function(midpoints, vals) {

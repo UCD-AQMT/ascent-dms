@@ -39,7 +39,7 @@ downloadServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
     # Maximum allowed records for download depend on instrument
-    ae33_max <- 15000
+    ae33_max <- 20000
     acsm_max <- 10000
     xact_max <- 2000
     smps_max <- 5000

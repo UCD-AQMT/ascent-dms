@@ -174,7 +174,7 @@ smps_volume_aggregated <- function(site, start_date, end_date, con,
 }
 
 # Calculate SMPS mass concentration using composition dependent particle density
-smps_mass <- function(df_smps, df_rm) {
+smps_mass <- function(df_smps, df_rm, include_bc = TRUE) {
 
   df_rm <- df_rm |>
     filter(parameter %in% c("so4", "nh4", "no3", "chl", "org", "EBC_6")) 
@@ -184,18 +184,35 @@ smps_mass <- function(df_smps, df_rm) {
     mutate(vol_conc = value / density)
 
   # volume concentration from acsm plus BC
-  acsm_bc_volume <- density |>
-    select(-value, -density) |>
-    tidyr::pivot_wider(names_from = parameter, values_from = vol_conc) |>
-    mutate(volume = so4 + nh4 + no3 + chl + org + EBC_6) |>
-    select(sample_datetime, volume)
-  
-  # density from acsm plus BC
-  acsm_bc_density <- df_rm |>
-    tidyr::pivot_wider(names_from = parameter, values_from = value) |>
-    left_join(acsm_bc_volume, by = "sample_datetime") |>
-    mutate(density = (so4 + nh4 + no3 + chl + org + EBC_6) / volume) |>
-    select(sample_datetime, density)
+  if (include_bc) {
+    acsm_bc_volume <- density |>
+      select(-value, -density) |>
+      tidyr::pivot_wider(names_from = parameter, values_from = vol_conc) |>
+      mutate(volume = so4 + nh4 + no3 + chl + org + EBC_6) |>
+      select(sample_datetime, volume)
+    
+    # density from acsm plus BC
+    acsm_bc_density <- df_rm |>
+      tidyr::pivot_wider(names_from = parameter, values_from = value) |>
+      left_join(acsm_bc_volume, by = "sample_datetime") |>
+      mutate(density = (so4 + nh4 + no3 + chl + org + EBC_6) / volume) |>
+      select(sample_datetime, density)
+    
+  } else {
+    acsm_bc_volume <- density |>
+      select(-value, -density) |>
+      tidyr::pivot_wider(names_from = parameter, values_from = vol_conc) |>
+      mutate(volume = so4 + nh4 + no3 + chl + org) |>
+      select(sample_datetime, volume)
+    
+    # density from acsm only
+    acsm_bc_density <- df_rm |>
+      tidyr::pivot_wider(names_from = parameter, values_from = value) |>
+      left_join(acsm_bc_volume, by = "sample_datetime") |>
+      mutate(density = (so4 + nh4 + no3 + chl + org) / volume) |>
+      select(sample_datetime, density)
+    
+  }
   
   # Finally, SMPS mass concentration
   mass <- df_smps |>

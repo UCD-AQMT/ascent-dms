@@ -422,7 +422,6 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     left_join(qc, by = join_by(between(sample_datetime_UTC,
                                        sample_datetime_UTC_start,
                                        sample_datetime_UTC_end))) |>
-    left_join(available_flags, by = "manual_flag") |>
     mutate(flag = as.character(flag))
 
   # Remove Nb - it is used by the Xact for QC and is not from the ambient sample
@@ -437,59 +436,8 @@ xact_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   filtered_record_count <- nrow(df)
   
-  ##### Resolving composite flags - pull out
-  
-  # The output includes composite flags, and some of them are overrides. For example,
-  # 659:111 would mean a scan flagged as bad was changed to valid.
-  df_manual_flagged <- filter(df, !is.na(manual_flag))
-  df_manual_unflagged <- setdiff(df, df_manual_flagged)
-  all_flags <- stringr::str_split(df_manual_flagged$manual_flag, pattern = ":")
-  
-  # Are there any unexpected flag values?
-  flags <- unique(unlist(all_flags))
-  bad_flags <- any(!flags %in% available_flags$manual_flag)
-  if (bad_flags) {
-    bad <- flags[which(!flags %in% available_flags$manual_flag)]
-    msg <- paste(bad, collapse = ", ")
-    stop("Unexpected flag value(s): ", msg)
-  }
-  
-  # Flags are good, but need to take them apart - for each record with a flag, compute a
-  # final qc_outcome and flag list. Generally, qc_outcome is max, but 111 overrides in
-  # this case and removes all other flags.
-  resolve_xact_flags <- function(x) {
-    if (length(x) == 1) {
-      manual_flag <- x
-      manual_qc_outcome <- available_flags$manual_qc_outcome[available_flags$manual_flag == x]
-    } else {
-      if (any(x == "111")) {
-        manual_flag <- "111"
-        manual_qc_outcome <- 1
-      } else {
-        manual_qc_outcome <- max(available_flags$manual_qc_outcome[available_flags$manual_flag %in% x])
-        manual_flag <- paste0(sort(x), collapse = ":")
-      }
-    }
-    data.frame(manual_flag, manual_qc_outcome)
-  }
-  
-  flags_outcomes <- purrr::map(all_flags, resolve_xact_flags) |>
-    purrr::list_rbind()
-  
-  df_manual_flagged <- df_manual_flagged |>
-    mutate(manual_flag = flags_outcomes$manual_flag,
-           manual_qc_outcome = flags_outcomes$manual_qc_outcome)
-  df_manual_unflagged <- df_manual_unflagged |>
-    mutate(manual_qc_outcome = 1)
-  df <- bind_rows(df_manual_flagged, df_manual_unflagged) |>
+  df <- resolve_composite_flags(df, available_flags) |>
     arrange(sample_datetime_UTC)
-  
-  # 111 is a manual override flag - if we get this, set qc_outcome to 1 and remove flag
-  df <- df |>
-    mutate(qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
-           flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA, flag))
-  
-  ##### end resolving manual flags
   
   
   # Coalesce flags and comments

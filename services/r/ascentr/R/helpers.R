@@ -90,6 +90,58 @@ recompose_flags <- function(x) {
   }
 }
 
+# Resolve composite manual flags (colon-separated) and apply the 111 override.
+# Expects df to have `manual_flag` (character), `qc_outcome` (numeric), and
+# `flag` (character) columns. `available_flags` must have `manual_flag` and
+# `manual_qc_outcome` columns.
+resolve_composite_flags <- function(df, available_flags) {
+  df_manual_flagged <- filter(df, !is.na(manual_flag))
+  df_manual_unflagged <- setdiff(df, df_manual_flagged)
+
+  all_flags <- stringr::str_split(df_manual_flagged$manual_flag, pattern = ":")
+
+  # Validate all flag values
+  flags <- unique(unlist(all_flags))
+  bad_flags <- any(!flags %in% available_flags$manual_flag)
+  if (bad_flags) {
+    bad <- flags[which(!flags %in% available_flags$manual_flag)]
+    stop("Unexpected flag value(s): ", paste(bad, collapse = ", "))
+  }
+
+  # Resolve each flag set: 111 overrides all; otherwise take the max qc_outcome
+  resolve_flags <- function(x) {
+    if (length(x) == 1) {
+      manual_flag <- x
+      manual_qc_outcome <- available_flags$manual_qc_outcome[available_flags$manual_flag == x]
+    } else {
+      if (any(x == "111")) {
+        manual_flag <- "111"
+        manual_qc_outcome <- 1
+      } else {
+        manual_qc_outcome <- max(available_flags$manual_qc_outcome[available_flags$manual_flag %in% x])
+        manual_flag <- paste0(sort(x), collapse = ":")
+      }
+    }
+    data.frame(manual_flag, manual_qc_outcome)
+  }
+
+  flags_outcomes <- purrr::map(all_flags, resolve_flags) |>
+    purrr::list_rbind()
+
+  df_manual_flagged <- df_manual_flagged |>
+    mutate(manual_flag = flags_outcomes$manual_flag,
+           manual_qc_outcome = flags_outcomes$manual_qc_outcome)
+  df_manual_unflagged <- df_manual_unflagged |>
+    mutate(manual_qc_outcome = 1)
+
+  # 111 is a manual override: reset qc_outcome to valid and clear the auto-QC flag
+  bind_rows(df_manual_flagged, df_manual_unflagged) |>
+    mutate(
+      qc_outcome = if_else(!is.na(manual_flag) & manual_flag == "111", 1, qc_outcome),
+      flag = if_else(!is.na(manual_flag) & manual_flag == "111", NA_character_, flag)
+    )
+}
+
 # Coalesce manual and automated QC flags and comments
 coalesce_flags <- function(df) {
   df |>
