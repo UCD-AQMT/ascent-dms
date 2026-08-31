@@ -139,7 +139,8 @@ ae33_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   template <- switch(level,
                      "1a" = "ae33_l1a_field_descriptions.txt",
                      "1b" = "ae33_l1b_field_descriptions.txt",
-                     "2" = "ae33_l2_field_descriptions.txt")
+                     "2" = "ae33_l2_field_descriptions.txt",
+                     "2N" = "ae33_l2N_field_descriptions.txt")
   fields_path <- system.file(template, package="ascentr")
   fields <- paste(readLines(fields_path), collapse = "\n")
 
@@ -488,7 +489,19 @@ ae33_status_to_flags <- function(dt, status) {
   df
 }
 
-ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+#' Read and prepare an AE33 L1b file for L2 processing, common to both the
+#' hourly and native L2 outputs. Reads the L1b file and manual qc file,
+#' resolves and coalesces flags, and optionally limits to after start_datetime.
+#'
+#' @param l1b_file
+#' @param manual_qc_file
+#' @param start_datetime
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+ae33_l2_prepare_df <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # AE33 specific list
   available_flags <- tibble(manual_flag = c("111", "686", "683", "659", "644A", "659"),
@@ -531,9 +544,17 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   df <- resolve_composite_flags(df, available_flags)
 
-  # Coalesce flags and comments and calculate the base hour
+  # Coalesce flags and comments
   df <- df |>
-    coalesce_flags() |>
+    coalesce_flags()
+
+  return(df)
+}
+
+ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  # Calculate the base hour
+  df <- ae33_l2_prepare_df(l1b_file, manual_qc_file, start_datetime) |>
     mutate(sample_hour_UTC = lubridate::floor_date(sample_datetime_UTC, "1 hour"),
            .after = site_code)
 
@@ -660,6 +681,13 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   return(result)
   
+}
+
+ae33_l2_native_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  df <- ae33_l2_prepare_df(l1b_file, manual_qc_file, start_datetime)
+
+  return(df)
 }
 
 # Mass Absorption Cross-sections from Magee manual (ver 1.59, pg 22)
