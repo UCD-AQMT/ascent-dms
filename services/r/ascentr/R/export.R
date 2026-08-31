@@ -58,6 +58,30 @@ export_acsm_l2_native_monthly <- function(site, start_date, end_date, site_files
   
 }
 
+export_smps_l2_from_l1b <- function(l1b_zip, start_date, end_date, site, manual_qc_file, 
+                                    level = "2", out_folder, con) {
+  
+  # Open L1b zip file
+  Sys.sleep(1)
+  temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
+  dir.create(temp_dir)
+  zipfile <- unzip(l1b_zip, exdir = temp_dir)
+  l1b_csv <- fs::dir_ls(temp_dir, glob = "*.csv")
+  
+  # Pass csv to smps_l2_from_files
+  if (level == "2") {
+    df <- smps_l2_from_files(l1b_csv, manual_qc_file, start_datetime = start_date)
+    m <- smps_metadata(site, start_date, end_date, con = con, level = "2")
+    fname <- glue::glue("ASCENT_SMPS_{site}_{start_date}_{end_date}_L2")
+  } else if (level == "2N") {
+    df <- smps_l2_native_from_files(l1b_csv, manual_qc_file, start_datetime = start_date)
+    m <- smps_metadata(site, start_date, end_date, con = con, level = "2N")
+    fname <- glue::glue("ASCENT_SMPS_{site}_{start_date}_{end_date}_L2_native")
+  }
+  export_zip(df, m, out_folder, fname)
+
+}
+
 
 #' Title
 #'

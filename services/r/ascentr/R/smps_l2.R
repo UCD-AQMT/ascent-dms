@@ -11,7 +11,7 @@
 #' @export
 #'
 #' @examples
-smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+smps_l2_prepare_df <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # SMPS specific flags
   available_flags <- tibble(manual_flag = c("111", "686", "683", "458A", "659"),
@@ -28,7 +28,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     # Handle errors
     stop("Error reading qc file: ", manual_qc_file)
   }
-  
+
   qc <- qc |>
     mutate(flag = as.character(flag),
            sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
@@ -55,7 +55,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
     df <- l1b |>
       left_join(resolve_df, by = "sample_analysis_id") |>
-      mutate(flag = as.character(flag))
+      mutate(flag = as.character(flag),
+             manual_flag = if_else(nchar(manual_flag) == 0, NA_character_, flag),
+             manual_comment = if_else(nchar(manual_comment) == 0 , NA_character_, comment))
     
     
   }
@@ -68,9 +70,27 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   df <- resolve_composite_flags(df, available_flags)
 
-  # Coalesce flags and comments and calculate the base hour
+  # Coalesce flags and comments
   df <- df |>
-    coalesce_flags() |>
+    coalesce_flags()
+
+  return(df)
+}
+
+#' Title
+#'
+#' @param l1b_file 
+#' @param manual_qc_file 
+#' @param start_datetime 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  # Calculate the base hour
+  df <- smps_l2_prepare_df(l1b_file, manual_qc_file, start_datetime) |>
     mutate(sample_hour_utc = lubridate::floor_date(sample_datetime_utc, "1 hour"),
            .after = site_code)
   
@@ -307,4 +327,15 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   return(result)
   
   
+}
+
+smps_l2_native_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  df <- smps_l2_prepare_df(l1b_file, manual_qc_file, start_datetime)
+
+  # Fix field name
+  df <- df |>
+    rename(sample_datetime_UTC=sample_datetime_utc)
+
+  return(df)
 }

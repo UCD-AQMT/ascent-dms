@@ -139,7 +139,8 @@ smps_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   template <- switch(level,
                      "1a" = "smps_l1a_field_descriptions.txt",
                      "1b" = "smps_l1b_field_descriptions.txt",
-                     "2" = "smps_l2_field_descriptions.txt")
+                     "2" = "smps_l2_field_descriptions.txt",
+                     "2N" = "smps_l2N_field_descriptions.txt")
   fields_path <- system.file(template, package="ascentr")
   fields <- paste(readLines(fields_path), collapse = "\n")
   
