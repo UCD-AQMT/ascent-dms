@@ -31,10 +31,8 @@
   	
   	
   <include file="r/GH-126-flags_lookup_table/20260904_GH-126-flags_lookup_table.xml" relativeToChangelogFile="true"/>
-  <!-- Run this when all changes in this branch are done, and ready to merge to main branch
-  <changeSet author="xiaoya.cheng" id="tag-v2026.1" context="r", labels="feature/126-creation-of-lookup-table-for-flags">
+  <changeSet author="xiaoya.cheng" id="tag-v2026.1" context="r" labels="feature/126-creation-of-lookup-table-for-flags">
       <tagDatabase tag="2026.1" />
   </changeSet>
-  -->
 
 </databaseChangeLog>
