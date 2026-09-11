@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+        
+        <!-- database schema generation -->
+        <changeSet author="xiaoya.cheng" id="1">
+            <comment>Create table schema</comment>
+            <sqlFile path="creation_flags_lut.sql"
+                relativeToChangelogFile="true"
+                stripComments="true"/>
+                
+            <rollback>
+                <dropTable schemaName="common" tableName="flags"/>
+            </rollback>
+        </changeSet>
+        
+        
+        <!-- load data into lookup tables -->
+        <changeSet author="xiaoya.cheng" id="2">
+            <comment>Load data for the created table</comment>
+            <sqlFile path="load_data.sql"
+                relativeToChangelogFile="true"
+                stripComments="true"/>
+                
+            <rollback>
+                <delete schemaName="common" tableName="flags"/>
+            </rollback>
+        </changeSet>
+        
+</databaseChangeLog>

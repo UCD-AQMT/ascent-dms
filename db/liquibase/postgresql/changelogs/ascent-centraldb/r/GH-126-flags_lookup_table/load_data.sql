@@ -1,0 +1,23 @@
+INSERT INTO common.flags (flag, qc_outcome, description)
+VALUES
+    ('111',  1, 'Irregular data checked and accepted by data originator. Valid measurement'),
+    ('453',  1, 'Measured value less than 3 times the estimated uncertainty'),
+    ('457A', 1, 'Extremely low value, outside four times standard deviation in a lognormal distribution'),
+    ('458A', 1, 'Extremely high value, outside four times standard deviation in a lognormal distribution'),
+    ('459',  4, 'Extreme value, unspecified error'),
+    ('460',  4, 'Contamination suspected'),
+    ('499',  1, 'Inconsistent with another unspecified measurement'),
+    ('635',  4, 'Internal temperatures too far off target value, considered invalid'),
+    ('640',  1, 'Instrument internal relative humidity above 40%'),
+    ('641',  4, 'Aerosol filters installed incorrectly'),
+    ('644',  1, 'Low instrument precision and/or calibration issues'),
+    ('644A', 3, 'Low instrument precision and/or calibration issues'),
+    ('649',  1, 'Temporary power fail has affected sampler operation'),
+    ('659',  4, 'Unspecified sampling anomaly'),
+    ('664',  4, 'Instrument flow(s) too far off target value, considered invalid'),
+    ('683',  9, 'Invalid due to calibration. Used for Level 0.'),
+    ('686',  9, 'Invalid due to zero check. Used for Level 0.'),
+    ('999',  9, 'Missing measurement, unspecified reason'),
+    ('460A', 3, 'Contamination suspected'),
+    ('660',  1, 'Unspecified sampling anomaly, considered valid'),
+    ('660A', 3, 'Unspecified sampling anomaly');
