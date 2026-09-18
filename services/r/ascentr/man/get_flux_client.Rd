@@ -2,13 +2,17 @@
 % Please edit documentation in R/database.R
 \name{get_flux_client}
 \alias{get_flux_client}
-\title{Title}
+\title{Connect to the ASCENT InfluxDB (Flux) instance}
 \usage{
 get_flux_client(config_name)
 }
 \arguments{
-\item{config_name}{}
+\item{config_name}{Name of the `config.yml` configuration block holding
+the `influx_read_token`}
+}
+\value{
+An `InfluxDBClient` connected to the ASCENT InfluxDB instance
 }
 \description{
-Title
+Connect to the ASCENT InfluxDB (Flux) instance
 }

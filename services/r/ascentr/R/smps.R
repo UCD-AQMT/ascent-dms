@@ -1,12 +1,17 @@
 
-#' Title
+#' Retrieve SMPS instrument settings for a site and time range
 #'
-#' @param site_num
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Retrieves distinct instrument setting name/value pairs (excluding
+#' `"Dataset Name"`) that were in effect on or before `end_dt`, with the
+#' earliest date each name/value combination took effect.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime of the requested range (used only to
+#'   bound the returned range together with `end_dt`)
+#' @param end_dt End date/datetime (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame with columns `name`, `value`, and `start_date`
 #' @export
 #' @import dplyr
 #'
@@ -39,14 +44,14 @@ smps_settings <- function(site, start_dt, end_dt, con) {
 }
 
 
-#' Title
+#' Retrieve raw SMPS sample analysis data for a site and time range
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
 #'
-#' @returns
+#' @returns A data frame of SMPS sample analysis records
 #' @export
 #'
 #' @examples
@@ -69,14 +74,18 @@ smps_data <- function(site, start_dt, end_dt, con) {
 
 }
 
-#' Title
+#' Retrieve SMPS dataset names in effect during a time range
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Looks up the `"Dataset Name"` instrument setting records that overlap the
+#' requested time range for a site.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame with columns `value` (the dataset name),
+#'   `dataset_start`, `dataset_end`, and `ds_site_number`
 #' @export
 #'
 #' @examples
@@ -98,12 +107,16 @@ smps_datasets <- function(site, start_dt, end_dt, con) {
 
 }
 
-# Get the column names to remap from the database
-#' Title
+#' Get SMPS column name mappings from the database
 #'
-#' @param con
+#' Retrieves the mapping between the SMPS instrument file column names and
+#' the corresponding database column names, excluding the JSON blob
+#' columns.
 #'
-#' @returns
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame with columns `file_column_name`, `db_column_name`,
+#'   and `column_type`
 #' @export
 #'
 #' @examples
@@ -118,15 +131,20 @@ smps_columns <- function(con) {
 }
 
 
-#' Title
+#' Build SMPS metadata text
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
-#' @param version
+#' Assembles the text metadata file that accompanies an SMPS data export,
+#' including basic site/instrument metadata, field descriptions appropriate
+#' to the requested data level, and the instrument settings in effect
+#' during the requested time range.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param level Data level: one of `"1a"`, `"1b"`, `"2"`, or `"2N"`
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A single string containing the formatted metadata text
 #' @export
 #'
 #' @examples
@@ -139,7 +157,8 @@ smps_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   template <- switch(level,
                      "1a" = "smps_l1a_field_descriptions.txt",
                      "1b" = "smps_l1b_field_descriptions.txt",
-                     "2" = "smps_l2_field_descriptions.txt")
+                     "2" = "smps_l2_field_descriptions.txt",
+                     "2N" = "smps_l2N_field_descriptions.txt")
   fields_path <- system.file(template, package="ascentr")
   fields <- paste(readLines(fields_path), collapse = "\n")
   
@@ -180,10 +199,16 @@ smps_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
 
 #' Integrate number/volume/mass distribution
 #'
-#' @param dWdlogDp
-#' @param dlogDp
+#' Integrates a distribution (e.g., dN/dlogDp, dV/dlogDp, or dM/dlogDp) over
+#' size bins to get the corresponding total (e.g., N, V, or M).
 #'
-#' @returns
+#' @param dWdlogDp A matrix or data frame of distribution values, with one
+#'   row per scan and one column per size bin
+#' @param dlogDp Numeric vector of log-diameter bin widths, as returned by
+#'   [calc_dlogDp()], with one value per column of `dWdlogDp`
+#'
+#' @returns A numeric vector of integrated totals, one per row of
+#'   `dWdlogDp`
 #' @export
 #'
 #' @examples
@@ -193,11 +218,18 @@ calc_W <- function(dWdlogDp, dlogDp) {
 }
 
 
-#' Title
+#' Calculate log-diameter bin widths for SMPS size bins
 #'
-#' @param midpoints
+#' Given the midpoint diameters of a set of SMPS size bins, calculates the
+#' lower and upper bin boundaries (as the geometric mean of adjacent
+#' midpoints, with the first and last boundaries extrapolated using the
+#' average log-spacing) and returns the resulting log10 bin widths.
 #'
-#' @returns
+#' @param midpoints Numeric vector of size bin midpoint diameters (nm), in
+#'   increasing order
+#'
+#' @returns A numeric vector of `log10(D_high) - log10(D_low)` bin widths,
+#'   the same length as `midpoints`
 #' @export
 #'
 #' @examples

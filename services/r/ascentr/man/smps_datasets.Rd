@@ -2,13 +2,24 @@
 % Please edit documentation in R/smps.R
 \name{smps_datasets}
 \alias{smps_datasets}
-\title{Title}
+\title{Retrieve SMPS dataset names in effect during a time range}
 \usage{
 smps_datasets(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame with columns `value` (the dataset name),
+  `dataset_start`, `dataset_end`, and `ds_site_number`
 }
 \description{
-Title
+Looks up the `"Dataset Name"` instrument setting records that overlap the
+requested time range for a site.
 }

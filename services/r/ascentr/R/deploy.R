@@ -4,7 +4,8 @@
 #' @param title Name of the app (will be part of the url)
 #' @param ... Further parameters passed to rsconnect::deployApp (e.g., account)
 #'
-#' @returns
+#' @returns Invisibly returns `NULL`; called for its side effect of deploying
+#'   the app to shinyapps.io
 #' @export
 #'
 #' @examples deploy("inst/apps/ascent-operations", "ascent_ops", account = "ascent")
@@ -27,12 +28,17 @@ deploy <- function(file, title, ...) {
 }
 
 
-#' Title
+#' Run an app within the inst directory locally
 #'
-#' @param file 
-#' @param ... 
+#' Writes a temporary `app.R` that loads the package and launches the
+#' specified Shiny app directory, then runs it locally via
+#' `shiny::runApp()`.
 #'
-#' @returns
+#' @param file Folder location for app (e.g., "/inst/apps/ascent-operations")
+#' @param ... Further parameters passed to `shiny::runApp()`
+#'
+#' @returns Invisibly returns `NULL`; called for its side effect of running
+#'   the app
 #' @export
 #'
 #' @examples

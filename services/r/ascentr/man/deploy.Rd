@@ -13,6 +13,10 @@ deploy(file, title, ...)
 
 \item{...}{Further parameters passed to rsconnect::deployApp (e.g., account)}
 }
+\value{
+Invisibly returns `NULL`; called for its side effect of deploying
+  the app to shinyapps.io
+}
 \description{
 Deploy app within inst directory to shinyapps.io via rsconnect
 }

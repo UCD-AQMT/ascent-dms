@@ -1,3 +1,10 @@
+ascentr v0.1.26 (Release Date: 2026-08-31)
+==========================================
+
+- Added L2 native-time-resolution exports
+- Removed biomass_burning_percent as a delivered value in AE33 L1 and beyond products
+
+
 ascentr v0.1.25 (Release Date: 2026-08-21)
 ==========================================
 

@@ -1,12 +1,20 @@
 
-#' Title
+#' Plot ACSM diagnostic time series
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Builds a stacked set of diagnostic plots for an ACSM instrument over a
+#' time range: ionization efficiency (IE) relative to NO3, air beam signal,
+#' IE/air beam ratio, heater bias and filament emission, relative
+#' ionization efficiencies (RIE) for NH4 and SO4, and sample flow.
+#' Calibration points are reduced to the first point of each distinct
+#' calibration period, and gaps in sampling are shown as breaks in the
+#' lines.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A `patchwork` object combining the diagnostic plots
 #' @export
 #'
 #' @import ggplot2

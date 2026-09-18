@@ -1,13 +1,16 @@
-# starting with a simple wide format that looks like the influx output - will edit with
-# feedback
-#' Title
+#' Build AE33 Level 1a data
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Retrieves raw AE33 measurements from InfluxDB, attaches units, converts BC
+#' values and pressure to ASCENT standard units, attaches site info, and
+#' renames fields with unit suffixes.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con An InfluxDB client, as returned by [get_flux_client()]
+#'
+#' @returns A data frame of Level 1a AE33 data, or `NULL` if no data are
+#'   available for the requested site and time range
 #' @export
 #'
 #' @examples
@@ -90,10 +93,9 @@ ae33_l1a <- function(site, start_dt, end_dt, con) {
            bc1_7_STP=EBC1_7, bc2_1_STP=EBC2_1, bc2_2_STP=EBC2_2, bc2_3_STP=EBC2_3,
            bc2_4_STP=EBC2_4, bc2_5_STP=EBC2_5, bc2_6_STP=EBC2_6, bc2_7_STP=EBC2_7,
            k_1, k_2, k_3, k_4, k_5, k_6, k_7,
-           bb=BB,
+           # bb=BB, removing BB as a delivered parameter as of 9/18/26
            att1_1, att1_2, att1_3, att1_4, att1_5, att1_6, att1_7,
            att2_1, att2_2, att2_3, att2_4, att2_5, att2_6, att2_7,
-           #c001=C001, e110=E110, e559=E559, e640=E640, e980=E980, e999=E999,
            sample_analysis_id, site_record_id
            )
 
@@ -113,14 +115,20 @@ ae33_l1a <- function(site, start_dt, end_dt, con) {
 
 }
 
-#' Title
+#' Build AE33 metadata text
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Assembles the text metadata file that accompanies an AE33 data export,
+#' including basic site/instrument metadata, per-channel wavelength and mass
+#' absorption cross-section values, and field descriptions appropriate to
+#' the requested data level.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param level Data level: one of `"1a"`, `"1b"`, `"2"`, or `"2N"`
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A single string containing the formatted metadata text
 #' @export
 #'
 #' @examples
@@ -139,7 +147,8 @@ ae33_metadata <- function(site, start_dt, end_dt, level = "1a", con) {
   template <- switch(level,
                      "1a" = "ae33_l1a_field_descriptions.txt",
                      "1b" = "ae33_l1b_field_descriptions.txt",
-                     "2" = "ae33_l2_field_descriptions.txt")
+                     "2" = "ae33_l2_field_descriptions.txt",
+                     "2N" = "ae33_l2N_field_descriptions.txt")
   fields_path <- system.file(template, package="ascentr")
   fields <- paste(readLines(fields_path), collapse = "\n")
 
@@ -283,14 +292,19 @@ ae33_serial_number <- function(site) {
     pull(serial_number)
 }
 
-#' Title
+#' Build AE33 Level 1b data
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Builds AE33 Level 1a data, applies the historical C-value correction
+#' factor for periods prior to each site's C-value update, and derives
+#' automated QC flags from the instrument status bits.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con An InfluxDB client, as returned by [get_flux_client()]
+#'
+#' @returns A data frame of Level 1b AE33 data with `qc_outcome`, `flag`, and
+#'   `comment` columns, or `NULL` if no Level 1a data are available
 #' @export
 #'
 #' @examples
@@ -488,7 +502,23 @@ ae33_status_to_flags <- function(dt, status) {
   df
 }
 
-ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+#' Read and prepare an AE33 L1b file for L2 processing, common to both the
+#' hourly and native L2 outputs. Reads the L1b file and manual qc file,
+#' resolves and coalesces flags, and optionally limits to after start_datetime.
+#'
+#' @param l1b_file Path to a Level 1b AE33 csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
+#'
+#' @returns A data frame of native-resolution AE33 data with manual and
+#'   automated QC flags resolved and coalesced
+#' @export
+#'
+#' @examples
+ae33_l2_prepare_df <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # AE33 specific list
   available_flags <- tibble(manual_flag = c("111", "686", "683", "659", "644A", "659"),
@@ -531,9 +561,45 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   df <- resolve_composite_flags(df, available_flags)
 
-  # Coalesce flags and comments and calculate the base hour
+  # Coalesce flags and comments
   df <- df |>
-    coalesce_flags() |>
+    coalesce_flags()
+
+  return(df)
+}
+
+#' Build AE33 Level 2 hourly-averaged data from L1b and manual QC files
+#'
+#' Reads and prepares native-resolution AE33 data via
+#' [ae33_l2_prepare_df()], then averages to hourly values. AE33 samples
+#' every 1 minute (60 per hour); an hour is only reportable if at least 30
+#' valid (QC-passing) samples are available. Hourly black carbon (BC),
+#' absorption coefficient ("k_"), and attenuation ("att") columns are
+#' averaged, and biomass burning percent (`bb_percent`) is derived from the
+#' hourly BC values at 470 nm and 950 nm following Zotter et al. (2017) Eq
+#' 13. Hours with too few valid samples, or with no valid samples at all,
+#' are flagged 391 ("Data completeness less than 50%"). Flags and comments
+#' across samples within an hour are recomposed via [recompose_flags()],
+#' and the worst-case (max) QC outcome for the hour is retained.
+#'
+#' @param l1b_file Path to a Level 1b AE33 csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
+#'
+#' @returns An hourly-averaged data frame with BC, absorption, attenuation,
+#'   biomass-burning percent, sample counts, and resolved QC flags, ready
+#'   for L2 export. Returns `NULL` (with a warning) if no valid hours are
+#'   found.
+#' @export
+#'
+#' @examples
+ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  # Calculate the base hour
+  df <- ae33_l2_prepare_df(l1b_file, manual_qc_file, start_datetime) |>
     mutate(sample_hour_UTC = lubridate::floor_date(sample_datetime_UTC, "1 hour"),
            .after = site_code)
 
@@ -571,33 +637,35 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
               .by = sample_hour_UTC)
 
   
-  # To properly calculate BB% at hourly resolution, we use the 1-hr BC values, along with
-  # MAC values to derive hourly absorption. Then use Zotter et al., 2017 Eq 13 to find
-  # BC_ff/BC_tot. 
-  # Assumptions:
-  # MAC_ff == MAC_bb
-  # Absorption Angstrom Exponent (alpha) ff = 1, bb = 2
-  mac_470 <- ae33_MAC |>
-    filter(wavelength == 470) |>
-    pull(MAC)
+  ## Removing bb% as a delivered parameter as of 9/18/26
   
-  mac_950 <- ae33_MAC |>
-    filter(wavelength == 950) |>
-    pull(MAC)
-  
-  alpha_ff <- 1
-  alpha_bb <- 2
-  
-  data_hourly_valid <- data_hourly_valid |>
-    mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
-           abs_950 = bc_7_STP_ng_m3 * mac_950,
-           upper_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_ff,
-           lower_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_bb,
-           ff_fraction = 1 / (1 - upper_term / lower_term),
-           bb_percent = (1 - ff_fraction) * 100,
-           bb_percent = if_else(bb_percent > 100, 100,
-                                if_else(bb_percent < 0, 0, bb_percent))) |>
-    select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
+  # # To properly calculate BB% at hourly resolution, we use the 1-hr BC values, along with
+  # # MAC values to derive hourly absorption. Then use Zotter et al., 2017 Eq 13 to find
+  # # BC_ff/BC_tot. 
+  # # Assumptions:
+  # # MAC_ff == MAC_bb
+  # # Absorption Angstrom Exponent (alpha) ff = 1, bb = 2
+  # mac_470 <- ae33_MAC |>
+  #   filter(wavelength == 470) |>
+  #   pull(MAC)
+  # 
+  # mac_950 <- ae33_MAC |>
+  #   filter(wavelength == 950) |>
+  #   pull(MAC)
+  # 
+  # alpha_ff <- 1
+  # alpha_bb <- 2
+  # 
+  # data_hourly_valid <- data_hourly_valid |>
+  #   mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
+  #          abs_950 = bc_7_STP_ng_m3 * mac_950,
+  #          upper_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_ff,
+  #          lower_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_bb,
+  #          ff_fraction = 1 / (1 - upper_term / lower_term),
+  #          bb_percent = (1 - ff_fraction) * 100,
+  #          bb_percent = if_else(bb_percent > 100, 100,
+  #                               if_else(bb_percent < 0, 0, bb_percent))) |>
+  #   select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
 
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
@@ -654,12 +722,42 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   # Rearrange to final field order
   result <- result |>
-    select(site_number, site_code, sample_datetime_UTC, sample_count:bb_percent,
+    select(site_number, site_code, sample_datetime_UTC, sample_count:att2_7,
            qc_outcome, flag, comment) |>
     mutate()
 
   return(result)
   
+}
+
+#' Build AE33 Level 2 native-resolution data from L1b and manual QC files
+#'
+#' Reads and prepares native-resolution AE33 data via
+#' [ae33_l2_prepare_df()] and returns it directly, without hourly
+#' averaging.
+#'
+#' @param l1b_file Path to a Level 1b AE33 csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
+#'
+#' @returns A native-resolution data frame with resolved and coalesced
+#'   manual and automated QC flags, ready for L2 native export.
+#' @export
+#'
+#' @examples
+ae33_l2_native_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  df <- ae33_l2_prepare_df(l1b_file, manual_qc_file, start_datetime)
+  
+  # strip invalid values
+  df <- df |>
+    mutate(across(bc_1_STP_ng_m3:att2_7, 
+                  ~if_else(qc_outcome >= 4, NA, .x)))
+
+  return(df)
 }
 
 # Mass Absorption Cross-sections from Magee manual (ver 1.59, pg 22)

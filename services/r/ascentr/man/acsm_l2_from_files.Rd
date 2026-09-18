@@ -2,17 +2,30 @@
 % Please edit documentation in R/acsm.R
 \name{acsm_l2_from_files}
 \alias{acsm_l2_from_files}
-\title{Title}
+\title{Build ACSM Level 2 hourly-averaged data from Igor export files}
 \usage{
-acsm_l2_from_files(site, site_file, con)
+acsm_l2_from_files(site, site_files, con)
 }
 \arguments{
-\item{site}{}
+\item{site}{ASCENT site code}
 
-\item{site_file}{}
+\item{site_files}{Character vector of paths to Igor-produced ACSM csv
+files}
 
-\item{con}{}
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+An hourly-averaged data frame with STP-converted, RIE-corrected
+  concentrations, sample counts, and resolved QC flags, ready for L2
+  export. Returns `NULL` (with a warning) if no valid hours are found.
 }
 \description{
-Title
+Reads and prepares native-resolution ACSM data via [acsm_l2_prepare_()],
+then averages to hourly values. ACSM samples every 10 minutes (6 per
+hour); an hour is only reportable if at least 3 valid (QC-passing)
+samples are available. Hours with too few valid samples, or with no
+valid samples at all, are flagged 391 ("Data completeness less than
+50%"). Flags and comments across samples within an hour are recomposed
+via [recompose_flags()], and the worst-case (max) QC outcome for the
+hour is retained.
 }

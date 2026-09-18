@@ -2,7 +2,7 @@
 % Please edit documentation in R/xact.R
 \name{xact_metadata}
 \alias{xact_metadata}
-\title{Title}
+\title{Build Xact metadata text}
 \usage{
 xact_metadata(
   site,
@@ -14,8 +14,25 @@ xact_metadata(
 )
 }
 \arguments{
-\item{metadata_fields}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+
+\item{metadata_fields}{Optional data frame of field descriptions (as
+returned in the `mdf` element of [xact_l1a_df()]) used for levels
+`"1a"` and `"1b"`. If `NULL`, it is computed from `site`, `start_dt`,
+and `end_dt`}
+}
+\value{
+A single string containing the formatted metadata text
 }
 \description{
-Title
+Assembles the text metadata file that accompanies an Xact data export,
+including basic site/instrument metadata, the Xact software versions in
+effect during the requested time range, and field descriptions
+appropriate to the requested data level.
 }

@@ -2,19 +2,26 @@
 % Please edit documentation in R/xact.R
 \name{xact_l1b}
 \alias{xact_l1b}
-\title{Title}
+\title{Build Xact Level 1b data}
 \usage{
 xact_l1b(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{site}{}
+\item{site}{ASCENT site code}
 
-\item{start_dt}{}
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
 
-\item{end_dt}{}
+\item{end_dt}{End date (inclusive) of the requested range}
 
-\item{con}{}
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame of Level 1b Xact data (one row per element per
+  sample) with `qc_outcome`, `flag`, and `comment` columns
 }
 \description{
-Title
+Builds Xact Level 1a data and applies automated QC checks (terminal
+alarms, software processing errors, non-sample/QC records, upscale
+deviations, low flow, high tape pressure, and high measurement
+uncertainty), adding `qc_outcome`, `flag`, and `comment` fields.
 }

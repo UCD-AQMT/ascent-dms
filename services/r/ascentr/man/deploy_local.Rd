@@ -2,15 +2,21 @@
 % Please edit documentation in R/deploy.R
 \name{deploy_local}
 \alias{deploy_local}
-\title{Title}
+\title{Run an app within the inst directory locally}
 \usage{
 deploy_local(file, ...)
 }
 \arguments{
-\item{file}{}
+\item{file}{Folder location for app (e.g., "/inst/apps/ascent-operations")}
 
-\item{...}{}
+\item{...}{Further parameters passed to `shiny::runApp()`}
+}
+\value{
+Invisibly returns `NULL`; called for its side effect of running
+  the app
 }
 \description{
-Title
+Writes a temporary `app.R` that loads the package and launches the
+specified Shiny app directory, then runs it locally via
+`shiny::runApp()`.
 }

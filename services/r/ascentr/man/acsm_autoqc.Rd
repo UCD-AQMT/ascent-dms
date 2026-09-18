@@ -7,8 +7,16 @@
 acsm_autoqc(df)
 }
 \arguments{
-\item{df}{}
+\item{df}{An ACSM Level 1a data frame, as returned by the `df` element of
+[acsm_l1a()]}
+}
+\value{
+A data frame with one row per `sample_datetime_end_UTC`,
+  containing the combined `qc_outcome`, `flag`, and `comment` for that
+  sample
 }
 \description{
-ACSM auto-qc checks
+Applies automated quality control checks to ACSM Level 1a data, flagging
+issues such as TPS failures, out-of-range heater temperature or current,
+status/interlock errors, and low filament emission current.
 }

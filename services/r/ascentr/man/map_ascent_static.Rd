@@ -9,8 +9,13 @@ pixel locations of the sites. These can be translated to coordinates in ggplot.}
 map_ascent_static(con)
 }
 \arguments{
-\item{con}{}
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A `ggplot`/`cowplot` object showing site locations
 }
 \description{
-Title
+Draws a static map of the contiguous US with all ASCENT site locations
+plotted, plus inset maps for Alaska (Delta Junction) and Southern
+California (Los Angeles, Rubidoux, Joshua Tree).
 }

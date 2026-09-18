@@ -2,13 +2,19 @@
 % Please edit documentation in R/smps.R
 \name{smps_columns}
 \alias{smps_columns}
-\title{Title}
+\title{Get SMPS column name mappings from the database}
 \usage{
 smps_columns(con)
 }
 \arguments{
-\item{con}{}
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame with columns `file_column_name`, `db_column_name`,
+  and `column_type`
 }
 \description{
-Title
+Retrieves the mapping between the SMPS instrument file column names and
+the corresponding database column names, excluding the JSON blob
+columns.
 }

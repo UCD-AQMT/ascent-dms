@@ -2,13 +2,31 @@
 % Please edit documentation in R/aqs.R
 \name{get_aqs_data}
 \alias{get_aqs_data}
-\title{get_aqs_data}
+\title{Retrieve speciation data from the EPA AQS API}
 \usage{
 get_aqs_data(site, parameters, start_dt, end_dt, config_name)
 }
 \arguments{
-\item{config_name}{}
+\item{site}{ASCENT site code (must have a paired AQS speciation site
+defined in `aqs_sites`)}
+
+\item{parameters}{Character vector of parameter names to request (must be
+names present in `aqs_parameters`)}
+
+\item{start_dt}{Start date (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range; the range
+`start_dt` to `end_dt` may not exceed 365 days}
+
+\item{config_name}{Name of the `config.yml` configuration block holding
+the AQS API `email` and `key`}
+}
+\value{
+A data frame of AQS sample data, or the AQS response status
+  string if no rows are returned
 }
 \description{
-get_aqs_data
+Queries the EPA Air Quality System (AQS) `sampleData/bySite` API for the
+AQS site paired with an ASCENT site, over a date range of at most 365
+days.
 }

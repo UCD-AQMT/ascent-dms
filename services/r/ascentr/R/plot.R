@@ -5,12 +5,13 @@
 #' export at desired pixel dimensions, then use a tool like MS Paint to determine the
 #' pixel locations of the sites. These can be translated to coordinates in ggplot.
 #'
+#' Draws a static map of the contiguous US with all ASCENT site locations
+#' plotted, plus inset maps for Alaska (Delta Junction) and Southern
+#' California (Los Angeles, Rubidoux, Joshua Tree).
 #'
-#' Title
+#' @param con A database connection, as returned by [get_db_connection()]
 #'
-#' @param con
-#'
-#' @returns
+#' @returns A `ggplot`/`cowplot` object showing site locations
 #' @export
 #'
 #' @examples

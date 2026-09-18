@@ -2,13 +2,31 @@
 % Please edit documentation in R/acsm.R
 \name{acsm_metadata}
 \alias{acsm_metadata}
-\title{Title}
+\title{Build ACSM metadata text}
 \usage{
 acsm_metadata(site, start_dt, end_dt, con, metadata_fields = NULL, level)
 }
 \arguments{
-\item{metadata_fields}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+
+\item{metadata_fields}{Optional data frame of field descriptions (as
+returned in the `mdf` element of [acsm_l1a()] or [acsm_l1b()]) used for
+levels `"1a"` and `"1b"`. If `NULL`, it is computed from `site`,
+`start_dt`, and `end_dt`}
+
+\item{level}{Data level: one of `"1a"`, `"1b"`, `"2"`, or `"2N"`}
+}
+\value{
+A single string containing the formatted metadata text
 }
 \description{
-Title
+Assembles the text metadata file that accompanies an ACSM data export,
+including basic site/instrument metadata and field descriptions
+appropriate to the requested data level.
 }

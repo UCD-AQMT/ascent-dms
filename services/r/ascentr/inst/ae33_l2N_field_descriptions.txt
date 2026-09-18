@@ -25,6 +25,6 @@ att1_[n]: Attenuation at sensing spot 1 for channel [n]
 att2_[n]: Attenuation at sensing spot 2 for channel [n]
 sample_analysis_id: An id that uniquely identifies this measurement in the respective table of the ASCENT database. Currently empty for AE33 data.
 site_record_id: An id that identifies this measurement in the respective table of the local site database. Currently empty for AE33 data.
-qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
 flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
+qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
 comment: Comments that provide more detail about any flags applied to the record

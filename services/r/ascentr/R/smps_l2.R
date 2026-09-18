@@ -1,17 +1,24 @@
 # SMPS L2 data - hourly and validated for delivery
 # Initial version uses L1b files as input. Later versions will be built from database.
 
-#' Title
+#' Read and prepare an SMPS L1b file for L2 processing, common to both the
+#' hourly and native L2 outputs. Reads the L1b file and manual qc file,
+#' resolves and coalesces flags, and optionally limits to after
+#' start_datetime.
 #'
-#' @param l1b_file 
-#' @param manual_qc_file 
-#' @param start_datetime 
+#' @param l1b_file Path to a Level 1b SMPS csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
 #'
-#' @returns
+#' @returns A data frame of native-resolution SMPS data with manual and
+#'   automated QC flags resolved and coalesced
 #' @export
 #'
 #' @examples
-smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+smps_l2_prepare_df <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   # SMPS specific flags
   available_flags <- tibble(manual_flag = c("111", "686", "683", "458A", "659"),
@@ -21,6 +28,10 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     distinct()
 
   l1b <- readr::read_csv(l1b_file, show_col_types = FALSE, guess_max = 50000)
+  if (nrow(l1b) == 0) {
+    stop("No data in ", l1b_file)
+  }
+
   qc <- readr::read_csv(manual_qc_file, col_types = "TTcc")
 
   prb <- vroom::problems(qc)
@@ -28,7 +39,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     # Handle errors
     stop("Error reading qc file: ", manual_qc_file)
   }
-  
+
   qc <- qc |>
     mutate(flag = as.character(flag),
            sample_datetime_UTC_end = if_else(is.na(sample_datetime_UTC_end),
@@ -55,7 +66,9 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
     df <- l1b |>
       left_join(resolve_df, by = "sample_analysis_id") |>
-      mutate(flag = as.character(flag))
+      mutate(flag = as.character(flag),
+             manual_flag = if_else(nchar(manual_flag) == 0, NA_character_, flag),
+             manual_comment = if_else(nchar(manual_comment) == 0 , NA_character_, comment))
     
     
   }
@@ -68,9 +81,37 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 
   df <- resolve_composite_flags(df, available_flags)
 
-  # Coalesce flags and comments and calculate the base hour
+  # Coalesce flags and comments
   df <- df |>
-    coalesce_flags() |>
+    coalesce_flags()
+
+  return(df)
+}
+
+#' Build hourly SMPS Level 2 data from a Level 1b file
+#'
+#' Reads and prepares native-resolution SMPS Level 1b data, then aggregates
+#' to hourly resolution (requiring at least 12 of the expected 24 scans per
+#' hour to be valid), computing number and volume concentration, mean,
+#' geometric mean, median, and mode diameter, and geometric standard
+#' deviation from the averaged size distribution.
+#'
+#' @param l1b_file Path to a Level 1b SMPS csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
+#'
+#' @returns A data frame of hourly SMPS Level 2 data with one row per hour
+#'   in the input data
+#' @export
+#'
+#' @examples
+smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  # Calculate the base hour
+  df <- smps_l2_prepare_df(l1b_file, manual_qc_file, start_datetime) |>
     mutate(sample_hour_utc = lubridate::floor_date(sample_datetime_utc, "1 hour"),
            .after = site_code)
   
@@ -307,4 +348,20 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   return(result)
   
   
+}
+
+smps_l2_native_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
+
+  df <- smps_l2_prepare_df(l1b_file, manual_qc_file, start_datetime)
+  
+  # strip invalid values
+  df <- df |>
+    mutate(across(median_nm:raw_concentration_json, 
+                  ~if_else(qc_outcome >= 4, NA, .x)))
+
+  # Fix field name
+  df <- df |>
+    rename(sample_datetime_UTC=sample_datetime_utc)
+
+  return(df)
 }

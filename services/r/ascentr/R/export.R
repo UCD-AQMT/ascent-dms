@@ -58,17 +58,71 @@ export_acsm_l2_native_monthly <- function(site, start_date, end_date, site_files
   
 }
 
+export_smps_l2_from_l1b <- function(l1b_zip, start_date, end_date, site, manual_qc_file, 
+                                    level = "2", out_folder, con) {
+  
+  # Open L1b zip file
+  Sys.sleep(1)
+  temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
+  dir.create(temp_dir)
+  zipfile <- unzip(l1b_zip, exdir = temp_dir)
+  l1b_csv <- fs::dir_ls(temp_dir, glob = "*.csv")
+  
+  # Pass csv to smps_l2_from_files
+  if (level == "2") {
+    df <- smps_l2_from_files(l1b_csv, manual_qc_file, start_datetime = start_date)
+    m <- smps_metadata(site, start_date, end_date, con = con, level = "2")
+    fname <- glue::glue("ASCENT_SMPS_{site}_{start_date}_{end_date}_L2")
+  } else if (level == "2N") {
+    df <- smps_l2_native_from_files(l1b_csv, manual_qc_file, start_datetime = start_date)
+    m <- smps_metadata(site, start_date, end_date, con = con, level = "2N")
+    fname <- glue::glue("ASCENT_SMPS_{site}_{start_date}_{end_date}_L2_native")
+  }
+  export_zip(df, m, out_folder, fname)
 
-#' Title
+}
+
+export_ae33_l2_from_l1b <- function(l1b_zip, start_date, end_date, site, manual_qc_file, 
+                                    level = "2", out_folder, con) {
+  
+  # Open L1b zip file
+  Sys.sleep(1)
+  temp_dir <- file.path(tempdir(), as.integer(Sys.time()))
+  dir.create(temp_dir)
+  zipfile <- unzip(l1b_zip, exdir = temp_dir)
+  l1b_csv <- fs::dir_ls(temp_dir, glob = "*.csv")
+  
+  # Pass csv to ae33_l2_from_files
+  if (level == "2") {
+    df <- ae33_l2_from_files(l1b_csv, manual_qc_file, start_datetime = start_date)
+    m <- ae33_metadata(site, start_date, end_date, con = con, level = "2")
+    fname <- glue::glue("ASCENT_AE33_{site}_{start_date}_{end_date}_L2")
+  } else if (level == "2N") {
+    df <- ae33_l2_native_from_files(l1b_csv, manual_qc_file, start_datetime = start_date)
+    m <- ae33_metadata(site, start_date, end_date, con = con, level = "2N")
+    fname <- glue::glue("ASCENT_AE33_{site}_{start_date}_{end_date}_L2_native")
+  }
+  export_zip(df, m, out_folder, fname)
+  
+}
+
+#' Export a monthly Level 1b delivery zip for a single instrument
 #'
-#' @param site 
-#' @param month_date 
-#' @param instrument 
-#' @param folder 
-#' @param con 
-#' @param influx_con 
+#' Builds Level 1b data and its metadata text for the calendar month
+#' containing `month_date`, then writes a zip file (csv + metadata txt)
+#' named `ASCENT_{instrument}_{site}_{start}_{end}_L1b.zip` into `folder`.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param month_date A date within the month to export
+#' @param instrument One of `"AE33"`, `"SMPS"`, `"Xact"`, or `"ACSM"`
+#' @param folder Output folder for the exported zip file
+#' @param con A database connection, as returned by [get_db_connection()]
+#' @param influx_con An InfluxDB client, as returned by [get_flux_client()];
+#'   required when `instrument` is `"AE33"`
+#'
+#' @returns Invisibly returns `NULL`; called for its side effect of writing
+#'   a zip file to `folder`. Returns `NULL` (with a warning) if no data are
+#'   available for the requested month
 #' @export
 #'
 #' @examples

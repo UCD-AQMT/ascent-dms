@@ -1,14 +1,18 @@
 
-#' Title
+#' Retrieve raw ACSM sample analysis data for a site and time range
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Joins the ACSM sample analysis, diagnostic/calibration, mass loadings, and
+#' TPS tables for a single site over a date range.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame of joined ACSM sample analysis records
 #' @export
 #'
+#' @examples
 #' @examples
 acsm_l1a_df <- function(site, start_dt, end_dt, con) {
 
@@ -58,16 +62,22 @@ dryerstats_df <- function(site, start_dt, end_dt, con) {
 
 }
 
-#' Title
+#' Build ACSM Level 1a data
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Retrieves raw ACSM data, attaches units, converts pressures to Pa, renames
+#' fields with unit suffixes, and builds a matching metadata field
+#' description table.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A list with `df` (the Level 1a data frame) and `mdf` (a data
+#'   frame of field descriptions used to build export metadata)
 #' @export
 #'
+#' @examples
 #' @examples
 acsm_l1a <- function(site, start_dt, end_dt, con) {
 
@@ -142,15 +152,23 @@ acsm_l1a <- function(site, start_dt, end_dt, con) {
 
 }
 
-#' Title
+#' Build ACSM metadata text
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
-#' @param metadata_fields
+#' Assembles the text metadata file that accompanies an ACSM data export,
+#' including basic site/instrument metadata and field descriptions
+#' appropriate to the requested data level.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#' @param metadata_fields Optional data frame of field descriptions (as
+#'   returned in the `mdf` element of [acsm_l1a()] or [acsm_l1b()]) used for
+#'   levels `"1a"` and `"1b"`. If `NULL`, it is computed from `site`,
+#'   `start_dt`, and `end_dt`
+#' @param level Data level: one of `"1a"`, `"1b"`, `"2"`, or `"2N"`
+#'
+#' @returns A single string containing the formatted metadata text
 #' @export
 #'
 #' @examples
@@ -239,14 +257,18 @@ acsm_metadata <- function(site, start_dt, end_dt, con, metadata_fields = NULL, l
 
 }
 
-#' Title
+#' Build ACSM Level 1b data
 #'
-#' @param site 
-#' @param start_dt 
-#' @param end_dt 
-#' @param con 
+#' Builds ACSM Level 1a data and applies automated QC checks, adding
+#' `qc_outcome`, `flag`, and `comment` fields.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A list with `df` (the Level 1b data frame) and `mdf` (a data
+#'   frame of field descriptions used to build export metadata)
 #' @export
 #'
 #' @examples
@@ -277,12 +299,14 @@ acsm_l1b <- function(site, start_dt, end_dt, con) {
 #' Apply auto-qc checks to ACSM L1a data and return a file for external merging with ACSM
 #' HDF data in Igor. This process requires adjusting the time stamps to match.
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
 #'
-#' @returns
+#' @returns A data frame of auto-qc outcomes with an added `igor_time` column
+#'   (seconds since 1904-01-01, matching Igor's time format) for merging with
+#'   ACSM HDF data in Igor
 #' @export
 #'
 #' @examples
@@ -310,9 +334,16 @@ acsm_autoqc_file <- function(site, start_dt, end_dt, con) {
 
 #' ACSM auto-qc checks
 #'
-#' @param df 
+#' Applies automated quality control checks to ACSM Level 1a data, flagging
+#' issues such as TPS failures, out-of-range heater temperature or current,
+#' status/interlock errors, and low filament emission current.
 #'
-#' @returns
+#' @param df An ACSM Level 1a data frame, as returned by the `df` element of
+#'   [acsm_l1a()]
+#'
+#' @returns A data frame with one row per `sample_datetime_end_UTC`,
+#'   containing the combined `qc_outcome`, `flag`, and `comment` for that
+#'   sample
 #' @export
 #'
 #' @examples
@@ -408,19 +439,24 @@ acsm_autoqc <- function(df) {
 }
 
 
-#' Title
+#' Read and prepare ACSM Level 2 data from Igor export files
 #'
-#' @param site 
-#' @param site_file 
-#' @param con 
+#' Internal helper shared by [acsm_l2_from_files()] and
+#' acsm_l2_native_from_files(). Reads the Igor-produced site files, applies
+#' site metadata, converts to ASCENT STP, resolves manual QC flags, and
+#' applies the RIE correction. Returns a native-resolution data frame ready
+#' for either hourly averaging or direct export.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param site_files Character vector of paths to Igor-produced ACSM csv
+#'   files
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A native-resolution data frame with STP-converted, RIE-corrected
+#'   concentrations and resolved QC flags
 #' @export
 #'
 #' @examples
-# Internal helper: read ACSM Igor files, apply site metadata, STP conversion,
-# flag resolution, and RIE correction. Returns a native-resolution data frame
-# ready for either hourly averaging or direct export.
 acsm_l2_prepare_ <- function(site, site_files, con) {
 
   # ACSM-specific flags
@@ -558,6 +594,28 @@ acsm_l2_prepare_ <- function(site, site_files, con) {
   ooa_STP_ug_m3       = "OOA"
 )
 
+#' Build ACSM Level 2 hourly-averaged data from Igor export files
+#'
+#' Reads and prepares native-resolution ACSM data via [acsm_l2_prepare_()],
+#' then averages to hourly values. ACSM samples every 10 minutes (6 per
+#' hour); an hour is only reportable if at least 3 valid (QC-passing)
+#' samples are available. Hours with too few valid samples, or with no
+#' valid samples at all, are flagged 391 ("Data completeness less than
+#' 50%"). Flags and comments across samples within an hour are recomposed
+#' via [recompose_flags()], and the worst-case (max) QC outcome for the
+#' hour is retained.
+#'
+#' @param site ASCENT site code
+#' @param site_files Character vector of paths to Igor-produced ACSM csv
+#'   files
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns An hourly-averaged data frame with STP-converted, RIE-corrected
+#'   concentrations, sample counts, and resolved QC flags, ready for L2
+#'   export. Returns `NULL` (with a warning) if no valid hours are found.
+#' @export
+#'
+#' @examples
 acsm_l2_from_files <- function(site, site_files, con) {
 
   df <- acsm_l2_prepare_(site, site_files, con)
@@ -639,17 +697,42 @@ acsm_l2_from_files <- function(site, site_files, con) {
            qc_outcome, flag, comment)
 }
 
+#' Build ACSM Level 2 native-resolution data from Igor export files
+#'
+#' Reads and prepares native-resolution ACSM data via [acsm_l2_prepare_()]
+#' and returns it directly, without hourly averaging. Retains additional
+#' RIE and calibration columns not included in the hourly-averaged export
+#' from [acsm_l2_from_files()].
+#'
+#' @param site ASCENT site code
+#' @param site_files Character vector of paths to Igor-produced ACSM csv
+#'   files
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A native-resolution data frame with STP-converted, RIE-corrected
+#'   concentrations, RIE and calibration columns, and resolved QC flags,
+#'   ready for L2 native export.
+#' @export
+#'
+#' @examples
 acsm_l2_native_from_files <- function(site, site_files, con) {
 
   result <- acsm_l2_prepare_(site, site_files, con)
 
   # Rearrange and rename for final export
-  result |>
+  result <- result |>
     select(site_number, site_code, sample_datetime_UTC,
            all_of(.acsm_l2_rename),
            RIE_Org, RIE_SO4, RIE_NH4, RIE_NO3, RIE_Chl,
            AB_total, ABref, flowref, IE_ionspg, CE_applied,
            qc_outcome, flag, comment)
+  
+  # Strip values for all invalid data
+  result <- result |>
+    mutate(across(organics_STP_ug_m3:ooa_STP_ug_m3, 
+                  ~if_else(qc_outcome >= 4, NA, .x)))
+  result
+  
 }
 
 

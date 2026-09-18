@@ -2,13 +2,25 @@
 % Please edit documentation in R/ae33.R
 \name{ae33_l1b}
 \alias{ae33_l1b}
-\title{Title}
+\title{Build AE33 Level 1b data}
 \usage{
 ae33_l1b(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{An InfluxDB client, as returned by [get_flux_client()]}
+}
+\value{
+A data frame of Level 1b AE33 data with `qc_outcome`, `flag`, and
+  `comment` columns, or `NULL` if no Level 1a data are available
 }
 \description{
-Title
+Builds AE33 Level 1a data, applies the historical C-value correction
+factor for periods prior to each site's C-value update, and derives
+automated QC flags from the instrument status bits.
 }

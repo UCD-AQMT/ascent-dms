@@ -2,13 +2,22 @@
 % Please edit documentation in R/smps.R
 \name{smps_data}
 \alias{smps_data}
-\title{Title}
+\title{Retrieve raw SMPS sample analysis data for a site and time range}
 \usage{
 smps_data(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame of SMPS sample analysis records
 }
 \description{
-Title
+Retrieve raw SMPS sample analysis data for a site and time range
 }

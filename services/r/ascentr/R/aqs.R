@@ -1,14 +1,23 @@
 # Utilities for pulling data from the AQS API to match with ASCENT
 
-#' get_aqs_data
+#' Retrieve speciation data from the EPA AQS API
 #'
-#' @param site
-#' @param parameters
-#' @param start_dt
-#' @param end_dt
-#' @param config_name
+#' Queries the EPA Air Quality System (AQS) `sampleData/bySite` API for the
+#' AQS site paired with an ASCENT site, over a date range of at most 365
+#' days.
 #'
-#' @returns
+#' @param site ASCENT site code (must have a paired AQS speciation site
+#'   defined in `aqs_sites`)
+#' @param parameters Character vector of parameter names to request (must be
+#'   names present in `aqs_parameters`)
+#' @param start_dt Start date (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range; the range
+#'   `start_dt` to `end_dt` may not exceed 365 days
+#' @param config_name Name of the `config.yml` configuration block holding
+#'   the AQS API `email` and `key`
+#'
+#' @returns A data frame of AQS sample data, or the AQS response status
+#'   string if no rows are returned
 #' @export
 #'
 #' @examples

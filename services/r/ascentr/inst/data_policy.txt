@@ -13,4 +13,4 @@ When using these data in a publication or presentation, the National Science Fou
  Mid-scale Research Infrastructure (AGS 2131914), should be acknowledged. We suggest the following
  text be added to the acknowledgement section of publications:
  “The ASCENT data used in this work were supported by US NSF Mid-scale Research
- Infrastructure grant, AGS 2131914”.
+ Infrastructure grant, AGS-2624916”.

@@ -2,19 +2,24 @@
 % Please edit documentation in R/acsm.R
 \name{acsm_l1b}
 \alias{acsm_l1b}
-\title{Title}
+\title{Build ACSM Level 1b data}
 \usage{
 acsm_l1b(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{site}{}
+\item{site}{ASCENT site code}
 
-\item{start_dt}{}
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
 
-\item{end_dt}{}
+\item{end_dt}{End date (inclusive) of the requested range}
 
-\item{con}{}
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A list with `df` (the Level 1b data frame) and `mdf` (a data
+  frame of field descriptions used to build export metadata)
 }
 \description{
-Title
+Builds ACSM Level 1a data and applies automated QC checks, adding
+`qc_outcome`, `flag`, and `comment` fields.
 }
