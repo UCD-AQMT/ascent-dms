@@ -750,6 +750,11 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 ae33_l2_native_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   df <- ae33_l2_prepare_df(l1b_file, manual_qc_file, start_datetime)
+  
+  # strip invalid values
+  df <- df |>
+    mutate(across(bc_1_STP_ng_m3:att2_7, 
+                  ~if_else(qc_outcome >= 4, NA, .x)))
 
   return(df)
 }
