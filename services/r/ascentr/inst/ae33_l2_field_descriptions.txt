@@ -8,7 +8,6 @@ bc2_[n]_STP_ng_m3: Uncompensated BC calculated from spot 2 for channel [n] at st
 k_[n]: Compensation parameter for channel [n]
 att1_[n]: Attenuation at sensing spot 1 for channel [n]
 att2_[n]: Attenuation at sensing spot 2 for channel [n]
-bb_percent: Percentage of BC created by biomass burning, determined by Sandradewi model (ES&T, 2008)
 qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not evaluated/Unknown, 3-Questionable, 4-Bad/Invalid, 9-Missing)
 flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
 comment: Comments that provide more detail about any flags applied to the record

@@ -21,7 +21,6 @@ bc_[n]_STP_ng_m3: Calculated BC from measurements for channel [n] at standard te
 bc1_[n]_STP_ng_m3: Uncompensated BC calculated from spot 1 for channel [n] at standard temperature and pressure (ng/m3)
 bc2_[n]_STP_ng_m3: Uncompensated BC calculated from spot 2 for channel [n] at standard temperature and pressure (ng/m3)
 k_[n]: Compensation parameter for channel [n]
-bb_percent: Percentage of BC created by biomass burning, determined by Sandradewi model (ES&T, 2008)
 att1_[n]: Attenuation at sensing spot 1 for channel [n]
 att2_[n]: Attenuation at sensing spot 2 for channel [n]
 sample_analysis_id: An id that uniquely identifies this measurement in the respective table of the ASCENT database. Currently empty for AE33 data.

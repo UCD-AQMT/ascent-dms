@@ -93,10 +93,9 @@ ae33_l1a <- function(site, start_dt, end_dt, con) {
            bc1_7_STP=EBC1_7, bc2_1_STP=EBC2_1, bc2_2_STP=EBC2_2, bc2_3_STP=EBC2_3,
            bc2_4_STP=EBC2_4, bc2_5_STP=EBC2_5, bc2_6_STP=EBC2_6, bc2_7_STP=EBC2_7,
            k_1, k_2, k_3, k_4, k_5, k_6, k_7,
-           bb=BB,
+           # bb=BB, removing BB as a delivered parameter as of 9/18/26
            att1_1, att1_2, att1_3, att1_4, att1_5, att1_6, att1_7,
            att2_1, att2_2, att2_3, att2_4, att2_5, att2_6, att2_7,
-           #c001=C001, e110=E110, e559=E559, e640=E640, e980=E980, e999=E999,
            sample_analysis_id, site_record_id
            )
 
@@ -638,33 +637,35 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
               .by = sample_hour_UTC)
 
   
-  # To properly calculate BB% at hourly resolution, we use the 1-hr BC values, along with
-  # MAC values to derive hourly absorption. Then use Zotter et al., 2017 Eq 13 to find
-  # BC_ff/BC_tot. 
-  # Assumptions:
-  # MAC_ff == MAC_bb
-  # Absorption Angstrom Exponent (alpha) ff = 1, bb = 2
-  mac_470 <- ae33_MAC |>
-    filter(wavelength == 470) |>
-    pull(MAC)
+  ## Removing bb% as a delivered parameter as of 9/18/26
   
-  mac_950 <- ae33_MAC |>
-    filter(wavelength == 950) |>
-    pull(MAC)
-  
-  alpha_ff <- 1
-  alpha_bb <- 2
-  
-  data_hourly_valid <- data_hourly_valid |>
-    mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
-           abs_950 = bc_7_STP_ng_m3 * mac_950,
-           upper_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_ff,
-           lower_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_bb,
-           ff_fraction = 1 / (1 - upper_term / lower_term),
-           bb_percent = (1 - ff_fraction) * 100,
-           bb_percent = if_else(bb_percent > 100, 100,
-                                if_else(bb_percent < 0, 0, bb_percent))) |>
-    select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
+  # # To properly calculate BB% at hourly resolution, we use the 1-hr BC values, along with
+  # # MAC values to derive hourly absorption. Then use Zotter et al., 2017 Eq 13 to find
+  # # BC_ff/BC_tot. 
+  # # Assumptions:
+  # # MAC_ff == MAC_bb
+  # # Absorption Angstrom Exponent (alpha) ff = 1, bb = 2
+  # mac_470 <- ae33_MAC |>
+  #   filter(wavelength == 470) |>
+  #   pull(MAC)
+  # 
+  # mac_950 <- ae33_MAC |>
+  #   filter(wavelength == 950) |>
+  #   pull(MAC)
+  # 
+  # alpha_ff <- 1
+  # alpha_bb <- 2
+  # 
+  # data_hourly_valid <- data_hourly_valid |>
+  #   mutate(abs_470 = bc_2_STP_ng_m3 * mac_470,
+  #          abs_950 = bc_7_STP_ng_m3 * mac_950,
+  #          upper_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_ff,
+  #          lower_term = 1 - (abs_950 / abs_470) * (470 / 950)^-alpha_bb,
+  #          ff_fraction = 1 / (1 - upper_term / lower_term),
+  #          bb_percent = (1 - ff_fraction) * 100,
+  #          bb_percent = if_else(bb_percent > 100, 100,
+  #                               if_else(bb_percent < 0, 0, bb_percent))) |>
+  #   select(-abs_470, -abs_950, -upper_term, -lower_term, -ff_fraction)
 
   # rejoin with flags and other info
   flags_hourly_valid <- df |>
@@ -721,7 +722,7 @@ ae33_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   
   # Rearrange to final field order
   result <- result |>
-    select(site_number, site_code, sample_datetime_UTC, sample_count:bb_percent,
+    select(site_number, site_code, sample_datetime_UTC, sample_count:att2_7,
            qc_outcome, flag, comment) |>
     mutate()
 
