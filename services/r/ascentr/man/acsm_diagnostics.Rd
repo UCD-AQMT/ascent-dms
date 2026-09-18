@@ -2,13 +2,28 @@
 % Please edit documentation in R/acsm_diagnostics.R
 \name{acsm_diagnostics}
 \alias{acsm_diagnostics}
-\title{Title}
+\title{Plot ACSM diagnostic time series}
 \usage{
 acsm_diagnostics(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A `patchwork` object combining the diagnostic plots
 }
 \description{
-Title
+Builds a stacked set of diagnostic plots for an ACSM instrument over a
+time range: ionization efficiency (IE) relative to NO3, air beam signal,
+IE/air beam ratio, heater bias and filament emission, relative
+ionization efficiencies (RIE) for NH4 and SO4, and sample flow.
+Calibration points are reduced to the first point of each distinct
+calibration period, and gaps in sampling are shown as breaks in the
+lines.
 }

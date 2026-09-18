@@ -2,13 +2,33 @@
 % Please edit documentation in R/metadata.R
 \name{basic_metadata}
 \alias{basic_metadata}
-\title{Title}
+\title{Build the basic metadata text common to all instruments}
 \usage{
 basic_metadata(site, instrument, start_dt, end_dt, level, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{instrument}{Instrument name: one of `"Xact"`, `"SMPS"`, `"AE33"`,
+or `"ACSM"`}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{level}{Data level: one of `"0"`, `"1"`, `"1a"`, `"1b"`, `"2"`, or
+`"2N"`}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A single string containing the formatted basic metadata text
 }
 \description{
-Title
+Assembles the portion of an export's metadata text that is common across
+instruments: site name, instrument description, data level, time period,
+the ASCENT data policy, PI contacts, site information, and the package
+version used for processing. Instrument-specific field descriptions are
+added separately by each instrument's own metadata function (e.g.,
+[acsm_metadata()], [xact_metadata()]).
 }

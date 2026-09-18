@@ -2,13 +2,25 @@
 % Please edit documentation in R/acsm.R
 \name{acsm_l1a}
 \alias{acsm_l1a}
-\title{Title}
+\title{Build ACSM Level 1a data}
 \usage{
 acsm_l1a(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A list with `df` (the Level 1a data frame) and `mdf` (a data
+  frame of field descriptions used to build export metadata)
 }
 \description{
-Title
+Retrieves raw ACSM data, attaches units, converts pressures to Pa, renames
+fields with unit suffixes, and builds a matching metadata field
+description table.
 }

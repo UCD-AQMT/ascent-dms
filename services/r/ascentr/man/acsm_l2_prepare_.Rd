@@ -2,17 +2,26 @@
 % Please edit documentation in R/acsm.R
 \name{acsm_l2_prepare_}
 \alias{acsm_l2_prepare_}
-\title{Title}
+\title{Read and prepare ACSM Level 2 data from Igor export files}
 \usage{
 acsm_l2_prepare_(site, site_files, con)
 }
 \arguments{
-\item{site}{}
+\item{site}{ASCENT site code}
 
-\item{con}{}
+\item{site_files}{Character vector of paths to Igor-produced ACSM csv
+files}
 
-\item{site_file}{}
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A native-resolution data frame with STP-converted, RIE-corrected
+  concentrations and resolved QC flags
 }
 \description{
-Title
+Internal helper shared by [acsm_l2_from_files()] and
+acsm_l2_native_from_files(). Reads the Igor-produced site files, applies
+site metadata, converts to ASCENT STP, resolves manual QC flags, and
+applies the RIE correction. Returns a native-resolution data frame ready
+for either hourly averaging or direct export.
 }

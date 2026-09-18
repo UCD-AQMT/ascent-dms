@@ -2,13 +2,30 @@
 % Please edit documentation in R/smps_aim.R
 \name{build_aim_file}
 \alias{build_aim_file}
-\title{Title}
+\title{Build a single AIM-format SMPS export file}
 \usage{
 build_aim_file(metadata, df, ds_value, smps_cols)
 }
 \arguments{
-\item{smps_cols}{}
+\item{metadata}{A data frame of instrument settings (name/value pairs),
+as returned by [smps_settings()]}
+
+\item{df}{A data frame of SMPS sample analysis records, as returned by
+[smps_data()]}
+
+\item{ds_value}{The dataset name to inject into the metadata}
+
+\item{smps_cols}{A data frame of column name mappings, as returned by
+[smps_columns()]}
+}
+\value{
+A character vector of lines making up the AIM-format file, or
+  `NULL` if `df` has no raw concentration records
 }
 \description{
-Title
+Reconstructs a file in the format produced by TSI's AIM software from
+database records: expands the JSON-encoded particle count and raw
+concentration columns into wide columns by size bin, injects the
+dataset name into the instrument metadata, and assembles the header,
+metadata, and data rows expected by AIM.
 }

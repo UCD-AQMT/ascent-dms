@@ -2,13 +2,26 @@
 % Please edit documentation in R/smps_aim.R
 \name{build_aim_files}
 \alias{build_aim_files}
-\title{Title}
+\title{Build AIM-format SMPS export files for all datasets in a time range}
 \usage{
 build_aim_files(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A list of character vectors, each the lines of an AIM-format
+  file as produced by [build_aim_file()], one per dataset
 }
 \description{
-Title
+Finds all SMPS instrument settings "datasets" active during the
+requested time range and builds an AIM-format export file (see
+[build_aim_file()]) for each, covering the overlap between the datasets
+active period and the requested range.
 }

@@ -2,13 +2,23 @@
 % Please edit documentation in R/acsm.R
 \name{acsm_l1a_df}
 \alias{acsm_l1a_df}
-\title{Title}
+\title{Retrieve raw ACSM sample analysis data for a site and time range}
 \usage{
 acsm_l1a_df(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame of joined ACSM sample analysis records
 }
 \description{
-Title
+Joins the ACSM sample analysis, diagnostic/calibration, mass loadings, and
+TPS tables for a single site over a date range.
 }

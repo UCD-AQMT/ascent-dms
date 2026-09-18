@@ -2,13 +2,26 @@
 % Please edit documentation in R/smps_l1.R
 \name{smps_l1b_df}
 \alias{smps_l1b_df}
-\title{Title}
+\title{Build SMPS Level 1b data}
 \usage{
 smps_l1b_df(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame of Level 1b SMPS data, or `NULL` if no Level 1a
+  data are available
 }
 \description{
-Title
+Builds SMPS Level 1a data and applies automated QC checks (detector and
+classifier status errors, sheath/inlet/impactor flow settings, sheath RH,
+and very low number concentration), adding `qc_outcome`, `flag`, and
+`comment` fields.
 }

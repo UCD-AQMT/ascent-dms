@@ -2,13 +2,26 @@
 % Please edit documentation in R/smps_l1.R
 \name{smps_l1a_df}
 \alias{smps_l1a_df}
-\title{Title}
+\title{Build SMPS Level 1a data}
 \usage{
 smps_l1a_df(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame of Level 1a SMPS data, or `NULL` if no data are
+  available for the requested site and time range
 }
 \description{
-Title
+Retrieves raw SMPS data, trims each scan's particle count/concentration
+distributions to the scan's reported size range, attaches units,
+calculates volume concentration for each scan, and converts total and
+volume concentration to ASCENT STP.
 }

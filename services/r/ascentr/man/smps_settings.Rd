@@ -2,13 +2,25 @@
 % Please edit documentation in R/smps.R
 \name{smps_settings}
 \alias{smps_settings}
-\title{Title}
+\title{Retrieve SMPS instrument settings for a site and time range}
 \usage{
 smps_settings(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime of the requested range (used only to
+bound the returned range together with `end_dt`)}
+
+\item{end_dt}{End date/datetime (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame with columns `name`, `value`, and `start_date`
 }
 \description{
-Title
+Retrieves distinct instrument setting name/value pairs (excluding
+`"Dataset Name"`) that were in effect on or before `end_dt`, with the
+earliest date each name/value combination took effect.
 }

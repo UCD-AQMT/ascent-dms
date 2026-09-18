@@ -2,13 +2,20 @@
 % Please edit documentation in R/database.R
 \name{get_db_connection}
 \alias{get_db_connection}
-\title{Title}
+\title{Connect to the ASCENT Postgres database}
 \usage{
 get_db_connection(config_name, ...)
 }
 \arguments{
-\item{config_name}{}
+\item{config_name}{Name of the `config.yml` configuration block holding
+the database `dbname`, `user`, `password`, `host`, and `port`}
+
+\item{...}{Further arguments passed to `config::get()`}
+}
+\value{
+A `DBIConnection` object connected to the ASCENT Postgres
+  database
 }
 \description{
-Title
+Connect to the ASCENT Postgres database
 }

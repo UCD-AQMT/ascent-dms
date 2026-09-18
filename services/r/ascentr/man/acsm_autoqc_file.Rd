@@ -8,7 +8,18 @@ HDF data in Igor. This process requires adjusting the time stamps to match.}
 acsm_autoqc_file(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A data frame of auto-qc outcomes with an added `igor_time` column
+  (seconds since 1904-01-01, matching Igor's time format) for merging with
+  ACSM HDF data in Igor
 }
 \description{
 Apply auto-qc checks to ACSM L1a data and return a file for external merging with ACSM

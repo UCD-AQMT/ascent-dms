@@ -7,8 +7,17 @@
 calc_W(dWdlogDp, dlogDp)
 }
 \arguments{
-\item{dlogDp}{}
+\item{dWdlogDp}{A matrix or data frame of distribution values, with one
+row per scan and one column per size bin}
+
+\item{dlogDp}{Numeric vector of log-diameter bin widths, as returned by
+[calc_dlogDp()], with one value per column of `dWdlogDp`}
+}
+\value{
+A numeric vector of integrated totals, one per row of
+  `dWdlogDp`
 }
 \description{
-Integrate number/volume/mass distribution
+Integrates a distribution (e.g., dN/dlogDp, dV/dlogDp, or dM/dlogDp) over
+size bins to get the corresponding total (e.g., N, V, or M).
 }

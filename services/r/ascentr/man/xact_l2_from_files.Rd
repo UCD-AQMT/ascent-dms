@@ -2,17 +2,27 @@
 % Please edit documentation in R/xact.R
 \name{xact_l2_from_files}
 \alias{xact_l2_from_files}
-\title{Title}
+\title{Build hourly Xact Level 2 data from a Level 1b file}
 \usage{
 xact_l2_from_files(l1b_file, manual_qc_file, start_datetime = NULL)
 }
 \arguments{
-\item{l1b_file}{}
+\item{l1b_file}{Path to a Level 1b Xact csv file}
 
-\item{manual_qc_file}{}
+\item{manual_qc_file}{Path to a csv file of manual QC flags with columns
+`sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+`comment`}
 
-\item{start_datetime}{}
+\item{start_datetime}{Optional datetime; if provided, records before this
+time are excluded}
+}
+\value{
+A data frame of hourly Xact Level 2 data
 }
 \description{
-Title
+Reads and prepares native-resolution Xact Level 1b data (resolving manual
+QC flags and removing the Nb QC element), floors sample times to the
+hour, and validates each hourly sample based on the fraction of the hour
+actually sampled (using volume and flow rate to estimate sampling
+duration).
 }

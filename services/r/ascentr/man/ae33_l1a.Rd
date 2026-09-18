@@ -2,13 +2,25 @@
 % Please edit documentation in R/ae33.R
 \name{ae33_l1a}
 \alias{ae33_l1a}
-\title{Title}
+\title{Build AE33 Level 1a data}
 \usage{
 ae33_l1a(site, start_dt, end_dt, con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{con}{An InfluxDB client, as returned by [get_flux_client()]}
+}
+\value{
+A data frame of Level 1a AE33 data, or `NULL` if no data are
+  available for the requested site and time range
 }
 \description{
-Title
+Retrieves raw AE33 measurements from InfluxDB, attaches units, converts BC
+values and pressure to ASCENT standard units, attaches site info, and
+renames fields with unit suffixes.
 }

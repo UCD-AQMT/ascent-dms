@@ -2,13 +2,27 @@
 % Please edit documentation in R/ae33.R
 \name{ae33_metadata}
 \alias{ae33_metadata}
-\title{Title}
+\title{Build AE33 metadata text}
 \usage{
 ae33_metadata(site, start_dt, end_dt, level = "1a", con)
 }
 \arguments{
-\item{con}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{level}{Data level: one of `"1a"`, `"1b"`, `"2"`, or `"2N"`}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A single string containing the formatted metadata text
 }
 \description{
-Title
+Assembles the text metadata file that accompanies an AE33 data export,
+including basic site/instrument metadata, per-channel wavelength and mass
+absorption cross-section values, and field descriptions appropriate to
+the requested data level.
 }

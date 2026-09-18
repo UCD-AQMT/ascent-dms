@@ -2,13 +2,27 @@
 % Please edit documentation in R/smps.R
 \name{smps_metadata}
 \alias{smps_metadata}
-\title{Title}
+\title{Build SMPS metadata text}
 \usage{
 smps_metadata(site, start_dt, end_dt, level = "1a", con)
 }
 \arguments{
-\item{version}{}
+\item{site}{ASCENT site code}
+
+\item{start_dt}{Start date/datetime (inclusive) of the requested range}
+
+\item{end_dt}{End date (inclusive) of the requested range}
+
+\item{level}{Data level: one of `"1a"`, `"1b"`, `"2"`, or `"2N"`}
+
+\item{con}{A database connection, as returned by [get_db_connection()]}
+}
+\value{
+A single string containing the formatted metadata text
 }
 \description{
-Title
+Assembles the text metadata file that accompanies an SMPS data export,
+including basic site/instrument metadata, field descriptions appropriate
+to the requested data level, and the instrument settings in effect
+during the requested time range.
 }

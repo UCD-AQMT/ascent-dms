@@ -2,13 +2,21 @@
 % Please edit documentation in R/smps.R
 \name{calc_dlogDp}
 \alias{calc_dlogDp}
-\title{Title}
+\title{Calculate log-diameter bin widths for SMPS size bins}
 \usage{
 calc_dlogDp(midpoints)
 }
 \arguments{
-\item{midpoints}{}
+\item{midpoints}{Numeric vector of size bin midpoint diameters (nm), in
+increasing order}
+}
+\value{
+A numeric vector of `log10(D_high) - log10(D_low)` bin widths,
+  the same length as `midpoints`
 }
 \description{
-Title
+Given the midpoint diameters of a set of SMPS size bins, calculates the
+lower and upper bin boundaries (as the geometric mean of adjacent
+midpoints, with the first and last boundaries extrapolated using the
+average log-spacing) and returns the resulting log10 bin widths.
 }
