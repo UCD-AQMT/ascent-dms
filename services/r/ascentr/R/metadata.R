@@ -2,17 +2,25 @@
 
 
 ## TODO: Grant number to credit should depend on the time range of data
-# The basic metadata without instrument-specific field definitions
-#' Title
+#' Build the basic metadata text common to all instruments
 #'
-#' @param site
-#' @param instrument
-#' @param start_dt
-#' @param end_dt
-#' @param level
-#' @param con
+#' Assembles the portion of an export's metadata text that is common across
+#' instruments: site name, instrument description, data level, time period,
+#' the ASCENT data policy, PI contacts, site information, and the package
+#' version used for processing. Instrument-specific field descriptions are
+#' added separately by each instrument's own metadata function (e.g.,
+#' [acsm_metadata()], [xact_metadata()]).
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param instrument Instrument name: one of `"Xact"`, `"SMPS"`, `"AE33"`,
+#'   or `"ACSM"`
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param level Data level: one of `"0"`, `"1"`, `"1a"`, `"1b"`, `"2"`, or
+#'   `"2N"`
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A single string containing the formatted basic metadata text
 #' @export
 #'
 #' @examples

@@ -1,17 +1,17 @@
-# Produce SMPS L1a (and L1b?) files
-
-# csv and metadata
-# calculate number, volume, and mass concentration
-# convert to stp
-
-#' Title
+#' Build SMPS Level 1a data
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Retrieves raw SMPS data, trims each scan's particle count/concentration
+#' distributions to the scan's reported size range, attaches units,
+#' calculates volume concentration for each scan, and converts total and
+#' volume concentration to ASCENT STP.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame of Level 1a SMPS data, or `NULL` if no data are
+#'   available for the requested site and time range
 #' @export
 #'
 #' @examples
@@ -140,14 +140,20 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
 }
 
 
-#' Title
+#' Build SMPS Level 1b data
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Builds SMPS Level 1a data and applies automated QC checks (detector and
+#' classifier status errors, sheath/inlet/impactor flow settings, sheath RH,
+#' and very low number concentration), adding `qc_outcome`, `flag`, and
+#' `comment` fields.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame of Level 1b SMPS data, or `NULL` if no Level 1a
+#'   data are available
 #' @export
 #'
 #' @examples

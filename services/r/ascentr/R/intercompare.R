@@ -224,18 +224,22 @@ smps_mass <- function(df_smps, df_rm, include_bc = TRUE) {
 }
 
 #' Grab data for reconstructed mass plots at a given resolution.
-#' Title
 #'
-#' @param site 
-#' @param start_date 
-#' @param end_date 
-#' @param con 
-#' @param influx_con 
-#' @param resolution_minutes 
+#' Aggregates ACSM species and AE33 black carbon (and optionally Xact
+#' elements) to a common time resolution, for use in reconstructed mass
+#' comparison plots.
+#'
+#' @param site ASCENT site code
+#' @param start_date Start date (inclusive) of the requested range
+#' @param end_date End date of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#' @param influx_con An InfluxDB client, as returned by [get_flux_client()]
+#' @param resolution_minutes Aggregation resolution in minutes
 #' @param require_full If true, only return complete cases (with all instruments)
 #' @param include_xact If true, include Xact data (all elements but S, Nb, Al, and Si)
 #'
-#' @returns
+#' @returns A data frame with columns `sample_datetime`, `parameter`, and
+#'   `value`, combining the aggregated data from all requested instruments
 #' @export
 #'
 #' @examples

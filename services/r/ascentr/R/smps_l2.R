@@ -1,13 +1,20 @@
 # SMPS L2 data - hourly and validated for delivery
 # Initial version uses L1b files as input. Later versions will be built from database.
 
-#' Title
+#' Read and prepare an SMPS L1b file for L2 processing, common to both the
+#' hourly and native L2 outputs. Reads the L1b file and manual qc file,
+#' resolves and coalesces flags, and optionally limits to after
+#' start_datetime.
 #'
-#' @param l1b_file 
-#' @param manual_qc_file 
-#' @param start_datetime 
+#' @param l1b_file Path to a Level 1b SMPS csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
 #'
-#' @returns
+#' @returns A data frame of native-resolution SMPS data with manual and
+#'   automated QC flags resolved and coalesced
 #' @export
 #'
 #' @examples
@@ -81,13 +88,23 @@ smps_l2_prepare_df <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
   return(df)
 }
 
-#' Title
+#' Build hourly SMPS Level 2 data from a Level 1b file
 #'
-#' @param l1b_file 
-#' @param manual_qc_file 
-#' @param start_datetime 
+#' Reads and prepares native-resolution SMPS Level 1b data, then aggregates
+#' to hourly resolution (requiring at least 12 of the expected 24 scans per
+#' hour to be valid), computing number and volume concentration, mean,
+#' geometric mean, median, and mode diameter, and geometric standard
+#' deviation from the averaged size distribution.
 #'
-#' @returns
+#' @param l1b_file Path to a Level 1b SMPS csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
+#'
+#' @returns A data frame of hourly SMPS Level 2 data with one row per hour
+#'   in the input data
 #' @export
 #'
 #' @examples

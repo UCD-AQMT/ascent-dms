@@ -1,11 +1,17 @@
-#' Title
+#' Build AIM-format SMPS export files for all datasets in a time range
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Finds all SMPS instrument settings "datasets" active during the
+#' requested time range and builds an AIM-format export file (see
+#' [build_aim_file()]) for each, covering the overlap between the datasets
+#' active period and the requested range.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A list of character vectors, each the lines of an AIM-format
+#'   file as produced by [build_aim_file()], one per dataset
 #' @export
 #'
 #' @examples
@@ -35,14 +41,24 @@ build_aim_files <- function(site, start_dt, end_dt, con) {
   files <- purrr::pmap(params, aim_file_data, site = site, cols = cols, con = con)
 }
 
-#' Title
+#' Build a single AIM-format SMPS export file
 #'
-#' @param metadata
-#' @param df
-#' @param ds_value
-#' @param smps_cols
+#' Reconstructs a file in the format produced by TSI's AIM software from
+#' database records: expands the JSON-encoded particle count and raw
+#' concentration columns into wide columns by size bin, injects the
+#' dataset name into the instrument metadata, and assembles the header,
+#' metadata, and data rows expected by AIM.
 #'
-#' @returns
+#' @param metadata A data frame of instrument settings (name/value pairs),
+#'   as returned by [smps_settings()]
+#' @param df A data frame of SMPS sample analysis records, as returned by
+#'   [smps_data()]
+#' @param ds_value The dataset name to inject into the metadata
+#' @param smps_cols A data frame of column name mappings, as returned by
+#'   [smps_columns()]
+#'
+#' @returns A character vector of lines making up the AIM-format file, or
+#'   `NULL` if `df` has no raw concentration records
 #' @export
 #'
 #' @examples

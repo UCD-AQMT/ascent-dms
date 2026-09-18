@@ -1,11 +1,5 @@
 
-#' Xact l1a table structure - internal
-#'
-#' @param con
-#'
-#' @returns
-#'
-#' @examples
+# Build the joined Xact sample analysis / raw measurements table (internal).
 xact_l1a <- function(con) {
   xact_sa <- tbl(con, I("xact.sample_analysis"))
   xact_raw <- tbl(con, I("xact.raw_measurements"))
@@ -25,14 +19,21 @@ xact_l1a <- function(con) {
 }
 
 
-#' Title
+#' Retrieve raw Xact sample analysis data for a site and time range
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
+#' Joins Xact sample analysis and raw measurement records for a site over a
+#' date range, recalculates uncertainties for records predating Xact
+#' software version 1.2.2.123, attaches units, converts concentration and
+#' uncertainty to ASCENT standard temperature and pressure, and renames
+#' fields with unit suffixes.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A list with `df` (the data frame of raw Xact data) and `mdf` (a
+#'   data frame of field descriptions used to build export metadata)
 #' @export
 #'
 #' @examples
@@ -167,17 +168,26 @@ xact_l1a_df <- function(site, start_dt, end_dt, con) {
 }
 
 
-#' Title
+#' Build Xact metadata text
 #'
-#' @param site
-#' @param start_dt
-#' @param end_dt
-#' @param con
-#' @param metadata_fields
+#' Assembles the text metadata file that accompanies an Xact data export,
+#' including basic site/instrument metadata, the Xact software versions in
+#' effect during the requested time range, and field descriptions
+#' appropriate to the requested data level.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#' @param metadata_fields Optional data frame of field descriptions (as
+#'   returned in the `mdf` element of [xact_l1a_df()]) used for levels
+#'   `"1a"` and `"1b"`. If `NULL`, it is computed from `site`, `start_dt`,
+#'   and `end_dt`
+#'
+#' @returns A single string containing the formatted metadata text
 #' @export
 #'
+#' @examples
 #' @examples
 xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
                               metadata_fields = NULL) {
@@ -249,14 +259,20 @@ xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
 
 }
 
-#' Title
+#' Build Xact Level 1b data
 #'
-#' @param site 
-#' @param start_dt 
-#' @param end_dt 
-#' @param con 
+#' Builds Xact Level 1a data and applies automated QC checks (terminal
+#' alarms, software processing errors, non-sample/QC records, upscale
+#' deviations, low flow, high tape pressure, and high measurement
+#' uncertainty), adding `qc_outcome`, `flag`, and `comment` fields.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param start_dt Start date/datetime (inclusive) of the requested range
+#' @param end_dt End date (inclusive) of the requested range
+#' @param con A database connection, as returned by [get_db_connection()]
+#'
+#' @returns A data frame of Level 1b Xact data (one row per element per
+#'   sample) with `qc_outcome`, `flag`, and `comment` columns
 #' @export
 #'
 #' @examples
@@ -380,13 +396,22 @@ xact_l1b <- function(site, start_dt, end_dt, con) {
 
 }
 
-#' Title
+#' Build hourly Xact Level 2 data from a Level 1b file
 #'
-#' @param l1b_file 
-#' @param manual_qc_file 
-#' @param start_datetime 
+#' Reads and prepares native-resolution Xact Level 1b data (resolving manual
+#' QC flags and removing the Nb QC element), floors sample times to the
+#' hour, and validates each hourly sample based on the fraction of the hour
+#' actually sampled (using volume and flow rate to estimate sampling
+#' duration).
 #'
-#' @returns
+#' @param l1b_file Path to a Level 1b Xact csv file
+#' @param manual_qc_file Path to a csv file of manual QC flags with columns
+#'   `sample_datetime_UTC_start`, `sample_datetime_UTC_end`, `flag`, and
+#'   `comment`
+#' @param start_datetime Optional datetime; if provided, records before this
+#'   time are excluded
+#'
+#' @returns A data frame of hourly Xact Level 2 data
 #' @export
 #'
 #' @examples

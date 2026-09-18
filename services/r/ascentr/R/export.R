@@ -106,16 +106,23 @@ export_ae33_l2_from_l1b <- function(l1b_zip, start_date, end_date, site, manual_
   
 }
 
-#' Title
+#' Export a monthly Level 1b delivery zip for a single instrument
 #'
-#' @param site 
-#' @param month_date 
-#' @param instrument 
-#' @param folder 
-#' @param con 
-#' @param influx_con 
+#' Builds Level 1b data and its metadata text for the calendar month
+#' containing `month_date`, then writes a zip file (csv + metadata txt)
+#' named `ASCENT_{instrument}_{site}_{start}_{end}_L1b.zip` into `folder`.
 #'
-#' @returns
+#' @param site ASCENT site code
+#' @param month_date A date within the month to export
+#' @param instrument One of `"AE33"`, `"SMPS"`, `"Xact"`, or `"ACSM"`
+#' @param folder Output folder for the exported zip file
+#' @param con A database connection, as returned by [get_db_connection()]
+#' @param influx_con An InfluxDB client, as returned by [get_flux_client()];
+#'   required when `instrument` is `"AE33"`
+#'
+#' @returns Invisibly returns `NULL`; called for its side effect of writing
+#'   a zip file to `folder`. Returns `NULL` (with a warning) if no data are
+#'   available for the requested month
 #' @export
 #'
 #' @examples
