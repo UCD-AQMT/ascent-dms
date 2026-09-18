@@ -353,6 +353,11 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
 smps_l2_native_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) {
 
   df <- smps_l2_prepare_df(l1b_file, manual_qc_file, start_datetime)
+  
+  # strip invalid values
+  df <- df |>
+    mutate(across(median_nm:raw_concentration_json, 
+                  ~if_else(qc_outcome >= 4, NA, .x)))
 
   # Fix field name
   df <- df |>
