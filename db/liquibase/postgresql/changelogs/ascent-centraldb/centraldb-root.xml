@@ -34,5 +34,20 @@
   <changeSet author="xiaoya.cheng" id="tag-v2026.1" context="r" labels="feature/126-creation-of-lookup-table-for-flags">
       <tagDatabase tag="2026.1" />
   </changeSet>
+  
+
+  <include file="r/GH-129-flags_tbl_add_id_pk/20260918_GH-129-flags_tbl_add_id_pk.xml" relativeToChangelogFile="true"/>
+  <changeSet author="xiaoya.cheng" id="tag-v2026.3" context="r" labels="feature/129-flags-tbl-add-id-pk">
+      <tagDatabase tag="2026.2" />
+  </changeSet>
+  
+  <!--
+  <include file="r/GH-128-tables_related_to_flags/GH-128-tables_related_to_flags.xml" relativeToChangelogFile="true"/>
+   TODO: add tag when ready to merge to main dev
+  <changeSet author="xiaoya.cheng" id="tag-v2026.2" context="r" labels="feature/128-qc-outcome-lookup-table">
+      <tagDatabase tag="2026.2" />
+  </changeSet>
+  -->
+
 
 </databaseChangeLog>
