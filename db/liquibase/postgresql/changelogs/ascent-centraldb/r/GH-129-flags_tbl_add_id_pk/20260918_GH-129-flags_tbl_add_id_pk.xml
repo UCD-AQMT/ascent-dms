@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+        <!-- Add surrogate integer PK to common.flags -->
+        <changeSet author="xiaoya.cheng" id="1">
+            <comment>Add id as surrogate integer primary key to flags table</comment>
+            <sqlFile path="alter_flags_add_id_pk.sql"
+                relativeToChangelogFile="true"
+                stripComments="true"/>
+
+            <rollback>
+                <sql>
+                    ALTER TABLE common.flags DROP CONSTRAINT uq_flags_flag;
+                    ALTER TABLE common.flags DROP CONSTRAINT pk_flags;
+                    ALTER TABLE common.flags ADD CONSTRAINT flags_pkey PRIMARY KEY (flag);
+                    ALTER TABLE common.flags DROP COLUMN id;
+                </sql>
+            </rollback>
+        </changeSet>
+
+</databaseChangeLog>
