@@ -206,7 +206,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
       ungroup()
     
     hour_stats <- tibble(sample_hour_utc = lubridate::POSIXct(0),
-                         total_concentration_1_cm3 = numeric(0),
+                         number_concentration_1_cm3 = numeric(0),
                          volume_concentration_um3_cm3 = numeric(0),
                          mean_nm = numeric(0),
                          geo_mean_nm = numeric(0),
@@ -230,7 +230,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
         ungroup()
       
       hour_stats <- tibble(sample_hour_utc = lubridate::POSIXct(0),
-                           total_concentration_1_cm3 = numeric(0),
+                           number_concentration_1_cm3 = numeric(0),
                            volume_concentration_um3_cm3 = numeric(0),
                            mean_nm = numeric(0),
                            geo_mean_nm = numeric(0),
@@ -256,7 +256,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
         mutate(name = as.numeric(name)) |>
         arrange(name) |>
         tidyr::replace_na(list(value = 0)) |>
-        summarise(total_concentration_1_cm3 = calc_n_conc(name, value),
+        summarise(number_concentration_1_cm3 = calc_n_conc(name, value),
                   volume_concentration_um3_cm3 = calc_v_conc(name, value),
                   mean_nm = weighted.mean(name, value),
                   geo_mean_nm = weighted.geomean(name, value),
@@ -285,7 +285,7 @@ smps_l2_from_files <- function(l1b_file, manual_qc_file, start_datetime = NULL) 
     left_join(select(valid_hours, sample_hour_utc, sample_count=valid), 
               by = "sample_hour_utc") |>
     left_join(hour_stats, by = "sample_hour_utc") |>
-    mutate(number_concentration_stp_1_cm3 = total_concentration_1_cm3 * stp_factor,
+    mutate(number_concentration_stp_1_cm3 = number_concentration_1_cm3 * stp_factor,
            volume_concentration_stp_um3_cm3 = volume_concentration_um3_cm3 * stp_factor) |>
     left_join(hour_scans, by = "sample_hour_utc") |>
     mutate(flag = as.character(flag),

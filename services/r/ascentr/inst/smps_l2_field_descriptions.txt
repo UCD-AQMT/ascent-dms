@@ -6,7 +6,7 @@ qc_outcome: An overall quality control outcome for this record (1-Good, 2-Not ev
 flag: Data quality flag(s) as defined by EBAS (ebas.nilu.no)
 comment: Comments that provide more detail about any flags applied to the record
 sample_count: Number of scans in this hourly average
-total_concentration_1_cm3: Total mean hourly number concentration at sample conditions (#/cm^3)
+number_concentration_1_cm3: Total mean hourly number concentration at sample conditions (#/cm^3)
 volume_concentration_um3_cm3: Total mean hourly volume concentration at sample conditions (μm^3/cm^3)
 mean_nm: Mean number concentration particle size (nm)
 geo_mean_nm: Geometric mean number concentration particle size (nm)
