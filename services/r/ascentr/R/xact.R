@@ -236,6 +236,11 @@ xact_metadata <- function(site, start_dt, end_dt, level = "1a", con,
                    "Different energy levels have been used. This change leads to higher",
                    "MDL for several elements. For information, contact PI.\n")
   
+  if (level %in% c("1a", "1b", "1")) {
+    details <- paste(details, "Reported Nb is an internal calibration standard and not related to ambient concentrations.\n",
+                     sep = "\n")
+  }
+  
   out <- glue::glue("{basic}\n",
                     "Data Processing Details\n",
                     "{details}",
