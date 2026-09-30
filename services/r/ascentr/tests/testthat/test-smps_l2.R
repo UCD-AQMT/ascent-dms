@@ -14,7 +14,7 @@ test_that("output contains expected columns", {
     "site_number", "site_code", "sample_datetime_UTC",
     "stp_factor", "qc_outcome", "flag", "comment",
     "sample_count",
-    "total_concentration_1_cm3", "volume_concentration_um3_cm3",
+    "number_concentration_1_cm3", "volume_concentration_um3_cm3",
     "mean_nm", "geo_mean_nm", "median_nm", "mode_nm", "geo_std_dev",
     "number_concentration_stp_1_cm3", "volume_concentration_stp_um3_cm3",
     "concentration_json"
@@ -37,7 +37,7 @@ test_that("valid hour (>=12 scans) returns one row with correct stats", {
   expect_true(is.na(result$flag))
 
   # Stats derived from JSON {"10":100, "100":50, "1000":10} with dlogDp = c(1,1,1)
-  expect_equal(result$total_concentration_1_cm3,       160,     tolerance = 0.01)
+  expect_equal(result$number_concentration_1_cm3,      160,     tolerance = 0.01)
   expect_equal(result$number_concentration_stp_1_cm3,  176,     tolerance = 0.01)
   expect_equal(result$volume_concentration_um3_cm3,    5.262,   tolerance = 0.01)
   expect_equal(result$mean_nm,                         100,     tolerance = 0.01)
@@ -59,7 +59,7 @@ test_that("hour with fewer than 12 valid scans returns flag 391 and qc_outcome 9
   expect_equal(nrow(result), 2)
   expect_equal(result$qc_outcome, c(1, 9))
   expect_equal(result$flag, c(NA_character_, "391"))
-  expect_true(is.na(result$total_concentration_1_cm3[2]))
+  expect_true(is.na(result$number_concentration_1_cm3[2]))
 })
 
 test_that("mix of valid and invalid hours returns one row per hour", {
