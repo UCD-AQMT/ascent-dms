@@ -132,6 +132,11 @@ smps_l1a_df <- function(site, start_dt, end_dt, con) {
   new_colnames <- paste0(colnames(df), unit_suffix)
   colnames(df) <- new_colnames
 
+  # Rename total_concentration to number_concentration
+  df <- df |>
+    rename(number_concentration_1_cm3=total_concentration_1_cm3,
+           number_concentration_stp_1_cm3=total_concentration_stp_1_cm3)
+
   # reduce sigfigs
   df <- df |>
     mutate(across(where(is.numeric) & !c(sample_analysis_id, site_record_id),

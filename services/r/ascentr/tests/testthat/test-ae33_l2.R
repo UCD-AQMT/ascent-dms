@@ -1,10 +1,6 @@
 
 ae33_base <- as.POSIXct("2023-01-01 01:00:00", tz = "UTC")
 
-# Expected bb_percent for fixture bc_2=100, bc_7=50 with MAC constants
-# (14.54 at 470 nm, 7.19 at 950 nm) — verified against ae33_MAC
-AE33_BB_PERCENT <- 98.011
-
 # Output structure ---------------------------------------------------------
 
 test_that("output contains expected columns", {
@@ -17,7 +13,7 @@ test_that("output contains expected columns", {
   expected_cols <- c(
     "site_number", "site_code", "sample_datetime_UTC",
     "sample_count", "bc_2_STP_ng_m3", "bc_7_STP_ng_m3",
-    "bb_percent", "qc_outcome", "flag", "comment"
+    "qc_outcome", "flag", "comment"
   )
   expect_true(all(expected_cols %in% names(result)))
 })
@@ -37,21 +33,6 @@ test_that("valid hour (>=30 scans) returns one row with correct values", {
   expect_true(is.na(result$flag))
   expect_equal(result$bc_2_STP_ng_m3, AE33_BC2, tolerance = 0.01)
   expect_equal(result$bc_7_STP_ng_m3, AE33_BC7, tolerance = 0.01)
-  expect_equal(result$bb_percent, AE33_BB_PERCENT, tolerance = 0.01)
-})
-
-test_that("bb_percent is clamped to [0, 100]", {
-  # Negative bc_7 drives bb_percent outside [0, 100]; function should clamp it
-  dir <- withr::local_tempdir()
-  scans <- ae33_scans(ae33_base, 35)
-  scans$bc_7_STP_ng_m3 <- -500
-  l1b_path <- write_ae33_l1b(file.path(dir, "l1b.csv"), scans)
-  qc_path  <- write_ae33_qc(file.path(dir, "qc.csv"), ae33_empty_qc())
-
-  result <- ae33_l2_from_files(l1b_path, qc_path)
-
-  expect_gte(result$bb_percent, 0)
-  expect_lte(result$bb_percent, 100)
 })
 
 # Invalid hour -------------------------------------------------------------

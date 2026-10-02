@@ -1,3 +1,11 @@
+ascentr v0.1.27 (Release Date: 2026-09-30)
+==========================================
+
+- Updated field names in SMPS output (total_concentration --> number_concentration)
+- Updated field name in SMPS L1 output (sample_datetime_utc --> sample_datetime_UTC)
+- Added note about Nb values in Xact L1 output
+
+
 ascentr v0.1.26 (Release Date: 2026-08-31)
 ==========================================
 
