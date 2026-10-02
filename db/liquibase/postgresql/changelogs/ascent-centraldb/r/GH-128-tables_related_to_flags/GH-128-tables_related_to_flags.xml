@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+        
+        <!-- database schema generation -->
+        <changeSet author="xiaoya.cheng" id="1">
+            <comment>Create qc_outcome lookup table schema</comment>
+            <sqlFile path="creation_qc_outcome_lut.sql"
+                relativeToChangelogFile="true"
+                stripComments="true"/>
+                
+            <rollback>
+                <dropTable schemaName="common" tableName="qc_outcome"/>
+            </rollback>
+        </changeSet>
+        
+        
+        <!-- load data into lookup tables -->
+        <changeSet author="xiaoya.cheng" id="2">
+            <comment>Load data for the qc_outcome lookup table</comment>
+            <sqlFile path="load_qc_outcome_data.sql"
+                relativeToChangelogFile="true"
+                stripComments="true"/>
+                
+            <rollback>
+                <delete schemaName="common" tableName="qc_outcome"/>
+            </rollback>
+        </changeSet>
+
+        <!-- add FK on flags.qc_outcome referencing qc_outcome table -->
+        <changeSet author="xiaoya.cheng" id="3">
+            <comment>Add FK on flags.qc_outcome referencing qc_outcome table</comment>
+            <addForeignKeyConstraint
+                baseTableSchemaName="common"
+                baseTableName="flags"
+                baseColumnNames="qc_outcome"
+                constraintName="fk_flags_qc_outcome"
+                referencedTableSchemaName="common"
+                referencedTableName="qc_outcome"
+                referencedColumnNames="qc_outcome"/>
+        </changeSet>
+
+        <!-- create flags_default_comments table -->
+        <changeSet author="xiaoya.cheng" id="4">
+            <comment>Create flags_default_comments table schema</comment>
+            <sqlFile path="create_comments_tbl.sql"
+                relativeToChangelogFile="true"
+                stripComments="true"/>
+
+            <rollback>
+                <dropTable schemaName="common" tableName="flags_default_comments"/>
+            </rollback>
+        </changeSet>
+
+        <!-- load data into flags_default_comments -->
+        <changeSet author="xiaoya.cheng" id="5">
+            <comment>Load default comments data into flags_default_comments table</comment>
+            <loadData schemaName="common"
+                tableName="flags_default_comments"
+                file="flags_default_comments_data.csv"
+                relativeToChangelogFile="true">
+                <column name="flag_id"        type="NUMERIC"/>
+                <column name="instrument"     type="STRING"/>
+                <column name="default_comment" type="STRING"/>
+            </loadData>
+
+            <rollback>
+                <delete schemaName="common" tableName="flags_default_comments"/>
+            </rollback>
+        </changeSet>
+        
+</databaseChangeLog>
