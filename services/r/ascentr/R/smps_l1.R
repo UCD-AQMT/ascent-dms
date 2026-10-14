@@ -228,7 +228,7 @@ smps_l1b_df <- function(site, start_dt, end_dt, con) {
   # 7. Very low concentration (experimental)
   conc_threshold <- units::set_units(10, 1/cm3)
   f7 <- df |>
-    filter(total_concentration_1_cm3 < conc_threshold) |>
+    filter(number_concentration_1_cm3 < conc_threshold) |>
     select(sample_analysis_id) |>
     mutate(flag = "457A",
            qc_outcome = 3,
