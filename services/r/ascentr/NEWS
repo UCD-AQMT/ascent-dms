@@ -1,3 +1,10 @@
+ascentr v0.1.28 (Release Date: 2026-10-20)
+==========================================
+
+- Reprocessed AE33 L1b data to account for inadvertent instrument settings changes
+- Updated NSF grant number in metadata
+
+
 ascentr v0.1.27 (Release Date: 2026-09-30)
 ==========================================
 
