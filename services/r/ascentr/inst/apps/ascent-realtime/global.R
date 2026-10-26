@@ -12,10 +12,18 @@ library(ggplot2)
 library(future)
 library(promises)
 future::plan(multisession)
-library(ascentr)
+#library(ascentr)
 
 # required for successful deploy to shinyapps.io
 library(pkgload)
+
+# Absolute path to the ascentr package source (this app lives at
+# <ascentr>/inst/apps/ascent-realtime). Shiny sets the working directory to
+# the app folder before sourcing global.R, and future::multisession workers
+# inherit that directory, so a relative path like "./services/r/ascentr/"
+# does not resolve inside future_promise(). Use this instead when reloading
+# the package namespace in worker processes.
+ascentr_root <- normalizePath(file.path(getwd(), "..", "..", ".."))
 
 # Minimum date for data viewing
 minimum_date <- "2024-01-01"
@@ -56,6 +64,16 @@ site_names <- tbl_sites |>
   select(site_number, site_code, site_name) |>
   arrange(site_number) |>
   collect()
+
+# # Testing provisional site names
+# stn <- c("Alaska - Delta Junction", "Washington - Cheeka Peak", 
+#          "Los Angeles, CA - Pico Rivera", "Riverside, CA - Rubidoux",
+#          "Joshua Tree National Park, CA", "Yellowstone National Park, WY",
+#          "Denver, CO - La Casa", "Houston, TX - Liberty",
+#          "Pittsburgh, PA - Lawrenceville", "New York City, NY - Queens College",
+#          "Atlanta, GA - South DeKalb", "Great Smoky Mountains Nat'l Park, TN - Look Rock")
+# site_names$site_name <- stn
+### TODO: These names look OK, but this won't work until we do it properly in the db
 
 influx_sites <- tibble(site_code = site_list,
                        influx_site = paste("ae33", site_list, "raw", sep = "_"))

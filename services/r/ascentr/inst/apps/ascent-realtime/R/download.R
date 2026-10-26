@@ -47,7 +47,7 @@ downloadServer <- function(id) {
     output$download_note <- renderUI({
       
       url <- a("Geoscience Data Exchange", 
-               href = "https://gdex.ucar.edu/gsearch/dataset-search/?q=ASCENT",
+               href = "https://gdex.ucar.edu/datasets/collections/ascent/",
                target = "_blank")
       p("This page is for downloading small portions of the most recent preliminary data. It may take a few minutes to prepare your data. For fast access to the full archive, please visit the NCAR", url, "(GDEX).")
       
@@ -133,18 +133,27 @@ downloadServer <- function(id) {
       metadata <- isolate(input$metadata)      
       fname <- isolate(filename_noext())
 
+      # testing without explicit call to ascentr (e.g., ascentr::xact_l1b)
       l1b_fn <- switch(instrument,
-                       "Xact" = ascentr::xact_l1b,
-                       "SMPS" = ascentr::smps_l1b_df,
-                       "ACSM" = ascentr::acsm_l1b,
-                       "AE33" = ascentr::ae33_l1b)
+                       "Xact" = xact_l1b,
+                       "SMPS" = smps_l1b_df,
+                       "ACSM" = acsm_l1b,
+                       "AE33" = ae33_l1b)
       meta_fn <- switch(instrument,
-                        "Xact" = ascentr::xact_metadata,
-                        "SMPS" = ascentr::smps_metadata,
-                        "ACSM" = ascentr::acsm_metadata,
-                        "AE33" = ascentr::ae33_metadata)
+                        "Xact" = xact_metadata,
+                        "SMPS" = smps_metadata,
+                        "ACSM" = acsm_metadata,
+                        "AE33" = ae33_metadata)
 
       promises::future_promise({
+
+        # Worker processes (multisession) don't inherit pkgload's attachment
+        # of ascentr's functions, so reload from source if needed. Use the
+        # absolute path from global.R, since the working directory here is
+        # the app folder, not the project root.
+        if (!exists("export_zip_shiny", mode = "function", inherits = TRUE)) {
+          pkgload::load_all(ascentr_root)
+        }
         
         con <- get_db_connection("dataconnection")
         
@@ -163,9 +172,9 @@ downloadServer <- function(id) {
           } else {
             meta <- meta_fn(site, start, end, con, level = "1b")
           }
-          f <- ascentr:::export_zip_shiny(results, meta, fname = fname, temp_file = file)
+          f <- export_zip_shiny(results, meta, fname = fname, temp_file = file)
         } else {
-          f <- ascentr:::export_csv(results, file)
+          f <- export_csv(results, file)
         }
         DBI::dbDisconnect(con)
         f

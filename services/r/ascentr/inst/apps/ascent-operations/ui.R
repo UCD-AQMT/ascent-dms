@@ -7,7 +7,12 @@ function(request) {
       useBusyIndicators(),
       tags$head(tags$style(HTML(".bslib-value-box .value-box-value {font-size: 1.2rem;}")),
                 tags$style(HTML(".bslib-value-box .value-box-showcase {padding: 0rem; font-size: 1rem;}")),
-                tags$style(HTML("* {font-size: 0.9rem;}")))
+                tags$style(HTML("* {font-size: 0.9rem;}")),
+                tags$style(HTML("* {font-size: 0.9rem;}")),
+                tags$link(rel = "icon",
+                          type = "image/png",
+                          href = "ascent-A-500.png")
+      )
     ),
     nav_panel("Network", value = "network", networkUI("network")),
     nav_panel("Site View", value = "site", siteUI("site")),
@@ -16,6 +21,7 @@ function(request) {
     nav_panel("SMPS", value= "smps", smpsUI("smps")),
     nav_panel("Xact", value = "xact", xactUI("xact")),
     nav_panel("Purple Air", value = "pa", paUI("pa")),
+    #nav_panel("Intercomparison", value = "intercomparison", intercomparisonUI("intercomparison")),
     nav_spacer(),
     nav_item(selectInput("site_all", "", choices = site_list)),
     nav_item(input_dark_mode(id = "mode"))
