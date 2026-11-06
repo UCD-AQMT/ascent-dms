@@ -12,50 +12,60 @@ networkUI <- function(id) {
   
 }
 
+# Latest sample time per site for the four Postgres instruments, in a single
+# round trip. Only the last 7 days are searched so the time indexes can be used;
+# sites with no recent data are filled in as offline downstream. ACSM also needs
+# an upper bound to remove future dates caused by the end-of-year bug.
+pg_status_sql <- '
+SELECT s.site_code, v.instrument AS "Instrument", v.last AS "Last"
+FROM (
+  SELECT site_number, \'Xact\' AS instrument, max(sample_datetime) AS last
+    FROM xact.sample_analysis
+    WHERE sample_datetime > $1::timestamptz
+    GROUP BY site_number
+  UNION ALL
+  SELECT site_number, \'SMPS\', max(sample_start)
+    FROM smps.sample_analysis
+    WHERE sample_start > $1::timestamptz
+    GROUP BY site_number
+  UNION ALL
+  SELECT site_number, \'ACSM\', max(start_date)
+    FROM acsm.sample_analysis
+    WHERE start_date < $2::timestamptz AND start_date > $1::timestamptz
+    GROUP BY site_number
+  UNION ALL
+  SELECT sen.site_number, \'PurpleAir\', max(p.last_seen)
+    FROM purpleair.sample_analysis p
+    JOIN purpleair.sensors sen USING (sensor_index)
+    WHERE p.last_seen > $1::timestamptz
+    GROUP BY sen.site_number
+) v
+JOIN common.sites s USING (site_number)'
+
 networkServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
-    xact_status <- reactive({
+    pg_status <- reactive({
       reload_heartbeat()
-      df <- tbl(con, I("xact.sample_analysis")) |>
-        select(site_number, sample_datetime, sample_type) |>
-        inner_join(select(tbl_sites, site_number, site_code),
-                   by = "site_number") |>
-        summarise(Last = max(sample_datetime, na.rm = TRUE),
-                  .by = site_code) |>
-        collect() |>
-        mutate(Lag = difftime(Sys.time(), Last, units = "hours"),
-               HoursAllowed = if_else(site_code %in% rural_sites, 12, 4),
-               Status = if_else(Lag < HoursAllowed, "online",
-                                if_else(Lag < 24, "lagging", "offline")),
-               Instrument = "Xact") |>
-        select(site_code, Instrument, Lag, Status)
       
-    })
-    
-    smps_status <- reactive({
-      reload_heartbeat()
-      df <- tbl(con, I("smps.sample_analysis")) |>
-        inner_join(select(tbl_sites, site_code, site_number), 
-                   by = "site_number") |>
-        select(site_code, sample_start) |>
-        summarise(Last = max(sample_start, na.rm = TRUE),
-                  .by = site_code) |>
-        collect() |>
-        mutate(Lag = difftime(Sys.time(), Last, units = "hours"),
-               HoursAllowed = 1,
-               Status = if_else(Lag < HoursAllowed, "online",
-                                if_else(Lag < 24, "lagging", "offline")),
-               Instrument = "SMPS") |>
-        select(site_code, Instrument, Lag, Status)
+      now <- Sys.time()
+      cutoff <- now - 7 * 24 * 3600
       
+      DBI::dbGetQuery(con, pg_status_sql, params = list(cutoff, now)) |>
+        as_tibble() |>
+        mutate(Lag = difftime(Sys.time(), Last, units = "hours"),
+               HoursAllowed = if_else(Instrument == "Xact" & site_code %in% rural_sites, 12,
+                                      if_else(Instrument == "Xact", 4, 1)),
+               Status = if_else(Lag < HoursAllowed, "online",
+                                if_else(Lag < 24, "lagging", "offline"))) |>
+        select(site_code, Instrument, Lag, Status)
       
     })
     
     ae33_status <- reactive({
       reload_heartbeat()
       flux_query <- glue::glue('from(bucket: "measurements") |> ', 
-                               'range(start: 0, stop: -0s) |> ',
+                               'range(start: -7d) |> ',
                                'filter(fn: (r) => r._field == "STinst") |> ',
                                'sort(columns: ["_time"], desc: true) |> ',
                                'limit(n:1) |>',
@@ -81,47 +91,6 @@ networkServer <- function(id) {
       
     })
     
-    acsm_status <- reactive({
-      reload_heartbeat()
-
-      now <- Sys.time()
-      
-      df <- tbl(con, I("acsm.sample_analysis")) |>
-        inner_join(select(tbl_sites, site_code, site_number), 
-                   by = "site_number") |>
-        filter(start_date < now) |> # Need to remove negatives because of acsm end of year bug
-        select(site_code, start_date) |>
-        summarise(Last = max(start_date, na.rm = TRUE),
-                  .by = site_code) |>
-        collect() |>
-        mutate(Lag = difftime(Sys.time(), Last, units = "hours"),
-               HoursAllowed = 1,
-               Status = if_else(Lag < HoursAllowed, "online",
-                                if_else(Lag < 24, "lagging", "offline")),
-               Instrument = "ACSM") |>
-        select(site_code, Instrument, Lag, Status)
-
-    })
-    
-    pa_status <- reactive({
-      reload_heartbeat()
-      df <- tbl(con, I("purpleair.sample_analysis")) |>
-        inner_join(tbl(con, I("purpleair.sensors")), by = "sensor_index") |>
-        inner_join(select(tbl_sites, site_code, site_number), 
-                   by = "site_number") |>
-        select(site_code, last_seen) |>
-        summarise(Last = max(last_seen, na.rm = TRUE),
-                  .by = site_code) |>
-        collect() |>
-        mutate(Lag = difftime(Sys.time(), Last, units = "hours"),
-               HoursAllowed = 1,
-               Status = if_else(Lag < HoursAllowed, "online",
-                                if_else(Lag < 24, "lagging", "offline")),
-               Instrument = "PurpleAir") |>
-        select(site_code, Instrument, Lag, Status)
-      
-    })
-    
     reload_heartbeat <- reactiveVal(0)
     
     status_df <- reactive({
@@ -129,13 +98,10 @@ networkServer <- function(id) {
       invalidateLater(1000 * 60 * 10) # every ten minutes
       isolate(reload_heartbeat(reload_heartbeat() + 1))
       
-      xact <- xact_status()
-      acsm <- acsm_status()
-      pa <- pa_status()
+      pg <- pg_status()
       ae33 <- ae33_status()
-      smps <- smps_status()
 
-      bind_rows(xact, acsm, pa, ae33, smps) |>
+      bind_rows(pg, ae33) |>
         select(-Lag) |>
         tidyr::pivot_wider(names_from = Instrument, values_from = Status) |>
         inner_join(site_names, by = "site_code") |>

@@ -5,10 +5,6 @@ siteUI <- function(id) {
   today <- Sys.Date() + 1
   start_day <- today - 7
   
-  elems <- tbl(con, I("xact.element_params")) |>
-    arrange(atomic_number) |>
-    pull(element)
-  
   layout_sidebar(
     sidebar = sidebar(
       dateRangeInput(ns("dates"), "Dates", start = start_day, end = today,
@@ -18,7 +14,7 @@ siteUI <- function(id) {
                                         "Purple Air"="purpleair",
                                         "ACSM + BC + Xact (minus S)"="acsm"),
                             selected = c("smps", "purpleair", "acsm")),
-      selectInput(ns("elements"), "Elements", choices = elems, multiple = TRUE, 
+      selectInput(ns("elements"), "Elements", choices = xact_elements, multiple = TRUE, 
                             selected = c("S", "Si", "Cl", "K", "Al", "Fe", "Ca")),
       selectInput(ns("fraction"), "Mass Fraction", 
                             choices = c("Total Mass", "Fraction of Mass"),

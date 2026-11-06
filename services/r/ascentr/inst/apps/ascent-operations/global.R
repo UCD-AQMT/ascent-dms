@@ -53,6 +53,49 @@ site_names <- tbl_sites |>
   select(site_number, site_code, site_name) |>
   collect()
 
+# Static lookups for the module UIs (dropdown choices). Done once at startup so
+# building each session's UI doesn't need database round trips.
+acsm_options <- tbl(con, I("acsm.sample_analysis")) |>
+  inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
+  inner_join(select(tbl(con, I("acsm.tps")), -id, -site_record_id),
+             by = c("id"="sample_analysis_id")) |>
+  inner_join(select(tbl(con, I("acsm.mass_loadings")), -id, -site_record_id),
+             by = c("id"="sample_analysis_id")) |>
+  inner_join(select(tbl(con, I("acsm.diag_calib")), -id, -site_record_id),
+             by = c("id"="sample_analysis_id")) |>
+  filter(1==0) |>
+  collect() |>
+  colnames()
+
+# Dryerstats: Don't include rh_3 an t_3. Those are connected to the AE33!
+acsm_dryer_options <- tbl(con, I("acsm.dryer_stats")) |>
+  filter(1==0) |>
+  select(-rh_3, -t_3) |>
+  collect() |>
+  colnames()
+
+smps_options <- tbl(con, I("smps.sample_analysis")) |>
+  select(-concentration_json, -raw_concentration_json) |>
+  filter(1 == 0) |>
+  collect() |>
+  select(sample_start, where(is.numeric)) |>
+  colnames()
+
+pa_options <- tbl(con, I("purpleair.sample_analysis")) |>
+  filter(1 == 0) |>
+  select(-last_seen) |>
+  collect() |>
+  colnames()
+
+xact_options <- tbl(con, I("xact.sample_analysis")) |>
+  filter(1 == 0) |>
+  collect() |>
+  colnames()
+
+xact_elements <- tbl(con, I("xact.element_params")) |>
+  arrange(atomic_number) |>
+  pull(element)
+
 
 # This is for influxdb
 ae33_client <- InfluxDBClient$new(url = "https://eastus-1.azure.cloud2.influxdata.com",

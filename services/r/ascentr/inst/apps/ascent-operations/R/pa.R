@@ -3,12 +3,6 @@ paUI <- function(id) {
   
   ns <- NS(id)
   
-  df <- tbl(con, I("purpleair.sample_analysis")) |>
-    filter(1 == 0) |>
-    select(-last_seen) |>
-    collect()
-  options <- colnames(df)
-
   page_fillable(
     layout_column_wrap(
       width = "200px",
@@ -31,7 +25,7 @@ paUI <- function(id) {
     ),
     card(
       layout_sidebar(
-        sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = options,
+        sidebar = sidebar(selectInput(ns("plot1_y"), "Parameter", choices = pa_options,
                                       multiple = TRUE, 
                                       selected = c("pm1_0_atm", "pm2_5_atm", "pm10_0_atm"))),
         plotlyOutput(ns("plot1"), fill = TRUE)
@@ -40,7 +34,7 @@ paUI <- function(id) {
     ),
     card(
       layout_sidebar(
-        sidebar = sidebar(selectInput(ns("plot2_y"), "Parameter", choices = options,
+        sidebar = sidebar(selectInput(ns("plot2_y"), "Parameter", choices = pa_options,
                                       multiple = TRUE, 
                                       selected = c("pm2_5_atm_a", "pm2_5_atm_b", "pm2_5_atm"))),
         plotlyOutput(ns("plot2"))

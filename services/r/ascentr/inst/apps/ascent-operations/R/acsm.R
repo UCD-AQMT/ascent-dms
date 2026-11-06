@@ -3,32 +3,6 @@ acsmUI <- function(id) {
   
   ns <- NS(id)
   
-  # ACSM tables
-  sa <- tbl(con, I("acsm.sample_analysis"))
-  tps <- tbl(con, I("acsm.tps"))
-  mls <- tbl(con, I("acsm.mass_loadings"))
-  calib <- tbl(con, I("acsm.diag_calib"))
-  ds <- tbl(con, I("acsm.dryer_stats"))
-  
-  # Get the tablenames
-  df <- sa |>
-    inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
-    inner_join(select(tps, -id, -site_record_id),
-               by = c("id"="sample_analysis_id")) |>
-    inner_join(select(mls, -id, -site_record_id), by = c("id"="sample_analysis_id")) |>
-    inner_join(select(calib, -id, -site_record_id), 
-               by = c("id"="sample_analysis_id")) |>
-    filter(1==0) |>
-    collect()
-  options <- colnames(df)
-  
-  # Dryerstats: Don't include rh_3 an t_3. Those are connected to the AE33!
-  df <- ds |>
-    filter(1==0) |>
-    select(-rh_3, -t_3) |>
-    collect()
-  opts_dryer <- colnames(df)
-  
   page_fillable(
     gap = "8px",
     layout_column_wrap(
@@ -71,10 +45,10 @@ acsmUI <- function(id) {
       layout_column_wrap(
         width = 1,
         card(
-          selectInput(ns("plot1_y"), label = NULL, choices = options, multiple = TRUE,
+          selectInput(ns("plot1_y"), label = NULL, choices = acsm_options, multiple = TRUE,
                       selected = c("ab_total", "abref")),
           plotlyOutput(ns("plot1")),
-          selectInput(ns("plot2_y"), label = NULL, choices = opts_dryer, multiple = TRUE,
+          selectInput(ns("plot2_y"), label = NULL, choices = acsm_dryer_options, multiple = TRUE,
                       selected = c("rh_dry", "rh_in")),
           plotlyOutput(ns("plot2")),
           full_screen = TRUE

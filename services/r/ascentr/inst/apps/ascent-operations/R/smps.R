@@ -3,13 +3,6 @@ smpsUI <- function(id) {
   
   ns <- NS(id)
   
-  df <- tbl(con, I("smps.sample_analysis")) |>
-    select(-concentration_json, -raw_concentration_json) |>
-    filter(1 == 0) |>
-    collect() |>
-    select(sample_start, where(is.numeric))
-  options <- colnames(df)
-  
   page_fillable(
     gap = "8px",
     layout_column_wrap(
@@ -46,10 +39,10 @@ smpsUI <- function(id) {
       layout_column_wrap(
         width = 1,
         card(
-          selectInput(ns("plot1_y"), label = NULL, choices = options, multiple = TRUE,
+          selectInput(ns("plot1_y"), label = NULL, choices = smps_options, multiple = TRUE,
                       selected = "total_concentration"),
           plotlyOutput(ns("plot1")),
-          selectInput(ns("plot2_y"), label = NULL, choices = options, multiple = TRUE,
+          selectInput(ns("plot2_y"), label = NULL, choices = smps_options, multiple = TRUE,
                       selected = "geo_mean"),
           plotlyOutput(ns("plot2")),
           full_screen = TRUE
