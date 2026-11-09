@@ -176,6 +176,15 @@ monthly_l1b <- function(site, month_date, instrument, folder, con, influx_con = 
 }
 
 
+#' Title
+#'
+#' @param df 
+#' @param outfile 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 export_csv <- function(df, outfile) {
   
   # Convert all POSIX to formatted strings
@@ -201,6 +210,17 @@ export_zip <- function(df, meta, folder, fname) {
    
 }
 
+#' Title
+#'
+#' @param df 
+#' @param meta 
+#' @param fname 
+#' @param temp_file 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
 export_zip_shiny <- function(df, meta, fname, temp_file) {
   
   temp_dir <- file.path(tempdir(), as.integer(Sys.time()))

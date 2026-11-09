@@ -39,6 +39,12 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
                                    "SMPS" = "TSI Scanning Mobility Particle Sizer (SMPS) Model 3938",
                                    "AE33" = "Magee Aethalometer Model AE33",
                                    "ACSM" = "Aerodyne Time-of-Flight Aerosol Chemical Speciation Monitor (TOF-ACSM)")
+  
+  doi <- switch(instrument,
+                "Xact" = "DOI: 10.5065/52Y1-P893",
+                "SMPS" = "DOI: 10.5065/14HK-Y327",
+                "AE33" = "DOI: 10.5065/KAT3-2Z83",
+                "ACSM" = "DOI: 10.5065/0BRS-XQ16")
 
   level <- switch(level,
                   "0" = "Level 0. Raw instrument data",
@@ -65,6 +71,7 @@ basic_metadata <- function(site, instrument, start_dt, end_dt, level, con) {
   
   metadata_text <- glue::glue("ASCENT Site: {site_info$site_name}\n",
                         "Instrument: {instrument_description}\n",
+                        "{doi}\n",
                         "Data Level: {level}\n",
                         "Time Period: {start_dt} - {end_dt}\n",
                         "\n",

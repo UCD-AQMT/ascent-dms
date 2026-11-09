@@ -320,35 +320,38 @@ ae33_l1b <- function(site, start_dt, end_dt, con) {
   # Make sure data are arranged
   df <- arrange(df, sample_datetime_UTC)
   
-  # Originally, AE33's were set to the incorrect C value. Each site changed at a different
-  # time. Change is stored in this data file
-  c_change_path <- system.file("ae33_c_value_change_date.csv", package="ascentr")
-  c_change <- read.csv(c_change_path, stringsAsFactors = FALSE) |>
-    mutate(c_value_change_date = as.POSIXct(c_value_change_date, tz = "UTC")) |>
-    filter(site_code == site) |>
-    pull(c_value_change_date)
+  # Settings changes happened a bunch of times. Our only recourse is to unwind them where
+  # they occurred. These include C value, STP temp, and time stamp start vs. end.
   
-  correction_factor <- 1.57 / 1.39
+  settings_path <- system.file("ae33_settings_history.csv", package="ascentr")
+  settings <- read.csv(settings_path, stringsAsFactors = FALSE) |>
+    mutate(set_time = as.POSIXct(SetupStartTime, format = "%m/%d/%Y %H:%M", tz = "utc"))
   
-  # If change happened after start_dt, at least some must be updated
-  if (c_change > start_dt) {
-    # If change is after end_dt, all of it needs to be updated, otherwise partial
-    if (c_change > end_dt) {
-      print("Data prior to C value update - applying correction")
-      df <- df |>
-        mutate(across(starts_with("bc"), ~.x * correction_factor))
-    } else {
-      print("Partial data prior to C value update - applying correction to earlier data")
-      df_pre <- df |>
-        filter(sample_datetime_UTC < c_change)
-      df_post <- setdiff(df, df_pre)
-      df_pre <- df_pre |>
-        mutate(across(starts_with("bc"), ~.x * correction_factor))
-      df <- bind_rows(df_pre, df_post)
-    }
-  }
+  df <- df |>
+    left_join(settings, by = join_by(site_number==Site, closest(sample_datetime_UTC >= set_time)))
 
-  # Auto-qc
+  if (any(is.na(df$set_time))) {
+    warning("Missing updated AE33 settings information for ", site, " ", start_dt,
+            " - no updates applied")
+  } else {
+    
+    df <- df |>
+      # adjust for the correct C value
+      mutate(across(starts_with("bc"), ~.x * C / 1.39)) |>
+      # adjust timestamp if it is set to end instead of begin (0 is begin, 1 is end)
+      mutate(sample_datetime_UTC = if_else(TimeStamp != 0, sample_datetime_UTC - 60,
+                                           sample_datetime_UTC))
+    
+      # adjust concentrations if STP temperature is not 0
+    df <- df |>
+      mutate(across(starts_with("bc"), ~.x * (273.15 / (273.15 + T)) ))
+    
+    # remove joined fields
+    df <- select(df, site_number:site_record_id)
+  }
+  
+
+  #### Auto-qc --
 
 
   # parse the statuses into flags.

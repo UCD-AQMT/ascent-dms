@@ -71,14 +71,22 @@ ae33Server <- function(id, site) {
       invalidateLater(1000 * 60 * 3) # every three minutes
       
       # Using this sort |> limit approach is much fast than last()!
-      flux_query <- glue::glue('from(bucket: "measurements") |> ', 
-                               'range(start: 0, stop: -0s) |> ',
-                               'filter(fn: (r) => r._measurement == "ae33_{site()}_raw" and ',
-                               'r._field == "STinst") |> ',
-                               'sort(columns: ["_time"], desc: true) |> ',
-                               'limit(n:1)'
-                               )
-      ae33_client$query(flux_query)[[1]]
+      # Try a bounded range first (fast); only scan all history if the site has
+      # no recent data, so long-offline sites still report their last data.
+      last_query <- function(range) {
+        glue::glue('from(bucket: "measurements") |> ', 
+                   'range({range}) |> ',
+                   'filter(fn: (r) => r._measurement == "ae33_{site()}_raw" and ',
+                   'r._field == "STinst") |> ',
+                   'sort(columns: ["_time"], desc: true) |> ',
+                   'limit(n:1)'
+        )
+      }
+      res <- ae33_client$query(last_query("start: -7d"))
+      if (length(res) == 0) {
+        res <- ae33_client$query(last_query("start: 0, stop: -0s"))
+      }
+      res[[1]]
 
     })
     

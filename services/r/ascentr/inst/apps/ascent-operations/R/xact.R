@@ -3,15 +3,6 @@ xactUI <- function(id) {
   
   ns <- NS(id)
   
-  df <- tbl(con, I("xact.sample_analysis")) |>
-    filter(1 == 0) |>
-    collect()
-  options <- colnames(df)
-  
-  elems <- tbl(con, I("xact.element_params")) |>
-    arrange(atomic_number) |>
-    pull(element)
-  
   page_fillable(
     gap = "8px",
     layout_column_wrap(
@@ -58,7 +49,7 @@ xactUI <- function(id) {
       ),
       card(
         layout_sidebar(
-          sidebar = sidebar(selectInput(ns("plot2_y"), "Parameter", choices = options,
+          sidebar = sidebar(selectInput(ns("plot2_y"), "Parameter", choices = xact_options,
                                         selected = "tape")),
           plotlyOutput(ns("plot2"), height = "250px"),
           padding = c(0,5,0,5)
@@ -72,7 +63,7 @@ xactUI <- function(id) {
       gap = "8px",
       card(
         layout_sidebar(
-          sidebar = sidebar(selectInput(ns("element"), "Element", choices = elems,
+          sidebar = sidebar(selectInput(ns("element"), "Element", choices = xact_elements,
                                         selected = "S")),
           plotlyOutput(ns("ts"), fill = TRUE),
           height = "250px",
@@ -83,7 +74,7 @@ xactUI <- function(id) {
       ),
       card(
         layout_sidebar(
-          sidebar = sidebar(selectInput(ns("element_list"), "Elements", choices = elems,
+          sidebar = sidebar(selectInput(ns("element_list"), "Elements", choices = xact_elements,
                                         multiple = TRUE, selected = c("S","K"))),
           plotlyOutput(ns("stacked"), height = "400px"),
           padding = c(0,5,0,5)
@@ -137,7 +128,9 @@ xactServer <- function(id, site) {
       
     })
     
-    get_elements <- reactive({
+    # One query for both sample types (1 = ambient, 2 = QC) so switching the
+    # upscale element doesn't trigger a second round trip.
+    get_raw <- reactive({
       
       # Use date range from get_range() to determine query range
       range <- get_range()
@@ -150,7 +143,7 @@ xactServer <- function(id, site) {
                    by = c("sample_analysis_id"="id")) |>
         inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
         filter(site_code == !!site(),
-               sample_type == 1,
+               sample_type %in% c(1, 2),
                sample_datetime >= first,
                sample_datetime <= last) |>
         arrange(desc(sample_datetime)) |>
@@ -158,25 +151,12 @@ xactServer <- function(id, site) {
       
     })
     
+    get_elements <- reactive({
+      filter(get_raw(), sample_type == 1)
+    })
+    
     get_qc_samples <- reactive({
-      
-      # Use date range from get_range() to determine query range
-      range <- get_range()
-      first <- min(range$sample_datetime)
-      last <- max(range$sample_datetime)
-      
-      df <- tbl(con, I("xact.raw_measurements")) |>
-        select(-id, -site_record_id, -site_number) |>
-        inner_join(tbl(con, I("xact.sample_analysis")),
-                   by = c("sample_analysis_id"="id")) |>
-        inner_join(select(tbl_sites, site_number, site_code), by = "site_number") |>
-        filter(site_code == !!site(),
-               sample_type == 2,
-               sample_datetime >= first,
-               sample_datetime <= last) |>
-        arrange(desc(sample_datetime)) |>
-        collect()
-
+      filter(get_raw(), sample_type == 2)
     })
     
     make_valuebox <- function(title, value, theme) {
